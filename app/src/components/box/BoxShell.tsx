@@ -1,30 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "motion/react";
-import { useKeelState } from "@/components/KeelStateProvider";
-import { useMedia } from "@/lib/ui/useMedia";
 import { BoxNav } from "./BoxNav";
-
-/** The panel pushes the page only when the page keeps room for its file table; narrower, it overlays. */
-export const PUSH_MIN_WIDTH = 1180;
-export const PUSH_QUERY = `(min-width: ${PUSH_MIN_WIDTH}px)`;
 import { BoxWordmark, IconBell, IconPlusCircle, IconSearch } from "./icons";
+
+export { PUSH_MIN_WIDTH, PUSH_QUERY } from "./BoxPush";
 
 /** The Box web app frame: 56 px header with wordmark, search, ⊕, bell and the user chip; left nav; content. */
 export function BoxShell({ children }: { children: React.ReactNode }) {
-  const { panel } = useKeelState();
-  // Like Box's own sidebar, the open panel pushes the page instead of covering it. Below PUSH_MIN_WIDTH it overlays.
-  const wide = useMedia(PUSH_QUERY);
-  const push = panel.open && wide ? 420 : 0;
   return (
-    <motion.div
-      className="box-root flex h-screen min-h-0 flex-col overflow-hidden bg-white text-[14px] text-[#222222]"
-      initial={false}
-      animate={{ paddingRight: push }}
-      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-      data-testid="box-shell"
-    >
+    <div className="box-root flex h-screen min-h-0 flex-col overflow-hidden bg-white text-[14px] text-[#222222]">
       <header className="flex h-14 shrink-0 items-center gap-4 border-b border-[#E8E8E8] bg-white pl-5 pr-4">
         <Link href="/" className="flex w-[52px] min-[1100px]:w-[200px] shrink-0 items-center" aria-label="Box, All Files">
           <BoxWordmark height={24} />
@@ -59,6 +44,6 @@ export function BoxShell({ children }: { children: React.ReactNode }) {
         <BoxNav />
         <div className="flex min-w-0 flex-1">{children}</div>
       </div>
-    </motion.div>
+    </div>
   );
 }

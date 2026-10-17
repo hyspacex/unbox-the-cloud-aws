@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { PUSH_QUERY } from "@/components/box/BoxShell";
+import { PUSH_QUERY } from "@/components/box/BoxPush";
 import { useKeelState, type KeelState } from "@/components/KeelStateProvider";
 import { useMedia } from "@/lib/ui/useMedia";
 import { Owl } from "./Owl";

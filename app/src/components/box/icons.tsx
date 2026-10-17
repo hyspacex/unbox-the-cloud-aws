@@ -34,6 +34,8 @@ export const IconChevronRight = ({ size = 12, className }: P) => (
     <path d="m4.5 3 3 3-3 3" />
   </svg>
 );
+export const IconBack = ({ size = 20, className }: P) => svg(size, className, <><path d="M16 10H4.5" /><path d="M9 5 4 10l5 5" /></>);
+export const IconCheck = ({ size = 16, className }: P) => svg(size, className, <path d="m4.5 10.5 3.5 3.5 7.5-8" />);
 export const IconMore = ({ size = 20, className }: P) => (
   <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor" aria-hidden className={className}>
     <circle cx="5" cy="10" r="1.4" />

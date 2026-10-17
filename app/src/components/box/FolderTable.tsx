@@ -178,7 +178,11 @@ function FileRow({
     >
       <span role="cell" className="flex min-w-0 items-center gap-3 pl-3 pr-4">
         <FileTypeIcon size={32} />
-        <Link href="/" onClick={(e) => e.preventDefault()} className="flex min-w-0 text-[14px] font-bold text-[#222222] hover:text-[#0061D5] hover:underline">
+        <Link
+          href={`/files/${encodeURIComponent(f.file_id)}?v=${encodeURIComponent(f.version_id)}`}
+          className="flex min-w-0 text-[14px] font-bold text-[#222222] hover:text-[#0061D5] hover:underline"
+          data-testid={`file-link-${f.file_name}`}
+        >
           <FileName name={f.file_name} />
         </Link>
         <AnimatePresence>

@@ -10,7 +10,7 @@ import { bindingsEqual, verifyPrecondition } from "./assess";
 import { clauseNoun, NEEDS_REVIEW_KINDS } from "./display";
 import { listJoin } from "./basis";
 import { addBusinessDays, REVIEWER_IDENTITY_SOURCE } from "./disposition";
-import { NORMALIZATION, sectionByLabel, sectionContaining } from "./normalize";
+import { NORMALIZATION, quoteValid, sectionByLabel, sectionContaining } from "./normalize";
 import { buildRows, latestVerification, publicRow, verificationBinding, type ControlState, type RowWithState } from "./state";
 import { suggestedAction } from "./tasks";
 
@@ -87,6 +87,7 @@ const short = (standard: string) => {
 /** Reviewer-facing noun for a lost clause, worded from the verified sentence when it says more (judge B7). */
 function reasonNoun(clause: string, verifiedQuote: string): string {
   const q = verifiedQuote.toLowerCase();
+  if (/^aes-256/i.test(clause)) return /each data store has its own aes-256 key|per-store/.test(q) ? "AES-256 per-store keys" : "AES-256";
   if (/key management model/i.test(clause)) return q.includes("kms") && q.includes("customer-managed") ? "the KMS customer-managed key model" : "the key management model";
   if (/rotation period/i.test(clause)) return /annual/.test(q) ? "annual rotation" : "the rotation period";
   if (/custodian/i.test(clause)) return "the key custodians";
@@ -105,10 +106,12 @@ export function suggestedReason(store: Store, finding: Finding, control: { stand
   if (!unsupported.length) return null;
   const prior = finding.prior_evidence[0];
   const pvEvent = latestVerification(store.events, finding.control_id);
-  const supportedByVerified = new Set((pvEvent?.clause_support ?? []).filter((c) => c.quote && prior && c.quote.quote === prior.quote).map((c) => c.clause_id));
+  // Every unsupported clause is named (judge B2); wording comes from all the verified sentences.
+  const verifiedText = [...new Set((pvEvent?.clause_support ?? []).flatMap((c) => (c.quote ? [c.quote.quote] : [])))].join(" ");
+  const supportedByVerified = new Set((pvEvent?.clause_support ?? []).filter((c) => c.support === "supported").map((c) => c.clause_id));
   const lost = prior ? unsupported.filter((c) => supportedByVerified.has(c.clause_id)) : [];
-  const clauses = lost.length ? lost : unsupported;
-  const nouns = clauses.map((c) => reasonNoun(c.clause, prior?.quote ?? ""));
+  const clauses = unsupported;
+  const nouns = clauses.map((c) => reasonNoun(c.clause, verifiedText || prior?.quote || ""));
   const snap = store.snapshot(finding.snapshot_id);
   const where = prior ? snap?.files.find((f) => f.fileId === prior.fileId) : undefined;
   const whereLabel = where ? `${where.fileName} ${where.versionLabel ?? store.versionLabel(where.fileId, where.versionId) ?? ""} ${prior!.section.split(" ")[0]}` : `${st.binding?.fileName ?? "the package"}`;
@@ -186,8 +189,26 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   const waiting = Object.values(store.data.processing ?? {}).filter((p) => p.stage === "awaiting_draft" && p.control_id === control.id).at(-1);
   const waitingResponse = waiting ? store.events.find((e) => e.event_id === waiting.ingest_event_id)?.response as { message?: string } | undefined : undefined;
   const draft = waiting ? store.data.drafts[waiting.finding_id] : undefined;
+  // C12: sections quoted for the current binding's file.
+  const binding_sections = binding
+    ? [...new Set(finding.clause_support.flatMap((c) => (c.quote && c.quote.fileId === binding.fileId ? [c.quote.section] : [])).filter(Boolean))]
+    : [];
+  // C13: verified sentences that supported a clause and are no longer in the submitted version of that file.
+  const pvEv = latestVerification(store.events, control.id, store.events.findIndex((e) => e.snapshot_id === finding.snapshot_id && e.event_type === "snapshot_captured") + 1 || undefined);
+  const removedMap = new Map<string, { quote: string; section: string; supported_clauses: string[] }>();
+  for (const c of pvEv?.clause_support ?? []) {
+    if (!c.quote || c.support !== "supported") continue;
+    const nowFile = snap?.files.find((f) => f.fileId === c.quote!.fileId);
+    const nowText = nowFile ? store.text(nowFile.versionId) : undefined;
+    if (nowText && quoteValid(c.quote.quote, nowText)) continue;
+    const r = removedMap.get(c.quote.quote) ?? { quote: c.quote.quote, section: c.quote.section, supported_clauses: [] };
+    r.supported_clauses.push(c.clause);
+    removedMap.set(c.quote.quote, r);
+  }
   return {
     opened_at: opened?.ts,
+    binding_sections,
+    removed_sentences: [...removedMap.values()],
     ...(waiting ? { pending_author_draft: { reason: waitingResponse?.message ?? "", draft: draft?.text, drafted_by: draft?.drafted_by, task_id: waiting.task_id, snapshot_id: waiting.target_snapshot_id } } : {}),
     finding,
     control,

@@ -176,6 +176,8 @@ export interface RunSummary {
   compressed_timing: boolean;
   scenario?: string;
   error?: string;
+  /** The run's recorded outcome (count lines and rows), for replay. */
+  outcome?: RunRecord["outcome"];
 }
 
 /** Recorded runs, newest first. Read-only: replaying one is GET /api/run/[id], which never changes state. */
@@ -196,6 +198,7 @@ export function listRuns(): { runs: RunSummary[] } {
       compressed_timing: r.compressed_timing,
       scenario: r.scenario,
       error: r.error,
+      outcome: r.outcome,
     }];
   });
   return { runs };

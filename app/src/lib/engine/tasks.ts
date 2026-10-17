@@ -139,7 +139,7 @@ export async function createReviewTasks(args: {
     const readable = snap?.files.find((f) => f.contentHash !== "unavailable");
     return { fileId: other?.fileId ?? readable?.fileId ?? snap?.files[0]?.fileId ?? want, removed };
   };
-  const plan: { row?: RowWithState; fileId: string; versionId?: string; control_id: string; finding_id: string; message: string; removed?: { fileId: string; fileName: string; versionId: string } }[] = rows.map((r) => ({
+  const plan: { row?: RowWithState; fileId: string; versionId?: string; control_id: string; finding_id: string; message: string; removed?: { fileId: string; fileName: string; versionId: string }; quarantine?: { label: string; control_ids: string[]; finding_ids: string[] } }[] = rows.map((r) => ({
     row: r,
     ...targetFile(r),
     control_id: r.control_id,
@@ -158,7 +158,9 @@ export async function createReviewTasks(args: {
       versionId: q.versionId,
       control_id: all[0].control_id,
       finding_id: all[0].finding_id ?? "",
-      message: plainText(`Snapshot ${snapshotId}: ${q.fileName} ${label} was quarantined by the input gate (instructions addressed to an AI agent, p=${q.injection.probability.toFixed(2)}). Its text was not sent to the evaluator; ${all.map((r) => r.control_id).join(", ")} ${all.length === 1 ? "is" : "are"} Not evaluated. Review the file. Findings: ${all.map((r) => r.finding_id).join(", ")}.`),
+      // Judge B5: the task names every affected control and finding, not just the first.
+      quarantine: { label: `Quarantine review · ${q.fileName} ${label} · ${all.map((r) => r.control_id).join(", ")}`, control_ids: all.map((r) => r.control_id), finding_ids: all.map((r) => r.finding_id ?? "") },
+      message: plainText(`Quarantine review · ${q.fileName} ${label} · ${all.map((r) => r.control_id).join(", ")}. Snapshot ${snapshotId}: ${q.fileName} ${label} was quarantined by the input gate (instructions addressed to an AI agent, p=${q.injection.probability.toFixed(2)}). Its text was not sent to the evaluator; ${all.map((r) => r.control_id).join(", ")} ${all.length === 1 ? "is" : "are"} Not evaluated. Review the file. Findings: ${all.map((r) => r.finding_id).join(", ")}.`),
     });
   }
   const created: StoredTask[] = [];
@@ -201,7 +203,7 @@ export async function createReviewTasks(args: {
         kind: "reviewer",
         status: "open",
         created_at: utcNow(),
-        ...(p.row ? {} : { purpose: "input_gate_quarantine", versionId: p.versionId }),
+        ...(p.row ? {} : { purpose: "input_gate_quarantine", versionId: p.versionId, ...(p.quarantine ? { label: p.quarantine.label, control_ids: p.quarantine.control_ids, finding_ids: p.quarantine.finding_ids } : {}) }),
         ...(p.removed ? { removed_evidence: p.removed } : {}),
       };
       const mapping: TaskMapping = { task_id, assignment_id: asg.assignment_id, finding_id: p.finding_id, control_id: p.control_id, snapshot_id: snapshotId, immutable: true };

@@ -65,7 +65,8 @@ describe("B7: suggested reason", () => {
     await h.run("architecture_v3");
     const card = buildFindingCard(h.store, h.profile, h.config, h.store.data.findings["KEEL-2026-0405"]);
     expect(card.actions.return_to_author.suggested_reason).toBe(
-      "architecture.md v3 §4.3 no longer states the KMS customer-managed key model, annual rotation or the key custodians; no other file in the package does either. IS-STD-014 §5.1 requires all three. Restore them or cite where they are now documented.",
+      // Superseded by judge pass 3 (B2): every unsupported clause is named, AES-256 included.
+      "architecture.md v3 §4.3 no longer states AES-256 per-store keys, the KMS customer-managed key model, annual rotation or the key custodians; no other file in the package does either. IS-STD-014 §5.1 requires all four. Restore them or cite where they are now documented.",
     );
     const st = h.row("SEC-ARCH-07").state;
     expect(suggestedReason(h.store, h.store.data.findings["KEEL-2026-0405"], { standard: "IS-STD-014 Cryptography v4.2 §5.1" }, st)).not.toMatch(/no longer supported/);

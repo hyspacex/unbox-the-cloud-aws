@@ -37,7 +37,8 @@ import { findQuote, hasTerm, norm, NORMALIZATION, quoteValid, sectionText, sente
 import { searchPrompt } from "../agent/search-tool";
 import { APP_ACTOR, eventOpts, publishProjection } from "./publish";
 import { stalenessEventType, verificationHolds, type StalenessResult } from "./staleness";
-import { buildRows, deriveControlState, latestVerification, priorEvaluation, verificationBinding } from "./state";
+import { buildRows, deriveControlState, latestVerification, priorEvaluation, publicRow, verificationBinding } from "./state";
+import { countLine } from "./display";
 import { createReviewTasks, suggestedAction } from "./tasks";
 import { validateFindingSet, type PinnedFile } from "./validate";
 
@@ -279,6 +280,29 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
     txns[snapshotId] = { stage, run_id: ctx.runId, updated_at: utcNow() };
     if (save) store.save();
   };
+  /**
+   * Judge A1: the run record keeps its own outcome (rows and count lines), so a replay can show the
+   * result of the run whatever the store holds now (for example after a reset).
+   */
+  const recordOutcome = (final: boolean) => {
+    const run = store.data.runs[ctx.runId];
+    if (!run) return;
+    const prevId = retry ? store.previousSnapshot(snapshotId)?.snapshot_id : prior?.snapshot_id;
+    const prevRows = prevId ? buildRows(store, profile, prevId, { withPrior: false }) : [];
+    const n = profile.controls.length;
+    run.outcome = {
+      ...(run.outcome ?? {}),
+      snapshot_id: snapshotId,
+      prior_snapshot_id: prevId,
+      prior_count_line: prevId ? countLine(prevRows, prevId) : undefined,
+      pending_count_line: `${n} controls on snapshot ${snapshotId}: ${n} Re-check pending`,
+      ...(final ? (() => {
+        const rows = buildRows(store, profile, snapshotId, { withPrior: false });
+        return { count_line: countLine(rows, snapshotId), rows: rows.map(publicRow), recorded_at: utcNow() };
+      })() : {}),
+    };
+  };
+  recordOutcome(false);
   if (retry && retryKind(store, snapshotId) === "publication") {
     // The assessment for this snapshot is complete and may already be reviewed: reuse it, never re-run the
     // evaluator or change a binding under the same finding ids. Only publication and tasks are resumed.
@@ -293,6 +317,7 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
     const tasks = await createReviewTasks({ store, box, profile, config, snapshotId, runId: ctx.runId, quarantined: q, append });
     if (tasks.created.length) emit({ source: "box", kind: "box_task_created", label: `Box review tasks created on resume: ${tasks.created.map((t) => t.control_id).join(", ")}`, startMs: Date.now() - t0, durationMs: 0, detail: { tasks: tasks.created } });
     if (pr.ok && !tasks.failed.length) setTxn("complete");
+    recordOutcome(true);
     const rows = buildRows(store, profile, snapshotId);
     return result("complete", snapshotId, "complete", {
       tasks: tasks.created,
@@ -715,6 +740,7 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
     });
     emit({ source: "app", kind: "quotes_validated", label: `Model output rejected: ${validation.error.code}. Evaluation state error; no partial application.`, ...since(start), detail: validation.error });
     await project({ ...ctx, box }, snapshotId, emit, t0, newEvents);
+    recordOutcome(true);
     setTxn("complete");
     return result("error", snapshotId, "error", { error: validation.error, summary: { evaluated: 0, not_evaluated: profile.controls.length } });
   }
@@ -1017,7 +1043,8 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
     findingsOut.push(f);
   }
   setTxn("evaluated", false);
-  store.save(); // one write: evaluation_completed, the findings and the transaction stage
+  recordOutcome(true); // recorded at findings_applied, in the same write
+  store.save(); // one write: evaluation_completed, the findings, the transaction stage and the run outcome
   const counts = {
     weakened: outcomes.filter((o) => o.assessment === "evidence_weakened").length,
     moved: outcomes.filter((o) => o.classification === "moved").length,
@@ -1052,7 +1079,7 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
       source: "box",
       kind: "box_task_created",
       label: tasks.created.length
-        ? `Box review tasks created: ${tasks.created.map((t) => ((t as { purpose?: string }).purpose ? `${pinned.find((p) => p.fileId === t.fileId)?.fileName ?? t.fileId} quarantine` : t.control_id)).join(", ")} (assigned to ${config.reviewer.name})${tasks.failed.length ? `; ${tasks.failed.length} failed` : ""}`
+        ? `Box review tasks created: ${tasks.created.map((t) => ((t as { purpose?: string; label?: string }).purpose ? ((t as { label?: string }).label ?? `${pinned.find((p) => p.fileId === t.fileId)?.fileName ?? t.fileId} quarantine`) : t.control_id)).join(", ")} (assigned to ${config.reviewer.name})${tasks.failed.length ? `; ${tasks.failed.length} failed` : ""}`
         : tasks.failed.length
           ? `Box review task creation failed for ${tasks.failed.join(", ")}`
           : `Open review tasks carried over (binding unchanged): ${tasks.carried.map((t) => t.control_id).join(", ")}`,

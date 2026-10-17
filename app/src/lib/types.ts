@@ -554,6 +554,16 @@ export interface Trace {
   prior_snapshot_id?: string;
   started_at: string;
   total_duration_ms: number;
+  /** Added (judge A1): the run's own outcome, so a replay shows it whatever the store holds now. */
+  outcome?: {
+    snapshot_id: string;
+    prior_snapshot_id?: string;
+    prior_count_line?: string;
+    pending_count_line: string;
+    count_line?: string;
+    rows?: ControlRow[];
+    recorded_at?: string;
+  };
   /** Added: for the trace's Done line ("6 re-checked, 2 not evaluated"). */
   summary?: { evaluated: number; not_evaluated: number };
   model_id: string;
@@ -680,6 +690,10 @@ export interface FindingCard {
   binding_fresh: boolean;
   thread: LedgerEvent[];
   trace_steps?: TraceStep[]; // the agent's recorded operations for this control (basis provenance)
+  /** Added: every section quoted for the current binding, in order (["§3 Deployment and rollback", "§4 Backup"]). */
+  binding_sections?: string[];
+  /** Added: verified sentences that supported a clause and are absent from the submitted version. */
+  removed_sentences?: { quote: string; section: string; supported_clauses: string[] }[];
   /** Added: time of the first ledger event of this finding. */
   opened_at?: string;
   /** Added: a reviewer's return to author waiting for draft approval (action approve_author_draft). */

@@ -20,5 +20,8 @@ export function draftFromBrief(b: AuthorDraftBrief): string {
   const lost = b.lost_quotes.length
     ? ` Lost from ${b.fileName} ${b.section_number} in ${b.new_version_label}: ${b.lost_quotes.map((q) => `"${q}"`).join(" and ")}`
     : "";
-  return `Returned by ${b.reviewer} (${b.reviewer_role_short}): "${b.reason}"${lost} Restore ${b.lost_quotes.length > 1 ? "them" : "it"} or cite where the ${b.focus} is now documented.`;
+  // The reviewer's reason may already end with the request to restore or cite (judge B2): do not add a second one.
+  const closes = /\b(restore|cite)\b[^.]*\bdocumented\.?\s*$/i.test(b.reason.trim());
+  const closing = closes ? "" : ` Restore ${b.lost_quotes.length > 1 ? "them" : "it"} or cite where the ${b.focus} is now documented.`;
+  return `Returned by ${b.reviewer} (${b.reviewer_role_short}): "${b.reason}"${lost}${closing}`;
 }

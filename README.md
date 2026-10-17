@@ -152,3 +152,7 @@ who independently access newer drafts in Box.
 
 The ledger is intended to be auditable, not automatically tamper-proof or
 compliance-certified. No detection accuracy or latency claims have been measured.
+
+---
+
+**Last updated:** October 17, 2026

@@ -1,3 +1,10 @@
 .DS_Store
 .playwright-mcp/
 demo/.review/
+app/data/store.json
+app/data/runs/
+app/.env.local
+app/.env
+app/node_modules/
+app/.next/
+app/coverage/

@@ -114,7 +114,9 @@ export function Level1() {
   const tiles = pkg.dashboard?.tiles ?? [];
   const holdTile = tiles.find((t) => t.key === "hold");
   // "5 hold": the engine's hold tile, value and label, as the fold title; holds_line when there are no tiles.
-  const holdText = holdTile ? `${holdTile.value} ${holdTile.label.toLowerCase()}` : pkg.holds_line ?? null;
+  // Baseline (lane E): holds_line is absent and the hold list shows expanded with no fold title. After a run the
+  // fold title is the engine's hold tile ("5 hold"), or holds_line when there are no tiles.
+  const holdText = !pkg.holds_line ? null : holdTile ? `${holdTile.value} ${holdTile.label.toLowerCase()}` : pkg.holds_line;
 
   const open = (r: ControlRow) => !locked && pushView({ kind: "control", controlId: r.control_id });
 
@@ -186,18 +188,20 @@ export function Level1() {
 
       {groups.holds.length ? (
         <section className="mt-1" aria-label="Verifications that hold">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between rounded-[4px] px-1 py-1.5 text-left text-[13px] font-bold hover:bg-[#F4F6FA]"
-            style={{ color: C.text }}
-            aria-expanded={showHolds}
-            onClick={() => setHoldsOpen(!showHolds)}
-          >
-            <span>{holdText ?? groups.holds.map((r) => r.control_id).join(" · ")}</span>
-            <Chevron dir={showHolds ? "up" : "down"} size={13} />
-          </button>
+          {holdText ? (
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-[4px] px-1 py-1.5 text-left text-[13px] font-bold hover:bg-[#F4F6FA]"
+              style={{ color: C.text }}
+              aria-expanded={showHolds}
+              onClick={() => setHoldsOpen(!showHolds)}
+            >
+              <span>{holdText}</span>
+              <Chevron dir={showHolds ? "up" : "down"} size={13} />
+            </button>
+          ) : null}
           <AnimatePresence initial={false}>
-            {showHolds ? (
+            {showHolds || !holdText ? (
               <motion.ul
                 key="holds"
                 initial={{ height: 0, opacity: 0 }}

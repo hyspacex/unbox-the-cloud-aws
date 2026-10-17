@@ -106,9 +106,7 @@ export function AgreedChanged({ card, controlId }: { card: FindingCard; controlI
   const a = card.agreed ?? null;
   const ch = card.changed ?? null;
   const od = card.open_in_document;
-  const href = od
-    ? `/files/${encodeURIComponent(od.file_id)}?v=${encodeURIComponent(od.version_id)}${od.sentence ? `&q=${encodeURIComponent(od.sentence)}` : ""}&c=${encodeURIComponent(controlId)}`
-    : null;
+  const href = od ? previewHref(od.file_id, od.version_id, od.sentence, controlId) : null;
   const replaced = Boolean(a && ch?.quote && ch.kind === "replaced" && norm(a.quote) !== norm(ch.quote));
   return (
     <section aria-label="What was agreed and what changed" className="space-y-3">
@@ -121,6 +119,14 @@ export function AgreedChanged({ card, controlId }: { card: FindingCard; controlI
           <p className="mt-1 text-[12px]" style={{ color: C.secondary }}>
             {a.byline}
           </p>
+          {/* The agreed sentence in its own version: lane A's preview highlights it in v2. */}
+          <Link
+            href={previewHref(a.file_id, a.version_id, a.quote, controlId)}
+            className="mt-0.5 inline-flex items-center gap-1 text-[12.5px] font-bold hover:underline"
+            style={{ color: C.boxBlue }}
+          >
+            Open {a.version_label ?? "agreed version"} in document <span aria-hidden>↗</span>
+          </Link>
         </div>
       ) : null}
       {ch ? (
@@ -165,4 +171,9 @@ function Head({ children }: { children: React.ReactNode }) {
       {children}
     </div>
   );
+}
+
+/** Lane A's Box preview URL: the raw quote goes in q (the preview matches it with the engine's normalization). */
+function previewHref(fileId: string, versionId: string, sentence: string | undefined, controlId: string): string {
+  return `/files/${encodeURIComponent(fileId)}?v=${encodeURIComponent(versionId)}${sentence ? `&q=${encodeURIComponent(sentence)}` : ""}&c=${encodeURIComponent(controlId)}`;
 }

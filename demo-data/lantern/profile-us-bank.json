@@ -1,0 +1,345 @@
+{
+  "profile_id": "profile-us-bank",
+  "profile_version": "2026.3",
+  "default": true,
+  "name": "Meridian Trust Bank ARB design review, US",
+  "fields": [
+    "id",
+    "title",
+    "requirement",
+    "standard",
+    "applicability",
+    "evidence",
+    "tier",
+    "framework_map",
+    "reviewer_role",
+    "required_clauses"
+  ],
+  "handed_to_model": [
+    "requirement",
+    "applicability",
+    "evidence",
+    "required_clauses"
+  ],
+  "materiality": {
+    "Critical": "acknowledge_on_evidencing_file_change",
+    "High": "hold_if_unchanged",
+    "Medium": "hold_if_unchanged"
+  },
+  "severity_rule": "control tier x application tier",
+  "out_of_profile": [
+    "network diagram currency (images)",
+    "contract clause matching (contracts live in the legal system)",
+    "bare retention numbers (banks cite a Records Retention Schedule class)"
+  ],
+  "controls": [
+    {
+      "id": "SEC-ARCH-01",
+      "title": "Approved services only",
+      "requirement": "Every cloud service and third-party component named in the design must be on the Approved Cloud Services Catalog, or the package must reference an approved exception by id. The package must contain a list of services and components with their catalog status. A component named in the design but missing from the list is a finding.",
+      "standard": "IS-STD-009 Approved Technology v3.1 §4.2",
+      "applicability": "Applies to every new application and material change. Not applicable only to documentation-only changes with no deployed component.",
+      "evidence": [
+        "approved-services-and-exceptions.md (service list and exception table)",
+        "Architecture document §3.1"
+      ],
+      "tier": "Medium",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "12.5.1"
+        ],
+        "nist_csf_2_0": [
+          "ID.AM-01",
+          "ID.AM-02"
+        ],
+        "ffiec_is_booklet": [
+          "II.C.5 Inventory and classification of assets"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.9",
+          "A.5.23"
+        ],
+        "glba_occ": [
+          "OCC Bulletin 2023-17"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
+      "required_clauses": [
+        "every cloud service and component is listed",
+        "catalog status or exception id is given for each item"
+      ]
+    },
+    {
+      "id": "SEC-ARCH-02",
+      "title": "Data classification and regulatory scope per data store",
+      "requirement": "Every data store must carry a classification label under IS-STD-003: Public, Internal, Confidential or Restricted. Stores holding nonpublic personal information must be flagged NPI (GLBA). If payment card data could be present, the design must state the PCI DSS scope boundary.",
+      "standard": "IS-STD-003 Data Classification v5.0 §3",
+      "applicability": "Applies whenever the application stores or processes data. Not applicable only to stateless components that hold no data at rest.",
+      "evidence": [
+        "data-flow-and-classification.md §3",
+        "Architecture document §3.2"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "12.5.2"
+        ],
+        "nist_csf_2_0": [
+          "ID.AM-07",
+          "PR.DS-01"
+        ],
+        "ffiec_is_booklet": [
+          "II.C.5 Inventory and classification of assets"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.12",
+          "A.5.13"
+        ],
+        "glba_occ": [
+          "Interagency Guidelines Establishing Information Security Standards (12 CFR 30, App. B)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
+      "required_clauses": [
+        "classification label given per data store",
+        "NPI (GLBA) stores flagged",
+        "PCI DSS scope boundary stated"
+      ]
+    },
+    {
+      "id": "SEC-ARCH-04",
+      "title": "Authentication and MFA via enterprise IdP",
+      "requirement": "All human access, for users and administrators, must authenticate through the enterprise IdP. Multi-factor authentication is required, and it must be phishing-resistant for privileged and remote access. The application must not keep local user accounts.",
+      "standard": "IS-STD-011 Identity and Authentication v4.0 §2.3",
+      "applicability": "Applies to every component with a human access path. Not applicable to components reached only by workload identities.",
+      "evidence": [
+        "Architecture document, authentication section"
+      ],
+      "tier": "Medium",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "8.3.1",
+          "8.4.2"
+        ],
+        "nist_csf_2_0": [
+          "PR.AA-01",
+          "PR.AA-03"
+        ],
+        "ffiec_is_booklet": [
+          "II.C.15 Access management"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.17",
+          "A.8.5"
+        ],
+        "glba_occ": [
+          "FFIEC Authentication and Access to Financial Institution Services and Systems (2021)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
+      "required_clauses": [
+        "authentication through the enterprise IdP",
+        "phishing-resistant MFA required",
+        "no local user accounts"
+      ]
+    },
+    {
+      "id": "SEC-ARCH-05",
+      "title": "Least privilege, PAM, no shared admin, break-glass named",
+      "requirement": "Access must use named roles scoped to specific resources. Privileged access must be brokered through the enterprise PAM vault, and there must be no shared administrator account. A break-glass path must be named, require two-person approval, and expire.",
+      "standard": "IS-STD-012 Privileged Access v2.4 §3.1",
+      "applicability": "Applies to every application with production accounts or administrative interfaces.",
+      "evidence": [
+        "Architecture document, privileged access section and role table"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "7.2.1",
+          "7.2.2",
+          "8.2.2",
+          "8.6.1"
+        ],
+        "nist_csf_2_0": [
+          "PR.AA-05"
+        ],
+        "ffiec_is_booklet": [
+          "II.C.15 Access management"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.15",
+          "A.5.18",
+          "A.8.2"
+        ],
+        "glba_occ": [
+          "12 CFR 30, App. B, III.C.1(a)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
+      "required_clauses": [
+        "named roles scoped to resources",
+        "privileged access brokered through PAM",
+        "no shared administrator account",
+        "break-glass named with two-person approval and expiry"
+      ]
+    },
+    {
+      "id": "SEC-ARCH-07",
+      "title": "Encryption at rest and key management",
+      "requirement": "All customer data at rest must be encrypted with AES-256. Keys must be AWS KMS customer-managed keys or held in CipherTrust Manager; provider-managed or default keys do not meet this requirement. Keys must rotate at least annually, and the key custodians must be named.",
+      "standard": "IS-STD-014 Cryptography v4.2 §5.1",
+      "applicability": "Applies to every data store holding Confidential or Restricted data. Not applicable only if the classification document shows no such data at rest.",
+      "evidence": [
+        "Architecture document, encryption at rest and key management section"
+      ],
+      "tier": "Critical",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "3.5.1",
+          "3.6.1",
+          "3.7.4"
+        ],
+        "nist_csf_2_0": [
+          "PR.DS-01"
+        ],
+        "ffiec_is_booklet": [
+          "II.C.19 Encryption"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.24"
+        ],
+        "glba_occ": [
+          "12 CFR 30, App. B, III.C.1(c)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Security Architecture",
+      "required_clauses": [
+        "encryption at rest stated",
+        "AES-256 stated",
+        "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+        "rotation period stated (at least annually)",
+        "key custodians named"
+      ]
+    },
+    {
+      "id": "SEC-ARCH-17",
+      "title": "Security events to enterprise SIEM (Splunk)",
+      "requirement": "Security events from control plane, network flow, application audit and model invocation sources must be forwarded to the enterprise SIEM (Splunk). Retention must follow IS-STD-021. A named team must own the alerts raised on these events.",
+      "standard": "IS-STD-021 Security Logging and Monitoring v3.0 §4",
+      "applicability": "Applies to every production application.",
+      "evidence": [
+        "Architecture document, logging and monitoring section",
+        "Runbook, monitoring and alerting"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "10.2.1",
+          "10.4.1",
+          "10.5.1"
+        ],
+        "nist_csf_2_0": [
+          "DE.CM-01",
+          "DE.AE-02"
+        ],
+        "ffiec_is_booklet": [
+          "II.C.22 Log management"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.15",
+          "A.8.16"
+        ],
+        "glba_occ": [
+          "12 CFR 30, App. B, III.C.1(f)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
+      "required_clauses": [
+        "security event sources forwarded to Splunk",
+        "retention per IS-STD-021",
+        "alert owner named"
+      ]
+    },
+    {
+      "id": "SEC-ARCH-20",
+      "title": "Third parties named with TPRM assessment id and inherent risk tier",
+      "requirement": "Every third party or sub-processor in the design must be named and must carry a TPRM assessment id and an inherent risk tier. Each assessment must be current on the date of review.",
+      "standard": "IS-STD-019 Third-Party Risk Management v2.0 §3.4",
+      "applicability": "Applies whenever the design uses a third party or sub-processor. Not applicable only if the design states that no third party is used and no document in the package names one.",
+      "evidence": [
+        "Architecture document, third-party dependencies section",
+        "vendor-contract-summary.md"
+      ],
+      "tier": "Medium",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "glba_occ": [
+          "OCC Bulletin 2023-17 (third-party relationships)"
+        ],
+        "ffiec_is_booklet": [
+          "FFIEC Outsourcing Technology Services Booklet"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.19",
+          "A.5.20"
+        ],
+        "nist_csf_2_0": [
+          "GV.SC-04",
+          "GV.SC-07"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
+      "required_clauses": [
+        "each third party named",
+        "TPRM assessment id given",
+        "inherent risk tier given",
+        "assessment current"
+      ]
+    },
+    {
+      "id": "SEC-ARCH-22",
+      "title": "RTO/RPO consistent with BIA tier, rollback path, immutable backups",
+      "requirement": "The package must state RTO and RPO, and both must be consistent with the application's BIA tier. A rollback path for deployments must be described. Backups must be immutable, for example held in a vault-locked backup vault. Evidence may be in the architecture document or the runbook.",
+      "standard": "IS-STD-030 Resilience and Recovery v2.2 §3",
+      "applicability": "Applies to every production application with a BIA tier.",
+      "evidence": [
+        "Architecture document, resilience section",
+        "runbook.md §2 to §4"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "12.10.1"
+        ],
+        "nist_csf_2_0": [
+          "PR.DS-11",
+          "RC.RP-01"
+        ],
+        "ffiec_is_booklet": [
+          "FFIEC Business Continuity Management Booklet"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.30",
+          "A.8.13"
+        ],
+        "glba_occ": [
+          "Interagency Paper on Sound Practices to Strengthen Operational Resilience (2020)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
+      "required_clauses": [
+        "RTO and RPO stated",
+        "consistent with BIA tier",
+        "rollback path described",
+        "backups immutable"
+      ]
+    }
+  ]
+}

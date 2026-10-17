@@ -1,0 +1,894 @@
+{
+  "project": "Project Lantern: Customer Support AI Assistant",
+  "application_id": "APM-20417",
+  "application_tier": "Tier 1",
+  "regulatory_scope": "NPI (GLBA)",
+  "arb_decision": {
+    "id": "ARB-2026-0338",
+    "outcome": "approved with conditions",
+    "date": "2026-10-07",
+    "chair": "R. Alvarez"
+  },
+  "snapshot_id": "S4",
+  "prior_snapshot_id": "S3",
+  "manifest_hash": "sha256:bafa6cf1c3d3ae11095793de12d8493bdca4707920612dfa2597497cb2887935",
+  "control_profile_version": "2026.3",
+  "trigger": {
+    "fileId": "1650233401",
+    "fileName": "architecture.md",
+    "fromVersionId": "1801102232",
+    "toVersionId": "1801102233",
+    "uploadedBy": "svc-confluence-export",
+    "versionComment": "Section 4 rewrite for clarity",
+    "confluenceEditor": "J. Park (Eng)",
+    "jira": "LAN-2291"
+  },
+  "summary": {
+    "controls_evaluated": 8,
+    "evidence_found": 7,
+    "evidence_weakened": 1,
+    "evidence_absent": 0,
+    "evidence_contradicted": 0,
+    "not_evaluated": 0,
+    "change_classification": {
+      "unchanged": 6,
+      "weakened": 1,
+      "moved": 1
+    },
+    "verification_holds": 6,
+    "binding_changed": 1
+  },
+  "removed_from_v2": [
+    "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+    "Each data store has its own AES-256 key: `lantern-s3-snapshots`, `lantern-ddb-state`, `lantern-aoss-index` and `lantern-logs`.",
+    "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1."
+  ],
+  "human_actions_expected": [
+    {
+      "control_id": "SEC-ARCH-07",
+      "actor": "Dana Okafor",
+      "disposition": "returned_to_author",
+      "task_a": "box-task-77120931",
+      "task_b": "box-task-77120944",
+      "task_b_due": "2026-10-23T17:00:00Z",
+      "message": "Encrypted is stated; the key model and rotation are not. IS-STD-014 §5.1 requires the KMS CMK statement restored."
+    },
+    {
+      "control_id": "SEC-ARCH-22",
+      "actor": "Dana Okafor",
+      "disposition": "verified",
+      "binding": "runbook.md v2",
+      "message": "Recovery targets present in runbook §3; binding updated."
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "KEEL-2026-0401",
+      "control_id": "SEC-ARCH-01",
+      "control_title": "Approved services only",
+      "tier": "Medium",
+      "materiality": "hold_if_unchanged",
+      "snapshot_id": "S4",
+      "machine_assessment": "evidence_found",
+      "change_classification": "unchanged",
+      "basis": [
+        "Verified quote matched after normalization in approved-services-and-exceptions.md v1 §1 Purpose.",
+        "The evidencing file version is unchanged.",
+        "Each required clause has a supporting quote in the snapshot.",
+        "Evidencing file version unchanged; cited quote unchanged; tier medium holds without acknowledgment."
+      ],
+      "evidence": [
+        {
+          "fileId": "1650233405",
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "section": "§1 Purpose",
+          "page": 1,
+          "quote": "This list names every AWS service and third-party component in the Project Lantern design and records whether it is on the Approved Cloud Services Catalog or is used under an approved exception.",
+          "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271"
+        }
+      ],
+      "clause_support": [
+        {
+          "clause": "every cloud service and component is listed",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233405",
+            "fileName": "approved-services-and-exceptions.md",
+            "versionId": "1801102271",
+            "section": "§1 Purpose",
+            "page": 1,
+            "quote": "This list names every AWS service and third-party component in the Project Lantern design and records whether it is on the Approved Cloud Services Catalog or is used under an approved exception.",
+            "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271"
+          }
+        },
+        {
+          "clause": "catalog status or exception id is given for each item",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§3.1 Services and components",
+            "page": 2,
+            "quote": "Amazon OpenSearch Serverless is the one service used under an exception (EXC-2026-0117).",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        }
+      ],
+      "prior_evidence": [
+        {
+          "fileId": "1650233405",
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "section": "§1 Purpose",
+          "page": 1,
+          "quote": "This list names every AWS service and third-party component in the Project Lantern design and records whether it is on the Approved Cloud Services Catalog or is used under an approved exception.",
+          "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+          "verified_by": "Marcus Hale",
+          "verified_role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+          "verified_at": "2026-10-08T09:05:44Z"
+        }
+      ],
+      "human_disposition_at_evaluation": {
+        "value": "verified",
+        "snapshot_id": "S2",
+        "by": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "at": "2026-10-08T09:05:44Z"
+      },
+      "expected_display": "Verified",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0401",
+      "suggested_action": "None. The prior verification holds for this snapshot."
+    },
+    {
+      "finding_id": "KEEL-2026-0402",
+      "control_id": "SEC-ARCH-02",
+      "control_title": "Data classification and regulatory scope per data store",
+      "tier": "High",
+      "materiality": "hold_if_unchanged",
+      "snapshot_id": "S4",
+      "machine_assessment": "evidence_found",
+      "change_classification": "unchanged",
+      "basis": [
+        "Verified quote matched after normalization in architecture.md v3 §3.2 Data classification.",
+        "The evidencing file has a new version; the cited quote is unchanged.",
+        "Each required clause has a supporting quote in the snapshot.",
+        "Evidencing file version changed; cited quote unchanged; tier high holds without acknowledgment."
+      ],
+      "evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "section": "§3.2 Data classification",
+          "page": 2,
+          "quote": "The snapshot bucket, the session table and the vector index are classified Confidential / NPI (GLBA), and Lantern is outside PCI DSS scope because full PANs are masked before ingestion.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+        }
+      ],
+      "clause_support": [
+        {
+          "clause": "classification label given per data store",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233402",
+            "fileName": "data-flow-and-classification.md",
+            "versionId": "1801102241",
+            "section": "§1 Purpose",
+            "page": 1,
+            "quote": "This document classifies every data store and data flow in Project Lantern under the Meridian Data Classification Standard (IS-STD-003) and records the regulatory scope of each.",
+            "box_deep_link": "https://app.box.com/file/1650233402?version=1801102241"
+          }
+        },
+        {
+          "clause": "NPI (GLBA) stores flagged",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§3.2 Data classification",
+            "page": 2,
+            "quote": "The snapshot bucket, the session table and the vector index are classified Confidential / NPI (GLBA), and Lantern is outside PCI DSS scope because full PANs are masked before ingestion.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "PCI DSS scope boundary stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§3.2 Data classification",
+            "page": 2,
+            "quote": "The snapshot bucket, the session table and the vector index are classified Confidential / NPI (GLBA), and Lantern is outside PCI DSS scope because full PANs are masked before ingestion.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        }
+      ],
+      "prior_evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "section": "§3.2 Data classification",
+          "page": 2,
+          "quote": "The snapshot bucket, the session table and the vector index are classified Confidential / NPI (GLBA), and Lantern is outside PCI DSS scope because full PANs are masked before ingestion.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+          "verified_by": "Marcus Hale",
+          "verified_role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+          "verified_at": "2026-10-08T09:11:20Z"
+        }
+      ],
+      "human_disposition_at_evaluation": {
+        "value": "verified",
+        "snapshot_id": "S2",
+        "by": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "at": "2026-10-08T09:11:20Z"
+      },
+      "expected_display": "Verified",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0402",
+      "suggested_action": "None. The prior verification holds for this snapshot."
+    },
+    {
+      "finding_id": "KEEL-2026-0403",
+      "control_id": "SEC-ARCH-04",
+      "control_title": "Authentication and MFA via enterprise IdP",
+      "tier": "Medium",
+      "materiality": "hold_if_unchanged",
+      "snapshot_id": "S4",
+      "machine_assessment": "evidence_found",
+      "change_classification": "unchanged",
+      "basis": [
+        "Verified quote matched after normalization in architecture.md v3 §4.1 Authentication.",
+        "The evidencing file has a new version; the cited quote is unchanged.",
+        "Each required clause has a supporting quote in the snapshot.",
+        "Evidencing file version changed; cited quote unchanged; tier medium holds without acknowledgment."
+      ],
+      "evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "section": "§4.1 Authentication",
+          "page": 2,
+          "quote": "All human access to Lantern, for agents and engineers, authenticates through the Meridian enterprise IdP with phishing-resistant MFA; Lantern has no local user accounts.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+        }
+      ],
+      "clause_support": [
+        {
+          "clause": "authentication through the enterprise IdP",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§4.1 Authentication",
+            "page": 2,
+            "quote": "All human access to Lantern, for agents and engineers, authenticates through the Meridian enterprise IdP with phishing-resistant MFA; Lantern has no local user accounts.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "phishing-resistant MFA required",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§4.1 Authentication",
+            "page": 2,
+            "quote": "All human access to Lantern, for agents and engineers, authenticates through the Meridian enterprise IdP with phishing-resistant MFA; Lantern has no local user accounts.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "no local user accounts",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§4.1 Authentication",
+            "page": 2,
+            "quote": "All human access to Lantern, for agents and engineers, authenticates through the Meridian enterprise IdP with phishing-resistant MFA; Lantern has no local user accounts.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        }
+      ],
+      "prior_evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "section": "§4.1 Authentication",
+          "page": 2,
+          "quote": "All human access to Lantern, for agents and engineers, authenticates through the Meridian enterprise IdP with phishing-resistant MFA; Lantern has no local user accounts.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+          "verified_by": "Marcus Hale",
+          "verified_role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+          "verified_at": "2026-10-08T09:16:02Z"
+        }
+      ],
+      "human_disposition_at_evaluation": {
+        "value": "verified",
+        "snapshot_id": "S2",
+        "by": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "at": "2026-10-08T09:16:02Z"
+      },
+      "expected_display": "Verified",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0403",
+      "suggested_action": "None. The prior verification holds for this snapshot."
+    },
+    {
+      "finding_id": "KEEL-2026-0404",
+      "control_id": "SEC-ARCH-05",
+      "control_title": "Least privilege, PAM, no shared admin, break-glass named",
+      "tier": "High",
+      "materiality": "hold_if_unchanged",
+      "snapshot_id": "S4",
+      "machine_assessment": "evidence_found",
+      "change_classification": "unchanged",
+      "basis": [
+        "Verified quote matched after normalization in architecture.md v3 §4.2 Privileged access.",
+        "The evidencing file has a new version; the cited quote is unchanged.",
+        "Each required clause has a supporting quote in the snapshot.",
+        "Evidencing file version changed; cited quote unchanged; tier high holds without acknowledgment."
+      ],
+      "evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "section": "§4.2 Privileged access",
+          "page": 2,
+          "quote": "Privileged access to the Lantern production accounts is brokered through the enterprise PAM vault; there is no shared administrator account, and the named break-glass role is LanternBreakGlass, which requires two-person approval and expires after 4 hours.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+        }
+      ],
+      "clause_support": [
+        {
+          "clause": "named roles scoped to resources",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§4.2 Privileged access",
+            "page": 3,
+            "quote": "| `LanternApiRole` | `lantern-api` | Invoke `lantern-orchestrator`; read the session table. |",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "privileged access brokered through PAM",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§4.2 Privileged access",
+            "page": 2,
+            "quote": "Privileged access to the Lantern production accounts is brokered through the enterprise PAM vault; there is no shared administrator account, and the named break-glass role is LanternBreakGlass, which requires two-person approval and expires after 4 hours.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "no shared administrator account",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§4.2 Privileged access",
+            "page": 2,
+            "quote": "Privileged access to the Lantern production accounts is brokered through the enterprise PAM vault; there is no shared administrator account, and the named break-glass role is LanternBreakGlass, which requires two-person approval and expires after 4 hours.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "break-glass named with two-person approval and expiry",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§4.2 Privileged access",
+            "page": 2,
+            "quote": "Privileged access to the Lantern production accounts is brokered through the enterprise PAM vault; there is no shared administrator account, and the named break-glass role is LanternBreakGlass, which requires two-person approval and expires after 4 hours.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        }
+      ],
+      "prior_evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "section": "§4.2 Privileged access",
+          "page": 2,
+          "quote": "Privileged access to the Lantern production accounts is brokered through the enterprise PAM vault; there is no shared administrator account, and the named break-glass role is LanternBreakGlass, which requires two-person approval and expires after 4 hours.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+          "verified_by": "Dana Okafor",
+          "verified_role": "ARB reviewer, Technology Resilience",
+          "verified_at": "2026-10-07T15:40:12Z"
+        }
+      ],
+      "human_disposition_at_evaluation": {
+        "value": "verified",
+        "snapshot_id": "S2",
+        "by": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "at": "2026-10-07T15:40:12Z"
+      },
+      "expected_display": "Verified",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0404",
+      "suggested_action": "None. The prior verification holds for this snapshot."
+    },
+    {
+      "finding_id": "KEEL-2026-0405",
+      "control_id": "SEC-ARCH-07",
+      "control_title": "Encryption at rest and key management",
+      "tier": "Critical",
+      "materiality": "acknowledge_on_evidencing_file_change",
+      "snapshot_id": "S4",
+      "machine_assessment": "evidence_weakened",
+      "change_classification": "weakened",
+      "basis": [
+        "Verified quote from architecture.md v2 §4.3 Encryption at rest and key management ¶1 not found in v3 after normalization (whitespace, quotes, hyphens, case).",
+        "Encryption is still stated at §4.3 ¶2, but AES-256, the key model, the rotation period and the custodians have no support in the snapshot.",
+        "4 other files searched for customer-managed keys, CipherTrust, rotation and key custodians: 0 candidates.",
+        "3 other assertions changed in §4.3."
+      ],
+      "evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "section": "§4.3 Data protection at rest",
+          "page": 3,
+          "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+        }
+      ],
+      "clause_support": [
+        {
+          "clause": "encryption at rest stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§4.3 Data protection at rest",
+            "page": 3,
+            "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "AES-256 stated",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause": "rotation period stated (at least annually)",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause": "key custodians named",
+          "support": "unsupported",
+          "quote": null
+        }
+      ],
+      "prior_evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "section": "§4.3 Encryption at rest and key management",
+          "page": 3,
+          "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+          "verified_by": "Priya Natarajan",
+          "verified_role": "Principal Security Architect, ARB reviewer",
+          "verified_at": "2026-10-08T10:32:00Z"
+        }
+      ],
+      "human_disposition_at_evaluation": {
+        "value": "verified",
+        "snapshot_id": "S2",
+        "by": "Priya Natarajan",
+        "role": "Principal Security Architect, ARB reviewer",
+        "at": "2026-10-08T10:32:00Z"
+      },
+      "expected_display": "Needs review: key-management evidence missing",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0405",
+      "suggested_action": "Return to author: restore the AWS KMS customer-managed key, annual rotation and custodian statement in §4.3 (IS-STD-014 §5.1). Verify stays unavailable until each required clause has a supporting quote in a current file."
+    },
+    {
+      "finding_id": "KEEL-2026-0406",
+      "control_id": "SEC-ARCH-17",
+      "control_title": "Security events to enterprise SIEM (Splunk)",
+      "tier": "High",
+      "materiality": "hold_if_unchanged",
+      "snapshot_id": "S4",
+      "machine_assessment": "evidence_found",
+      "change_classification": "unchanged",
+      "basis": [
+        "Verified quote matched after normalization in architecture.md v3 §6 Logging and monitoring.",
+        "The evidencing file has a new version; the cited quote is unchanged.",
+        "Each required clause has a supporting quote in the snapshot.",
+        "Evidencing file version changed; cited quote unchanged; tier high holds without acknowledgment."
+      ],
+      "evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "section": "§6 Logging and monitoring",
+          "page": 3,
+          "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+        }
+      ],
+      "clause_support": [
+        {
+          "clause": "security event sources forwarded to Splunk",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§6 Logging and monitoring",
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "retention per IS-STD-021",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§6 Logging and monitoring",
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "alert owner named",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§6 Logging and monitoring",
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        }
+      ],
+      "prior_evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "section": "§6 Logging and monitoring",
+          "page": 3,
+          "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+          "verified_by": "Dana Okafor",
+          "verified_role": "ARB reviewer, Technology Resilience",
+          "verified_at": "2026-10-07T15:46:31Z"
+        }
+      ],
+      "human_disposition_at_evaluation": {
+        "value": "verified",
+        "snapshot_id": "S2",
+        "by": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "at": "2026-10-07T15:46:31Z"
+      },
+      "expected_display": "Verified",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0406",
+      "suggested_action": "None. The prior verification holds for this snapshot."
+    },
+    {
+      "finding_id": "KEEL-2026-0407",
+      "control_id": "SEC-ARCH-20",
+      "control_title": "Third parties named with TPRM assessment id and inherent risk tier",
+      "tier": "Medium",
+      "materiality": "hold_if_unchanged",
+      "snapshot_id": "S4",
+      "machine_assessment": "evidence_found",
+      "change_classification": "unchanged",
+      "basis": [
+        "Verified quote matched after normalization in architecture.md v3 §7 Third-party dependencies.",
+        "The evidencing file has a new version; the cited quote is unchanged.",
+        "Each required clause has a supporting quote in the snapshot.",
+        "Evidencing file version changed; cited quote unchanged; tier medium holds without acknowledgment."
+      ],
+      "evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "section": "§7 Third-party dependencies",
+          "page": 4,
+          "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+        }
+      ],
+      "clause_support": [
+        {
+          "clause": "each third party named",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§7 Third-party dependencies",
+            "page": 4,
+            "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "TPRM assessment id given",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§7 Third-party dependencies",
+            "page": 4,
+            "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "inherent risk tier given",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§7 Third-party dependencies",
+            "page": 4,
+            "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause": "assessment current",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "section": "§7 Third-party dependencies",
+            "page": 4,
+            "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        }
+      ],
+      "prior_evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "section": "§7 Third-party dependencies",
+          "page": 4,
+          "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+          "verified_by": "Marcus Hale",
+          "verified_role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+          "verified_at": "2026-10-08T09:22:47Z"
+        },
+        {
+          "fileId": "1650233404",
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "section": "§2 Service description",
+          "page": 1,
+          "quote": "Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03.",
+          "box_deep_link": "https://app.box.com/file/1650233404?version=1801102261",
+          "verified_by": "Marcus Hale",
+          "verified_role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+          "verified_at": "2026-10-08T09:22:47Z"
+        }
+      ],
+      "human_disposition_at_evaluation": {
+        "value": "verified",
+        "snapshot_id": "S2",
+        "by": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "at": "2026-10-08T09:22:47Z"
+      },
+      "expected_display": "Verified",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0407",
+      "suggested_action": "None. The prior verification holds for this snapshot."
+    },
+    {
+      "finding_id": "KEEL-2026-0408",
+      "control_id": "SEC-ARCH-22",
+      "control_title": "RTO/RPO consistent with BIA tier, rollback path, immutable backups",
+      "tier": "High",
+      "materiality": "hold_if_unchanged",
+      "snapshot_id": "S4",
+      "machine_assessment": "evidence_found",
+      "change_classification": "moved",
+      "basis": [
+        "Verified quote from architecture.md v2 §4.6 Resilience and recovery ¶1 not found in v3 after normalization.",
+        "The same statement matched verbatim in runbook.md v2 §3 Deployment and rollback.",
+        "The runbook quote already existed before v3 (runbook.md v1 and v2), so support did not move; the selected evidence binding moved from architecture.md to runbook.md.",
+        "Vault-locked backups still stated in runbook.md v2 §4 and architecture.md v3 §4.6."
+      ],
+      "evidence": [
+        {
+          "fileId": "1650233403",
+          "fileName": "runbook.md",
+          "versionId": "1801102252",
+          "section": "§3 Deployment and rollback",
+          "page": 1,
+          "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+          "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252"
+        }
+      ],
+      "clause_support": [
+        {
+          "clause": "RTO and RPO stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233403",
+            "fileName": "runbook.md",
+            "versionId": "1801102252",
+            "section": "§3 Deployment and rollback",
+            "page": 1,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252"
+          }
+        },
+        {
+          "clause": "consistent with BIA tier",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233403",
+            "fileName": "runbook.md",
+            "versionId": "1801102252",
+            "section": "§3 Deployment and rollback",
+            "page": 1,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252"
+          }
+        },
+        {
+          "clause": "rollback path described",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233403",
+            "fileName": "runbook.md",
+            "versionId": "1801102252",
+            "section": "§3 Deployment and rollback",
+            "page": 1,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252"
+          }
+        },
+        {
+          "clause": "backups immutable",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233403",
+            "fileName": "runbook.md",
+            "versionId": "1801102252",
+            "section": "§4 Backup",
+            "page": 2,
+            "quote": "AWS Backup copies the table and bucket daily to the backup vault in account `mtb-backup-prod`, same Region, with 35-day retention and Vault Lock in compliance mode, so backups cannot be deleted or shortened by anyone in the Lantern accounts.",
+            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252"
+          }
+        }
+      ],
+      "prior_evidence": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "section": "§4.6 Resilience and recovery",
+          "page": 3,
+          "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+          "verified_by": "Dana Okafor",
+          "verified_role": "ARB reviewer, Technology Resilience",
+          "verified_at": "2026-10-07T15:52:08Z"
+        },
+        {
+          "fileId": "1650233403",
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "section": "§3 Deployment and rollback",
+          "page": 1,
+          "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+          "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
+          "verified_by": "Dana Okafor",
+          "verified_role": "ARB reviewer, Technology Resilience",
+          "verified_at": "2026-10-07T15:52:08Z"
+        }
+      ],
+      "human_disposition_at_evaluation": {
+        "value": "verified",
+        "snapshot_id": "S2",
+        "by": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "at": "2026-10-07T15:52:08Z"
+      },
+      "expected_display": "Verified, stale: evidence moved, re-review due",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0408",
+      "suggested_action": "Acknowledge the new binding (low-effort review): confirm runbook.md v2 §3 as the evidence of record."
+    }
+  ]
+}

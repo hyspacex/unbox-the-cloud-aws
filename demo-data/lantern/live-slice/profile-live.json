@@ -1,0 +1,141 @@
+{
+  "profile_id": "profile-live",
+  "profile_version": "2026.3-live",
+  "derived_from": "profile-us-bank 2026.3",
+  "fields": [
+    "id",
+    "title",
+    "requirement",
+    "standard",
+    "applicability",
+    "evidence",
+    "tier",
+    "framework_map",
+    "reviewer_role",
+    "required_clauses"
+  ],
+  "materiality": {
+    "Critical": "acknowledge_on_evidencing_file_change",
+    "High": "hold_if_unchanged",
+    "Medium": "hold_if_unchanged"
+  },
+  "controls": [
+    {
+      "id": "SEC-ARCH-07",
+      "title": "Encryption at rest and key management",
+      "requirement": "All customer data at rest must be encrypted with AES-256. Keys must be AWS KMS customer-managed keys or held in CipherTrust Manager; provider-managed or default keys do not meet this requirement. Keys must rotate at least annually, and the key custodians must be named.",
+      "standard": "IS-STD-014 Cryptography v4.2 §5.1",
+      "applicability": "Applies to every data store holding Confidential or Restricted data. Not applicable only if the classification document shows no such data at rest.",
+      "evidence": [
+        "Architecture document, encryption at rest and key management section"
+      ],
+      "tier": "Critical",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "3.5.1",
+          "3.6.1",
+          "3.7.4"
+        ],
+        "nist_csf_2_0": [
+          "PR.DS-01"
+        ],
+        "ffiec_is_booklet": [
+          "II.C.19 Encryption"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.24"
+        ],
+        "glba_occ": [
+          "12 CFR 30, App. B, III.C.1(c)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Security Architecture",
+      "required_clauses": [
+        "encryption at rest stated",
+        "AES-256 stated",
+        "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+        "rotation period stated (at least annually)",
+        "key custodians named"
+      ]
+    },
+    {
+      "id": "SEC-ARCH-22",
+      "title": "RTO/RPO consistent with BIA tier, rollback path, immutable backups",
+      "requirement": "Recovery targets and rollback path are documented: the package states RTO and RPO and describes a rollback path for deployments. BIA consistency check: pilot scope.",
+      "standard": "IS-STD-030 Resilience and Recovery v2.2 §3",
+      "applicability": "Applies to every production application with a BIA tier.",
+      "evidence": [
+        "Architecture document, resilience section",
+        "runbook.md §2 to §4"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "12.10.1"
+        ],
+        "nist_csf_2_0": [
+          "PR.DS-11",
+          "RC.RP-01"
+        ],
+        "ffiec_is_booklet": [
+          "FFIEC Business Continuity Management Booklet"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.30",
+          "A.8.13"
+        ],
+        "glba_occ": [
+          "Interagency Paper on Sound Practices to Strengthen Operational Resilience (2020)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
+      "required_clauses": [
+        "RTO and RPO stated",
+        "rollback path described"
+      ],
+      "pilot_scope_note": "BIA consistency check: pilot scope"
+    },
+    {
+      "id": "SEC-ARCH-17",
+      "title": "Security events to enterprise SIEM (Splunk)",
+      "requirement": "Security events from control plane, network flow, application audit and model invocation sources must be forwarded to the enterprise SIEM (Splunk). Retention must follow IS-STD-021. A named team must own the alerts raised on these events.",
+      "standard": "IS-STD-021 Security Logging and Monitoring v3.0 §4",
+      "applicability": "Applies to every production application.",
+      "evidence": [
+        "Architecture document, logging and monitoring section",
+        "Runbook, monitoring and alerting"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "pci_dss_4_0_1": [
+          "10.2.1",
+          "10.4.1",
+          "10.5.1"
+        ],
+        "nist_csf_2_0": [
+          "DE.CM-01",
+          "DE.AE-02"
+        ],
+        "ffiec_is_booklet": [
+          "II.C.22 Log management"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.15",
+          "A.8.16"
+        ],
+        "glba_occ": [
+          "12 CFR 30, App. B, III.C.1(f)"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
+      "required_clauses": [
+        "security event sources forwarded to Splunk",
+        "retention per IS-STD-021",
+        "alert owner named"
+      ]
+    }
+  ]
+}

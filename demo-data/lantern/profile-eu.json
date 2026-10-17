@@ -1,0 +1,352 @@
+{
+  "profile_id": "profile-eu",
+  "profile_version": "2026.1-eu",
+  "default": false,
+  "name": "Meridian group EU design review (GDPR, DORA), alternate",
+  "fields": [
+    "id",
+    "title",
+    "requirement",
+    "standard",
+    "applicability",
+    "evidence",
+    "tier",
+    "framework_map",
+    "reviewer_role",
+    "required_clauses"
+  ],
+  "handed_to_model": [
+    "requirement",
+    "applicability",
+    "evidence",
+    "required_clauses"
+  ],
+  "materiality": {
+    "Critical": "acknowledge_on_evidencing_file_change",
+    "High": "hold_if_unchanged",
+    "Medium": "hold_if_unchanged"
+  },
+  "controls": [
+    {
+      "id": "EU-C1",
+      "title": "Encryption at rest and key management",
+      "requirement": "All customer data at rest must be encrypted, and the design must state the key model: customer-managed or provider-managed keys, where they are held, and the rotation period. Vague statements such as 'industry-standard encryption' do not meet this requirement.",
+      "standard": "MTB-EU-STD-07 Cryptography §3",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Runbook"
+      ],
+      "tier": "Critical",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "gdpr": [
+          "Art. 32(1)(a)"
+        ],
+        "dora": [
+          "Art. 9(2)",
+          "RTS 2024/1774 Art. 6-7"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.24"
+        ],
+        "nist_800_53": [
+          "SC-28",
+          "SC-12"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Security Architecture",
+      "required_clauses": [
+        "encryption at rest stated",
+        "key model stated",
+        "rotation period stated"
+      ]
+    },
+    {
+      "id": "EU-C2",
+      "title": "Encryption in transit",
+      "requirement": "All network connections carrying customer data must be encrypted, with the minimum TLS version stated as a number.",
+      "standard": "MTB-EU-STD-07 Cryptography §4",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Runbook"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "gdpr": [
+          "Art. 32(1)(a)"
+        ],
+        "dora": [
+          "Art. 9(4)(d)"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.20",
+          "A.8.24"
+        ],
+        "nist_800_53": [
+          "SC-8"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Security Architecture",
+      "required_clauses": [
+        "all connections encrypted",
+        "minimum TLS version stated"
+      ]
+    },
+    {
+      "id": "EU-C3",
+      "title": "Data residency and processing region",
+      "requirement": "The processing and storage region must be stated for every data store and processor. The design must state whether any personal data is transferred outside the EEA, and the transfer mechanism if so.",
+      "standard": "MTB-EU-STD-02 Data Location §2",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Data flow document",
+        "Processing agreements in the package"
+      ],
+      "tier": "Critical",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "gdpr": [
+          "Art. 44",
+          "Art. 46"
+        ],
+        "dora": [
+          "Art. 28(3)",
+          "Art. 28(9)"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.34"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Privacy Office",
+      "required_clauses": [
+        "region per data store",
+        "region per processor",
+        "transfer statement"
+      ]
+    },
+    {
+      "id": "EU-C4",
+      "title": "Personal data inventory",
+      "requirement": "Personal data must be inventoried by category, the data subjects must be named, and the document must state whether special category data is processed.",
+      "standard": "MTB-EU-STD-03 Records of Processing §1",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Data flow document",
+        "Processing agreements in the package"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "gdpr": [
+          "Art. 30(1)(c)",
+          "Art. 35(7)(a)",
+          "Art. 9"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.34"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Privacy Office",
+      "required_clauses": [
+        "data categories listed",
+        "data subjects named",
+        "special category flag stated"
+      ]
+    },
+    {
+      "id": "EU-C5",
+      "title": "Retention and deletion",
+      "requirement": "A retention period must be stated as a number with a unit, and a deletion mechanism such as a job, lifecycle rule or TTL must be described.",
+      "standard": "MTB-EU-STD-04 Retention §2",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Data flow document",
+        "Processing agreements in the package"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "gdpr": [
+          "Art. 5(1)(e)",
+          "Art. 17"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.10"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Privacy Office",
+      "required_clauses": [
+        "numeric retention period",
+        "deletion mechanism named"
+      ]
+    },
+    {
+      "id": "EU-C6",
+      "title": "Processors and sub-processors",
+      "requirement": "Every processor and sub-processor that can access personal data must be listed in the design, and the list must match the processing agreements in the package.",
+      "standard": "MTB-EU-STD-05 Third Parties §3",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Data flow document",
+        "Processing agreements in the package"
+      ],
+      "tier": "Critical",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "gdpr": [
+          "Art. 28(2)",
+          "Art. 28(4)"
+        ],
+        "dora": [
+          "Art. 28(3)",
+          "Art. 30"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.19",
+          "A.5.20",
+          "A.5.21"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Privacy Office",
+      "required_clauses": [
+        "processors listed or none stated",
+        "list matches agreements in the package"
+      ]
+    },
+    {
+      "id": "EU-C7",
+      "title": "Network segmentation and trust boundaries",
+      "requirement": "Network segmentation must be described, trust boundaries shown, and every inbound path and the internet egress posture stated.",
+      "standard": "MTB-EU-STD-08 Network §2",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Runbook"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "dora": [
+          "Art. 9(4)(b)"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.20",
+          "A.8.22"
+        ],
+        "nist_800_53": [
+          "SC-7"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Security Architecture",
+      "required_clauses": [
+        "segmentation described",
+        "inbound paths stated",
+        "egress posture stated"
+      ]
+    },
+    {
+      "id": "EU-C8",
+      "title": "Least-privilege access",
+      "requirement": "Access must use named roles scoped to specific resources. There must be no shared administrator account, and human access to production data must not be standing.",
+      "standard": "MTB-EU-STD-09 Access §2",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Runbook"
+      ],
+      "tier": "Critical",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "dora": [
+          "Art. 9(4)(c)"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.15",
+          "A.5.18",
+          "A.8.2"
+        ],
+        "nist_800_53": [
+          "AC-6"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Security Architecture",
+      "required_clauses": [
+        "named scoped roles",
+        "no shared admin",
+        "no standing human data access"
+      ]
+    },
+    {
+      "id": "EU-C9",
+      "title": "Security logging and monitoring",
+      "requirement": "Security events must be logged to a protected location, with a numeric retention period and a description of alerting and its routing.",
+      "standard": "MTB-EU-STD-10 Logging §3",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Runbook"
+      ],
+      "tier": "High",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "dora": [
+          "Art. 10"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.8.15",
+          "A.8.16"
+        ],
+        "nist_800_53": [
+          "AU-2",
+          "AU-11"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Technology Resilience",
+      "required_clauses": [
+        "security event sources logged",
+        "numeric retention",
+        "alert routing"
+      ]
+    },
+    {
+      "id": "EU-C10",
+      "title": "Rollback and recovery",
+      "requirement": "A rollback plan for deployments must exist, and RTO and RPO must be stated as numbers.",
+      "standard": "MTB-EU-STD-11 Continuity §2",
+      "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
+      "evidence": [
+        "Architecture document",
+        "Runbook"
+      ],
+      "tier": "Medium",
+      "framework_map": {
+        "status": "illustrative; not reviewed by a compliance owner",
+        "dora": [
+          "Art. 11",
+          "Art. 12"
+        ],
+        "iso_27001_2022_annex_a": [
+          "A.5.30",
+          "A.8.13"
+        ],
+        "nist_800_53": [
+          "CP-2",
+          "CP-10"
+        ]
+      },
+      "reviewer_role": "ARB reviewer, Technology Resilience",
+      "required_clauses": [
+        "rollback plan described",
+        "RTO stated",
+        "RPO stated"
+      ]
+    }
+  ]
+}

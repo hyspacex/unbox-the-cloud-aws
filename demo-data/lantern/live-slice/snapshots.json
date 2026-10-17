@@ -1,0 +1,57 @@
+{
+  "folderId": "318840021",
+  "project": "Project Lantern: Customer Support AI Assistant",
+  "application_id": "APM-20417",
+  "application_tier": "Tier 1",
+  "regulatory_scope": "NPI (GLBA)",
+  "arb_decision": {
+    "id": "ARB-2026-0338",
+    "outcome": "approved with conditions",
+    "date": "2026-10-07",
+    "chair": "R. Alvarez"
+  },
+  "snapshots": [
+    {
+      "snapshot_id": "S2",
+      "captured_at": "2026-10-07T13:00:05Z",
+      "control_profile_version": "2026.3-live",
+      "files": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188"
+        },
+        {
+          "fileId": "1650233403",
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
+        }
+      ],
+      "era": "reviewed baseline",
+      "manifest_hash": "sha256:946634d49ed9654cb3cc11894a6bdbd29574779d3c8cd5b6d136ca76c62c8a08"
+    },
+    {
+      "snapshot_id": "S4",
+      "captured_at": "LIVE",
+      "control_profile_version": "2026.3-live",
+      "files": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "contentHash": "sha256:a8139392d091654dda904cf124c09d3c15a49e3881598b448f588235753ee6b8"
+        },
+        {
+          "fileId": "1650233403",
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
+        }
+      ],
+      "era": "live v3 upload",
+      "manifest_hash": "sha256:236f013da363fde53d1024c2f34b62395b918e239978cbaea6a19a117c860ba4"
+    }
+  ]
+}

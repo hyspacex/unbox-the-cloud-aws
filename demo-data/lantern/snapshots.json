@@ -1,0 +1,171 @@
+{
+  "folderId": "318840021",
+  "project": "Project Lantern: Customer Support AI Assistant",
+  "application_id": "APM-20417",
+  "application_tier": "Tier 1",
+  "regulatory_scope": "NPI (GLBA)",
+  "arb_decision": {
+    "id": "ARB-2026-0338",
+    "outcome": "approved with conditions",
+    "date": "2026-10-07",
+    "chair": "R. Alvarez"
+  },
+  "snapshots": [
+    {
+      "snapshot_id": "S1",
+      "captured_at": "2026-10-03T15:00:12Z",
+      "control_profile_version": "2026.3",
+      "files": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102231",
+          "contentHash": "sha256:e553b814f31a79d8c2b04efb4ca9df2710773bdfa74a759034c15ccc3968ee2f"
+        },
+        {
+          "fileId": "1650233402",
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "contentHash": "sha256:f977a7d6da22b60d4d6809e1fd959efe674dfa092969cc137587355eed34c238"
+        },
+        {
+          "fileId": "1650233403",
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
+        },
+        {
+          "fileId": "1650233404",
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "contentHash": "sha256:f82629b8ec8fc2194b5a3a567856b9b95fbc71c7f628fab217fc4823bf21f852"
+        },
+        {
+          "fileId": "1650233405",
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
+        }
+      ],
+      "era": "baseline v1",
+      "manifest_hash": "sha256:79143f7c4f8e7ad1516d94a5b6b587b4b78718d5aac8edcdbc65463e6f7a213a"
+    },
+    {
+      "snapshot_id": "S2",
+      "captured_at": "2026-10-07T13:00:05Z",
+      "control_profile_version": "2026.3",
+      "files": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188"
+        },
+        {
+          "fileId": "1650233402",
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "contentHash": "sha256:f977a7d6da22b60d4d6809e1fd959efe674dfa092969cc137587355eed34c238"
+        },
+        {
+          "fileId": "1650233403",
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
+        },
+        {
+          "fileId": "1650233404",
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "contentHash": "sha256:f82629b8ec8fc2194b5a3a567856b9b95fbc71c7f628fab217fc4823bf21f852"
+        },
+        {
+          "fileId": "1650233405",
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
+        }
+      ],
+      "era": "verified package v2",
+      "manifest_hash": "sha256:03becb333a074a13e875ca1d762dd7e379de65335162a8db4d189c4c55b4b5e3"
+    },
+    {
+      "snapshot_id": "S3",
+      "captured_at": "2026-10-12T14:20:44Z",
+      "control_profile_version": "2026.3",
+      "files": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188"
+        },
+        {
+          "fileId": "1650233402",
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "contentHash": "sha256:f977a7d6da22b60d4d6809e1fd959efe674dfa092969cc137587355eed34c238"
+        },
+        {
+          "fileId": "1650233403",
+          "fileName": "runbook.md",
+          "versionId": "1801102252",
+          "contentHash": "sha256:a32ca4d883048fba03241a6f0ed1d1300d0154d7af3370336bd63ebcc76476ca"
+        },
+        {
+          "fileId": "1650233404",
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "contentHash": "sha256:f82629b8ec8fc2194b5a3a567856b9b95fbc71c7f628fab217fc4823bf21f852"
+        },
+        {
+          "fileId": "1650233405",
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
+        }
+      ],
+      "era": "runbook minor edit",
+      "manifest_hash": "sha256:0d3ad3fae5069c1d581bd4bd04a62ee128f682c2bafa18dfd8b0954aa6676134"
+    },
+    {
+      "snapshot_id": "S4",
+      "captured_at": "2026-10-17T15:30:04Z",
+      "control_profile_version": "2026.3",
+      "files": [
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "contentHash": "sha256:a8139392d091654dda904cf124c09d3c15a49e3881598b448f588235753ee6b8"
+        },
+        {
+          "fileId": "1650233402",
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "contentHash": "sha256:f977a7d6da22b60d4d6809e1fd959efe674dfa092969cc137587355eed34c238"
+        },
+        {
+          "fileId": "1650233403",
+          "fileName": "runbook.md",
+          "versionId": "1801102252",
+          "contentHash": "sha256:a32ca4d883048fba03241a6f0ed1d1300d0154d7af3370336bd63ebcc76476ca"
+        },
+        {
+          "fileId": "1650233404",
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "contentHash": "sha256:f82629b8ec8fc2194b5a3a567856b9b95fbc71c7f628fab217fc4823bf21f852"
+        },
+        {
+          "fileId": "1650233405",
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
+        }
+      ],
+      "era": "v3 upload",
+      "manifest_hash": "sha256:bafa6cf1c3d3ae11095793de12d8493bdca4707920612dfa2597497cb2887935"
+    }
+  ]
+}

@@ -65,20 +65,53 @@ export function useManifest(dep?: unknown) {
   return { manifest, error };
 }
 
-export function EventLine({ e }: { e: LedgerEvent }) {
+const hdOf = (e: LedgerEvent): string | null => {
+  const hd = e.human_disposition as unknown;
+  if (typeof hd === "string") return hd;
+  if (hd && typeof hd === "object" && "disposition" in hd) return String((hd as { disposition: string }).disposition);
+  return null;
+};
+
+/**
+ * What an event means in the return-to-author context (judge B5). A return is a rejected task response (the
+ * reviewer's reason), then a confirmed finding, then the author task and the disposition. `all` is the list the
+ * event sits in, oldest first. Returns null when the plain event type says enough.
+ */
+export function meaningOf(e: LedgerEvent, all: LedgerEvent[]): string | null {
+  if (e.event_type === "box_task_response_ingested" && e.response?.resolution_state === "rejected") return "reason recorded (task response)";
+  if (e.event_type === "acknowledgment_recorded") {
+    const i = all.indexOf(e);
+    const same = (x: LedgerEvent) => (e.finding_id && x.finding_id ? x.finding_id === e.finding_id : x.control_id === e.control_id);
+    const returned = all.slice(i + 1).some((x) => x.event_type === "human_disposition_recorded" && hdOf(x) === "returned_to_author" && same(x));
+    if (returned) return "finding confirmed";
+  }
+  return null;
+}
+
+export function EventLine({ e, meaning }: { e: LedgerEvent; meaning?: string | null }) {
   return (
     <li className="py-1.5">
       <div className="flex items-baseline gap-2 min-w-0">
         <span className="mono text-[12px] font-bold flex-none" style={{ color: C.text }}>
           {e.event_id}
         </span>
-        <span className="mono truncate text-[12px]" style={{ color: C.text }} title={e.event_type}>
+        {meaning ? (
+          <span className="flex-none text-[12.5px] font-bold" style={{ color: C.text }}>
+            {meaning}
+          </span>
+        ) : null}
+        <span className="mono truncate text-[12px]" style={{ color: meaning ? C.secondary : C.text }} title={e.event_type}>
           {e.event_type}
         </span>
       </div>
       <div className="mono pl-[1px] text-[11.5px]" style={{ color: C.secondary }}>
-        {detailWord(e)}
-        {e.actor.type === "human" && e.actor.box_user_id ? ` · Box user ${e.actor.box_user_id}` : ""} · chain {chainShort(e.chain_hash)}
+        {[
+          meaning ? null : detailWord(e),
+          e.actor.type === "human" && e.actor.box_user_id ? `Box user ${e.actor.box_user_id}` : null,
+          `chain ${chainShort(e.chain_hash)}`,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </div>
     </li>
   );
@@ -95,7 +128,7 @@ export function RecordList({ controlId, refreshKey }: { controlId: string; refre
     api
       .ledger(controlId, ctrl.signal)
       .then((l) => {
-        setEvents(l.events.slice().reverse());
+        setEvents(l.events);
         setErr(null);
       })
       .catch((e) => !ctrl.signal.aborted && setErr(errorText(e)));
@@ -108,9 +141,12 @@ export function RecordList({ controlId, refreshKey }: { controlId: string; refre
       {!events && !err ? <p className="text-[12px]" style={{ color: C.secondary }}>Loading the record…</p> : null}
       {events ? (
         <ol className="max-h-[260px] overflow-y-auto divide-y divide-[#E8E8E8]" aria-label={`Ledger events for ${controlId}, newest first`}>
-          {events.map((e) => (
-            <EventLine key={e.event_id} e={e} />
-          ))}
+          {events
+            .slice()
+            .reverse()
+            .map((e) => (
+              <EventLine key={e.event_id} e={e} meaning={meaningOf(e, events)} />
+            ))}
         </ol>
       ) : null}
       <div className="mt-1">

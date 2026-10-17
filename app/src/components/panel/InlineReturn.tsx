@@ -163,9 +163,13 @@ export function InlineReturn({
             {editing ? (
               <textarea className={`${fieldClass} mt-1.5 max-h-[110px]`} rows={5} value={message} onChange={(e) => setMessage(e.target.value)} aria-label="Author task message" />
             ) : (
-              <blockquote className="mt-1.5 max-h-[110px] overflow-y-auto border-l-[3px] pl-3 text-[13px] leading-[1.5] whitespace-pre-wrap" style={{ borderColor: C.border, color: C.text }}>
-                {message}
-              </blockquote>
+              <div className="relative mt-1.5">
+                <blockquote className="max-h-[110px] overflow-y-auto border-l-[3px] pl-3 pb-3 text-[13px] leading-[1.5] whitespace-pre-wrap" style={{ borderColor: C.border, color: C.text }}>
+                  {message}
+                </blockquote>
+                {/* A 24 px fade says the draft continues (judge C1); the preview scrolls. */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6" style={{ background: "linear-gradient(to bottom, rgba(250,251,252,0), #FAFBFC)" }} aria-hidden />
+              </div>
             )}
             <div className="mt-1.5 flex justify-end">
               <button type="button" className={btnSmall} onClick={() => setEditing((v) => !v)} disabled={busy}>

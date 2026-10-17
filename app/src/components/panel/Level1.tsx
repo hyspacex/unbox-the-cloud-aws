@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "motion/react";
 import type { ControlRow, FindingCard, PackageView } from "@/lib/types";
 import { api, peekFinding } from "@/lib/client";
 import { orderByAttention, orderById } from "@/lib/ui/order";
-import { ms } from "@/lib/ui/format";
 import { useKeelState } from "@/components/KeelStateProvider";
 import { C, CheckIcon, Chevron, DUR, EASE_OUT, RowChip, stableSeverity, SectionLabel, clampWords, isDecisionKind, isRecordedRow, toneColor } from "./parts";
 
@@ -21,11 +20,11 @@ type Receipts = Record<string, CardInfo | undefined>;
  */
 function useReceipts(pkg: PackageView | null, skip: boolean): Receipts {
   const [receipts, setReceipts] = useState<Receipts>({});
-  const key = pkg && !skip ? `${pkg.snapshot.snapshot_id}|${pkg.rows.map((r) => `${r.control_id}:${r.status.kind}:${r.current_disposition}`).join(",")}|${(pkg.awaiting_drafts ?? []).length}` : "";
+  const key = pkg && !skip ? `${pkg.snapshot.snapshot_id}|${pkg.rows.map((r) => `${r.control_id}:${r.status.kind}:${r.current_disposition}:${r.decision_recorded ? 1 : 0}`).join(",")}|${(pkg.awaiting_drafts ?? []).length}` : "";
   useEffect(() => {
     if (!pkg || skip) return;
     let alive = true;
-    const rows = pkg.rows.filter((r) => r.status.kind !== "verified_holds" && r.status.kind !== "pending_recheck");
+    const rows = pkg.rows.filter((r) => (r.status.kind !== "verified_holds" || r.decision_recorded) && r.status.kind !== "pending_recheck");
     Promise.all(
       rows.map(async (r) => {
         const cached = peekFinding(r.finding_id ?? r.control_id) ?? peekFinding(r.control_id);
@@ -83,8 +82,11 @@ export function Level1() {
         : r,
     );
     const pending = rows.filter((r) => r.status.kind === "pending_recheck");
-    const holds = orderById(rows.filter((r) => r.status.kind === "verified_holds"));
-    const recordedRaw = rows.filter((r) => r.status.kind !== "pending_recheck" && r.status.kind !== "verified_holds" && isRecordedRow(r, receipts[r.control_id]?.receipt));
+    // decision_recorded wins over the kind: an acknowledged row may come back as rule 10 "Verified, holds".
+    const recordedRaw = rows.filter(
+      (r) => r.status.kind !== "pending_recheck" && (r.decision_recorded === true || (r.status.kind !== "verified_holds" && isRecordedRow(r, receipts[r.control_id]?.receipt))),
+    );
+    const holds = orderById(rows.filter((r) => r.status.kind === "verified_holds" && !recordedRaw.includes(r)));
     const rec = new Set(recordedRaw.map((r) => r.control_id));
     const decide = orderByAttention(rows.filter((r) => !rec.has(r.control_id) && isDecisionKind(r.status.kind)));
     const ack = orderByAttention(rows.filter((r) => !rec.has(r.control_id) && r.status.kind === "acknowledge"));
@@ -119,18 +121,32 @@ export function Level1() {
   const n = pkg.rows.length;
   const holdText = `${groups.holds.length} ${groups.holds.length === 1 ? "verification holds" : "verifications hold"}`;
   const line1 = changed ? `${changed.name} ${changed.version} · snapshot ${snap}` : onlyHolds ? `snapshot ${snap} · ${holdText}` : `snapshot ${snap}`;
+  // Not evaluated comes from the engine's counts (keyed by displayed label); timing lives in How it was checked.
+  const notEvaluated = Object.entries(pkg.counts ?? {})
+    .filter(([label]) => /^not evaluated/i.test(label))
+    .reduce((a, [, v]) => a + (Number(v) || 0), 0);
   const line2 = running
     ? `Re-checking ${n} controls…`
-    : pkg.trace_run_id && pkg.elapsed_ms != null
-      ? `Re-checked ${n} controls · ${ms(pkg.elapsed_ms)}`
-      : pkg.trace_run_id
-        ? `Re-checked ${n} controls`
-        : null;
+    : pkg.trace_run_id
+      ? notEvaluated > 0
+        ? `Re-checked ${n - notEvaluated} controls · ${notEvaluated} not evaluated`
+        : `Re-checked ${n} controls`
+      : null;
 
   const open = (r: ControlRow) => !locked && pushView({ kind: "control", controlId: r.control_id });
 
+  // ArrowUp / ArrowDown move between rows (roving, like the menu); Enter opens.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("button[data-row]:not([disabled])"));
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (i < 0 || !items.length) return;
+    e.preventDefault();
+    items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+  };
+
   return (
-    <div className="px-5 pt-3 pb-6">
+    <div className="px-5 pt-3 pb-6" onKeyDown={onKeyDown}>
       {replay ? (
         <div className="mb-3 flex items-center justify-between gap-2 rounded-[4px] border px-3 py-2 text-[12.5px]" style={{ borderColor: C.border, background: C.greyBg, color: C.text }}>
           <span>
@@ -209,6 +225,7 @@ export function Level1() {
                     <button
                       type="button"
                       disabled={locked}
+                      data-row={r.control_id}
                       onClick={() => open(r)}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] enabled:hover:bg-[#F4F6FA] disabled:cursor-default"
                     >
@@ -278,6 +295,7 @@ function Row({
         onClick={() => onOpen(row)}
         className="group flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors enabled:hover:bg-[#F4F6FA] disabled:cursor-default"
         data-kind={s.kind}
+        data-row={row.control_id}
         aria-label={`${row.control_id} ${row.title}. ${pending ? "Re-check pending" : s.label}`}
       >
         <span className="mt-[5px] flex-none" aria-hidden>
@@ -307,8 +325,8 @@ function Row({
                 {s.label}
               </span>
             ) : recorded ? (
-              <span className="min-w-0 truncate text-[12.5px]" style={{ color: C.text }} title={receipt?.line1 ?? s.label}>
-                {receipt?.line1 ?? s.label}
+              <span className="min-w-0 truncate text-[12.5px]" style={{ color: C.text }} title={receipt?.line1 ?? s.short ?? s.label}>
+                {receipt?.line1 ?? s.short ?? s.label}
               </span>
             ) : (
               <span className="min-w-0 truncate text-[12.5px]" style={{ color: C.secondary }} title={secondaryFull}>

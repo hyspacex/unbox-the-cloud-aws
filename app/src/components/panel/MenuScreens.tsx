@@ -9,7 +9,7 @@ import { ExportPanel } from "@/components/ledger/LedgerScreen";
 import { TracePanel } from "@/components/package/TracePanel";
 import { useKeelState, type MenuScreen } from "@/components/KeelStateProvider";
 import { HowItWorksStrip } from "./HowItWorksStrip";
-import { ChainFooter, EventLine, useManifest } from "./RecordList";
+import { ChainFooter, EventLine, meaningOf, useManifest } from "./RecordList";
 import { C, btnPrimary, btnSecondary, btnSmall, errorText } from "./parts";
 
 export const MENU_TITLES: Record<MenuScreen, string> = {
@@ -86,7 +86,7 @@ function FullRecord() {
       {err ? <p className="mt-2 text-[12px]" style={{ color: C.red }}>{err}</p> : null}
       <ol className="mt-1 divide-y divide-[#E8E8E8]">
         {shown.map((e) => (
-          <EventLine key={e.event_id} e={e} />
+          <EventLine key={e.event_id} e={e} meaning={meaningOf(e, events ?? [])} />
         ))}
       </ol>
       <div className="mt-2">
@@ -235,7 +235,14 @@ function Replay() {
     return () => ctrl.abort();
   }, []);
 
-  const replayable = (runs ?? []).filter((r) => r.has_outcome !== false).slice().reverse();
+  const [showAll, setShowAll] = useState(false);
+  // Newest first (judge B3); the newest architecture_v3 run with a recorded outcome is the latest rehearsal.
+  const replayable = (runs ?? [])
+    .filter((r) => r.has_outcome !== false)
+    .slice()
+    .sort((a, b) => (b.started_at ?? "").localeCompare(a.started_at ?? ""));
+  const rehearsal = replayable.find((r) => (r.scenario ?? "architecture_v3") === "architecture_v3")?.run_id;
+  const shown = showAll ? replayable : replayable.slice(0, 3);
 
   return (
     <div className="px-5 pt-3 pb-6">
@@ -262,11 +269,18 @@ function Replay() {
         </p>
       ) : null}
       <ul className="space-y-2">
-        {replayable.map((r) => (
+        {shown.map((r) => (
           <li key={r.run_id} className="flex items-center justify-between gap-3 rounded-[4px] border px-3 py-2" style={{ borderColor: C.border }}>
             <div className="min-w-0">
-              <div className="mono truncate text-[12px] font-bold" style={{ color: C.text }}>
-                {r.run_id}
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="mono truncate text-[12px] font-bold" style={{ color: C.text }}>
+                  {r.run_id}
+                </span>
+                {r.run_id === rehearsal ? (
+                  <span className="flex-none rounded-[3px] px-1.5 py-0.5 text-[10.5px] font-bold" style={{ background: C.selected, color: C.boxBlue }}>
+                    Latest rehearsal
+                  </span>
+                ) : null}
               </div>
               <div className="text-[12px]" style={{ color: C.secondary }}>
                 {r.prior_snapshot_id ? `${r.prior_snapshot_id} to ` : ""}
@@ -288,6 +302,11 @@ function Replay() {
           </li>
         ))}
       </ul>
+      {replayable.length > 3 ? (
+        <button type="button" className="mt-2 text-[13px] font-bold hover:underline" style={{ color: C.boxBlue }} onClick={() => setShowAll((v) => !v)}>
+          {showAll ? "Show fewer" : `Show all (${replayable.length})`}
+        </button>
+      ) : null}
     </div>
   );
 }

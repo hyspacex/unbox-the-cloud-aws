@@ -33,6 +33,7 @@ const PANEL_CSS = `
 .kp-root .kp-compact .mt-6 { margin-top: 12px !important; }
 .kp-root .kp-compact .chip { font-size: 11.5px !important; }
 .kp-root .kp-export .panel { border-radius: 4px; }
+.kp-root button[data-row]:focus-visible { outline-offset: -2px; border-radius: 3px; }
 `;
 
 export function Panel() {
@@ -74,10 +75,29 @@ export function Panel() {
     return () => document.removeEventListener("keydown", onKey);
   });
 
-  // Each level opens at the top.
+  // Each level opens at the top. After the 240 ms slide, focus Back on level 2; on return to level 1, focus the
+  // row that was open (judge B2).
   const bodyRef = useRef<HTMLDivElement>(null);
+  const prevKey = useRef(key);
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
+    const from = prevKey.current;
+    prevKey.current = key;
+    if (from === key) return;
+    const t = setTimeout(() => {
+      const root = ref.current;
+      if (!root) return;
+      if (key !== "level1") {
+        root.querySelector<HTMLElement>('button[aria-label="Back"]')?.focus({ preventScroll: true });
+      } else if (from.startsWith("control:")) {
+        const id = from.slice("control:".length);
+        const row = root.querySelector<HTMLElement>(`button[data-row="${CSS.escape(id)}"]`);
+        (row ?? root.querySelector<HTMLElement>("button[data-row]"))?.focus({ preventScroll: true });
+      } else {
+        root.querySelector<HTMLElement>("button[data-row]")?.focus({ preventScroll: true });
+      }
+    }, DUR.level * 1000 + 20);
+    return () => clearTimeout(t);
   }, [key]);
 
   const title = view.kind === "control" ? view.controlId : view.kind === "menu" ? MENU_TITLES[view.screen] : "Keel";

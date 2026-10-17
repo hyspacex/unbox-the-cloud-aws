@@ -71,9 +71,12 @@ export function HowItWorksStrip() {
                 ) : null}
               </div>
               {b.side ? (
-                <div className="w-[118px] flex-none self-center rounded-[4px] border px-2 py-1.5" style={{ borderColor: "#6F4BC0" }}>
-                  <div className="text-[12px] font-bold" style={{ color: "#6F4BC0" }}>
-                    {b.side.title}
+                <div className="w-[132px] flex-none self-center rounded-[4px] border px-2 py-1.5" style={{ borderColor: "#6F4BC0" }}>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[12px] font-bold" style={{ color: "#6F4BC0" }}>
+                      {b.side.title}
+                    </span>
+                    <Tag kind="built" />
                   </div>
                   <div className="text-[11px] leading-[1.35]" style={{ color: C.secondary }}>
                     {b.side.line}

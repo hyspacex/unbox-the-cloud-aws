@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KEEL · Tesla-Inspired Cross-Platform Desktop Compliance Client</title>
+  <style>
+    :root {
+      --obsidian: #0a0b0e;
+      --graphite: #12141a;
+      --surface: #181b22;
+      --surface-hover: #1f232c;
+      --hairline: rgba(255, 255, 255, 0.09);
+      --hairline-bright: rgba(255, 255, 255, 0.18);
+      --text-primary: #f4f6f8;
+      --text-secondary: #8e96a4;
+      --text-muted: #5c6470;
+      --tesla-green: #17c964;
+      --tesla-green-glow: rgba(23, 201, 100, 0.14);
+      --tesla-amber: #f5a524;
+      --tesla-amber-glow: rgba(245, 165, 36, 0.14);
+      --tesla-blue: #3b82f6;
+      --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background: radial-gradient(circle at 50% 0%, #1a1f2c 0%, #07080a 70%);
+      color: var(--text-primary);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    /* Draggable Rectangle Shell (Windows & macOS Frameless HUD) */
+    .tesla-widget {
+      width: 400px;
+      max-width: 100%;
+      background: linear-gradient(180deg, rgba(24, 27, 34, 0.96) 0%, rgba(12, 14, 18, 0.98) 100%);
+      border: 1px solid var(--hairline-bright);
+      border-radius: 18px;
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.75),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+      position: relative;
+      backdrop-filter: blur(24px);
+    }
+
+    /* Top Draggable Status Bar */
+    .hud-topbar {
+      -webkit-app-region: drag;
+      cursor: grab;
+      height: 42px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--hairline);
+      background: rgba(10, 11, 14, 0.65);
+    }
+
+    .hud-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--tesla-green);
+      box-shadow: 0 0 10px var(--tesla-green);
+    }
+
+    .hud-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    .hud-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .hud-actions {
+      -webkit-app-region: no-drag;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--hairline);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      padding: 4px 9px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover,
+    .icon-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text-primary);
+      border-color: var(--hairline-bright);
+    }
+
+    /* Main HUD Content */
+    .hud-body {
+      padding: 16px;
+    }
+
+    /* Two-Box Core: Left Green Compliance | Right Yellow Not Yet Compliant */
+    .dual-telemetry {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .telemetry-box {
+      position: relative;
+      border-radius: 14px;
+      padding: 16px 14px 14px;
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .telemetry-box:hover {
+      transform: translateY(-2px);
+      background: var(--surface-hover);
+    }
+
+    .telemetry-box.compliant {
+      background: linear-gradient(180deg, rgba(23, 201, 100, 0.09) 0%, rgba(24, 27, 34, 0.9) 100%);
+      border-color: rgba(23, 201, 100, 0.35);
+    }
+
+    .telemetry-box.non-compliant {
+      background: linear-gradient(180deg, rgba(245, 165, 36, 0.11) 0%, rgba(24, 27, 34, 0.9) 100%);
+      border-color: rgba(245, 165, 36, 0.4);
+    }
+
+    /* Bottom Laser Light Bar (Tesla Energy Style) */
+    .telemetry-box::after {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 0;
+      height: 2.5px;
+      border-radius: 2px;
+    }
+
+    .telemetry-box.compliant::after {
+      background: var(--tesla-green);
+      box-shadow: 0 0 12px var(--tesla-green);
+    }
+
+    .telemetry-box.non-compliant::after {
+      background: var(--tesla-amber);
+      box-shadow: 0 0 12px var(--tesla-amber);
+    }
+
+    .t-micro-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .t-number {
+      font-size: 46px;
+      font-weight: 300;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      margin: 4px 0 8px;
+    }
+
+    .telemetry-box.compliant .t-number {
+      color: var(--tesla-green);
+      text-shadow: 0 0 24px rgba(23, 201, 100, 0.35);
+    }
+
+    .telemetry-box.non-compliant .t-number {
+      color: var(--tesla-amber);
+      text-shadow: 0 0 24px rgba(245, 165, 36, 0.35);
+    }
+
+    .t-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Recessed File & Folder Drag-and-Drop Bay */
+    .drop-bay {
+      border-radius: 12px;
+      border: 1px dashed rgba(255, 255, 255, 0.16);
+      background: rgba(10, 11, 14, 0.55);
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      margin-bottom: 12px;
+    }
+
+    .drop-bay:hover,
+    .drop-bay.dragover {
+      border-color: var(--tesla-blue);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .drop-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .drop-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--hairline);
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .drop-title {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .drop-hint {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .drop-tag {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--text-secondary);
+      padding: 3px 7px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--hairline);
+    }
+
+    /* Topic Notification Info Box (Teammate File Drop Feed) */
+    .topic-info-box {
+      border-radius: 12px;
+      background: rgba(24, 27, 34, 0.92);
+      border: 1px solid var(--hairline-bright);
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+
+    .topic-info-box:hover {
+      border-color: rgba(59, 130, 246, 0.55);
+      background: rgba(30, 35, 46, 0.96);
+    }
+
+    .tib-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .tib-topic {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tib-time {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--text-muted);
+    }
+
+    .tib-headline {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      line-height: 1.35;
+    }
+
+    .tib-detail {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .tib-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 7px;
+      border-top: 1px solid var(--hairline);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    /* Tesla Configuration Panel (Slide-over / Toggle) */
+    .config-panel {
+      display: none;
+      padding: 16px;
+      background: rgba(12, 14, 18, 0.98);
+      border-top: 1px solid var(--hairline);
+    }
+
+    .config-panel.open {
+      display: block;
+    }
+
+    .cfg-section-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    /* Tesla Segmented Pill Bar */
+    .segmented-control {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: #090a0d;
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid var(--hairline);
+      margin-bottom: 14px;
+    }
+
+    .seg-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 7px 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .seg-btn.active {
+      background: #222631;
+      color: var(--text-primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+
+    .cfg-field {
+      margin-bottom: 11px;
+    }
+
+    .cfg-field label {
+      display: block;
+      font-size: 10px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .cfg-input {
+      width: 100%;
+      background: #090a0d;
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--text-primary);
+      font-family: var(--mono);
+      font-size: 11px;
+      outline: none;
+    }
+
+    .cfg-input:focus {
+      border-color: var(--hairline-bright);
+    }
+
+    .cfg-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-top: 1px solid var(--hairline);
+      font-size: 11.5px;
+      color: var(--text-primary);
+    }
+
+    .tesla-switch {
+      width: 36px;
+      height: 20px;
+      border-radius: 999px;
+      background: var(--tesla-green);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .tesla-switch.off {
+      background: #2b303c;
+    }
+
+    .tesla-switch::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.15s ease;
+    }
+
+    .tesla-switch.off::after {
+      transform: translateX(-16px);
+    }
+
+    .cfg-save-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 9px;
+      border-radius: 9px;
+      border: 1px solid var(--hairline-bright);
+      background: #f4f6f8;
+      color: #0a0b0e;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    /* Popup Web Interface Detail Drawer (Shown when clicking Green/Yellow Box or Notification) */
+    .web-popup-modal {
+      display: none;
+      margin-top: 14px;
+      width: 400px;
+      max-width: 100%;
+      background: var(--graphite);
+      border: 1px solid var(--hairline-bright);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+
+    .web-popup-modal.open {
+      display: block;
+    }
+
+    .wpm-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .wpm-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    .wpm-item {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      margin-bottom: 7px;
+      font-size: 11px;
+    }
+
+    .wpm-item-head {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10px;
+      margin-bottom: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- DRAGGABLE DESKTOP CLIENT WIDGET (WINDOWS & MACOS) -->
+  <div class="tesla-widget" id="teslaWidget">
+
+    <!-- Top Draggable Handle -->
+    <header class="hud-topbar" id="dragHandle">
+      <div class="hud-brand">
+        <span class="pulse-dot" title="Subscribed to Box Compliance Topic"></span>
+        <span class="hud-title">KEEL</span>
+        <span class="hud-sub" id="hudFolderLabel">BOX · 318840021 · S4</span>
+      </div>
+      <div class="hud-actions">
+        <button class="icon-btn" id="btnSimDrop" onclick="simulateTeammateCycle()" title="Simulate Teammate File Drop via Topic">
+          ⚡ DROP
+        </button>
+        <button class="icon-btn" id="btnConfig" onclick="toggleConfig()" title="Configure Desktop Client">
+          ⚙ CONFIG
+        </button>
+      </div>
+    </header>
+
+    <!-- Main HUD Body -->
+    <div class="hud-body" id="hudBody">
+
+      <!-- Two-Box Core: Left Green Compliance | Right Yellow Not Yet Compliant -->
+      <div class="dual-telemetry">
+        <div class="telemetry-box compliant" id="boxCompliant" onclick="openWebPopup('COMPLIANT')">
+          <div class="t-micro-header">
+            <span>COMPLIANT</span>
+            <span style="color:var(--tesla-green)">● VERIFIED</span>
+          </div>
+          <div class="t-number" id="greenNum">6</div>
+          <div class="t-sub">
+            <span>Evidence Holds</span>
+            <span>↗</span>
+          </div>
+        </div>
+
+        <div class="telemetry-box non-compliant" id="boxNonCompliant" onclick="openWebPopup('NEEDS_REVIEW')">
+          <div class="t-micro-header">
+            <span>NOT YET COMPLIANT</span>
+            <span style="color:var(--tesla-amber)">▲ REVIEW</span>
+          </div>
+          <div class="t-number" id="yellowNum">2</div>
+          <div class="t-sub">
+            <span id="yellowSub">1 Critical · 1 Low</span>
+            <span>↗</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drag and Drop File / Folder Surface -->
+      <div class="drop-bay" id="dropBay" onclick="document.getElementById('hiddenFilePicker').click()">
+        <div class="drop-left">
+          <div class="drop-icon">⇣</div>
+          <div>
+            <div class="drop-title">Drop File or Folder to Box</div>
+            <div class="drop-hint">Auto-runs Decider 2B + Bedrock + Box AI</div>
+          </div>
+        </div>
+        <span class="drop-tag">WIN / MAC</span>
+        <input type="file" id="hiddenFilePicker" multiple style="display:none" onchange="onFilesDropped(this.files)" />
+      </div>
+
+      <!-- Subscribed Topic Notification Info Box -->
+      <div class="topic-info-box" id="topicInfoBox" onclick="openWebPopup('NEEDS_REVIEW')">
+        <div class="tib-header">
+          <span class="tib-topic">
+            <span>● TOPIC EVENT</span>
+            <span id="tibTopicUri">topic://keel/lantern/318840021</span>
+          </span>
+          <span class="tib-time" id="tibTime">S4 · 00:50 UTC</span>
+        </div>
+        <div class="tib-headline" id="tibHeadline">
+          Teammate J. Park dropped architecture.md (v3)
+        </div>
+        <div class="tib-detail" id="tibDetail">
+          Compliance changed (8 → 6 Compliant, 0 → 2 Not Yet Compliant): SEC-ARCH-07 KMS CMK &amp; rotation missing; SEC-ARCH-22 moved to runbook.md.
+        </div>
+        <div class="tib-footer">
+          <span>Popup Web Interface for Full Diff</span>
+          <span style="color:#60a5fa">OPEN WEB UI ↗</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tesla-Inspired Minimalist Configuration Drawer -->
+    <section class="config-panel" id="configPanel" aria-label="Desktop Client Configuration">
+      <div class="cfg-section-label">Control Profile (Project Template)</div>
+      <div class="segmented-control">
+        <button class="seg-btn active" onclick="selectProfile(this, 'US BANK · 8 CONTROLS', 6, 2)">US Bank (8)</button>
+        <button class="seg-btn" onclick="selectProfile(this, 'EU DORA · 8 CONTROLS', 7, 1)">EU DORA (8)</button>
+        <button class="seg-btn" onclick="selectProfile(this, 'LIVE SLICE · 3 CONTROLS', 2, 1)">Live Slice (3)</button>
+      </div>
+
+      <div class="cfg-field">
+        <label for="cfgFolderId">Box Package Folder ID</label>
+        <input id="cfgFolderId" class="cfg-input" value="318840021 (Project Lantern ARB Package)" />
+      </div>
+
+      <div class="cfg-field">
+        <label for="cfgTopic">Subscribed Compliance Topic</label>
+        <input id="cfgTopic" class="cfg-input" value="topic://keel/lantern/318840021/compliance" />
+      </div>
+
+      <div class="cfg-field">
+        <label for="cfgWebUrl">Web Interface Detail Endpoint</label>
+        <input id="cfgWebUrl" class="cfg-input" value="../demo/index.html" />
+      </div>
+
+      <div class="cfg-toggle-row">
+        <span>Teammate File-Drop Notifications</span>
+        <div class="tesla-switch" onclick="this.classList.toggle('off')"></div>
+      </div>
+
+      <div class="cfg-toggle-row">
+        <span>Always On Top (Windows &amp; macOS HUD)</span>
+        <div class="tesla-switch" onclick="this.classList.toggle('off')"></div>
+      </div>
+
+      <button class="cfg-save-btn" onclick="saveConfig()">Save &amp; Return to HUD</button>
+    </section>
+
+  </div>
+
+  <!-- Popup Web Interface Preview Card -->
+  <section class="web-popup-modal" id="webPopupModal" aria-label="Web Interface Detail Popup">
+    <div class="wpm-top">
+      <span class="wpm-title" id="wpmTitle">WEB INTERFACE POPUP · NOT YET COMPLIANT (2)</span>
+      <button class="icon-btn" onclick="launchFullWebInterface()">FULL WEB PAGE ↗</button>
+    </div>
+    <div id="wpmList"></div>
+  </section>
+
+  <script>
+    const STATES = [
+      {
+        snap: "S4",
+        green: 6,
+        yellow: 2,
+        headline: "Teammate J. Park dropped architecture.md (v3)",
+        detail: "Compliance changed (8 → 6 Compliant, 0 → 2 Not Yet Compliant): SEC-ARCH-07 KMS CMK & rotation missing; SEC-ARCH-22 moved to runbook.md."
+      },
+      {
+        snap: "S5",
+        green: 8,
+        yellow: 0,
+        headline: "Teammate J. Park dropped architecture.md (v4 · CMK Restored)",
+        detail: "Compliance satisfied (6 → 8 Compliant, 2 → 0 Not Yet Compliant): SEC-ARCH-07 KMS CMK & annual rotation verified; SEC-ARCH-22 acknowledged on runbook.md."
+      }
+    ];
+    let stateIdx = 0;
+
+    function simulateTeammateCycle() {
+      stateIdx = (stateIdx + 1) % STATES.length;
+      const st = STATES[stateIdx];
+      document.getElementById("greenNum").textContent = st.green;
+      document.getElementById("yellowNum").textContent = st.yellow;
+      document.getElementById("yellowSub").textContent = st.yellow === 0 ? "All Controls Verified" : "1 Critical · 1 Low";
+      document.getElementById("hudFolderLabel").textContent = `BOX · 318840021 · ${st.snap}`;
+      document.getElementById("tibTime").textContent = `${st.snap} · JUST NOW`;
+      document.getElementById("tibHeadline").textContent = st.headline;
+      document.getElementById("tibDetail").textContent = st.detail;
+    }
+
+    function toggleConfig() {
+      const cfg = document.getElementById("configPanel");
+      const hud = document.getElementById("hudBody");
+      const btn = document.getElementById("btnConfig");
+      const isOpen = cfg.classList.toggle("open");
+      hud.style.display = isOpen ? "none" : "block";
+      btn.classList.toggle("active", isOpen);
+    }
+
+    function selectProfile(btn, label, g, y) {
+      document.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("greenNum").textContent = g;
+      document.getElementById("yellowNum").textContent = y;
+    }
+
+    function saveConfig() {
+      const topicVal = document.getElementById("cfgTopic").value.trim();
+      document.getElementById("tibTopicUri").textContent = topicVal.replace("topic://", "");
+      document.getElementById("configPanel").classList.remove("open");
+      document.getElementById("hudBody").style.display = "block";
+      document.getElementById("btnConfig").classList.remove("active");
+    }
+
+    function openWebPopup(mode) {
+      const modal = document.getElementById("webPopupModal");
+      const list = document.getElementById("wpmList");
+      const title = document.getElementById("wpmTitle");
+      modal.classList.add("open");
+
+      if (mode === "COMPLIANT") {
+        title.textContent = "WEB INTERFACE POPUP · COMPLIANT HOLDS (6)";
+        list.innerHTML = `
+          <div class="wpm-item">
+            <div class="wpm-item-head"><span style="color:var(--tesla-green)">SEC-ARCH-01 · VERIFIED HOLDS</span><span>approved-services.md v1</span></div>
+            <div style="color:var(--text-secondary)">Approved AWS services only • Verified by Marcus Hale</div>
+          </div>
+          <div class="wpm-item">
+            <div class="wpm-item-head"><span style="color:var(--tesla-green)">SEC-ARCH-02 · VERIFIED HOLDS</span><span>data-flow.md v1</span></div>
+            <div style="color:var(--text-secondary)">NPI (GLBA) classification per store • Verified by Marcus Hale</div>
+          </div>
+          <div class="wpm-item">
+            <div class="wpm-item-head"><span style="color:var(--tesla-green)">SEC-ARCH-04 / 05 / 17 / 20</span><span>architecture.md v3</span></div>
+            <div style="color:var(--text-secondary)">4 additional controls unchanged &amp; holding on Snapshot S4</div>
+          </div>
+        `;
+      } else {
+        title.textContent = "WEB INTERFACE POPUP · NOT YET COMPLIANT (2)";
+        list.innerHTML = `
+          <div class="wpm-item" style="border-color:rgba(245,165,36,0.45)">
+            <div class="wpm-item-head"><span style="color:var(--tesla-amber)">SEC-ARCH-07 · CRITICAL · WEAKENED</span><span>architecture.md v3</span></div>
+            <div style="color:var(--text-primary);font-weight:600;margin-bottom:2px;">Needs review: key-management evidence missing</div>
+            <div style="color:var(--text-secondary)">KMS CMK &amp; annual rotation sentence removed in v3; Box AI searched 4 other files (0 citations).</div>
+          </div>
+          <div class="wpm-item" style="border-color:rgba(245,165,36,0.35)">
+            <div class="wpm-item-head"><span style="color:var(--tesla-amber)">SEC-ARCH-22 · LOW · MOVED</span><span>runbook.md v2</span></div>
+            <div style="color:var(--text-primary);font-weight:600;margin-bottom:2px;">Needs review: evidence binding changed</div>
+            <div style="color:var(--text-secondary)">RTO/RPO &amp; 15-min rollback removed from architecture.md v3, found in runbook.md §3.</div>
+          </div>
+        `;
+      }
+    }
+
+    function launchFullWebInterface() {
+      const targetUrl = document.getElementById("cfgWebUrl").value || "../demo/index.html";
+      if (window.keelDesktop && window.keelDesktop.openWebInterface) {
+        window.keelDesktop.openWebInterface({ filter: "NEEDS_REVIEW", snapshot: "S4", controlId: "SEC-ARCH-07" });
+      } else {
+        window.open(targetUrl, "_blank");
+      }
+    }
+
+    // Drag and drop handlers
+    const dropBay = document.getElementById("dropBay");
+    ["dragenter", "dragover"].forEach(ev => {
+      dropBay.addEventListener(ev, e => {
+        e.preventDefault();
+        dropBay.classList.add("dragover");
+      });
+    });
+    ["dragleave", "drop"].forEach(ev => {
+      dropBay.addEventListener(ev, e => {
+        e.preventDefault();
+        dropBay.classList.remove("dragover");
+      });
+    });
+    dropBay.addEventListener("drop", e => {
+      onFilesDropped(e.dataTransfer.files);
+    });
+
+    function onFilesDropped(files) {
+      if (!files || !files.length) return;
+      const names = Array.from(files).map(f => f.name).join(", ");
+      document.getElementById("greenNum").textContent = "8";
+      document.getElementById("yellowNum").textContent = "0";
+      document.getElementById("tibTime").textContent = "S5 · DROPPED NOW";
+      document.getElementById("tibHeadline").textContent = `Dropped ${names} into Box Folder #318840021`;
+      document.getElementById("tibDetail").textContent =
+        "Decider 2B cleared input (112 ms) • Bedrock + Box AI verified all 8 controls → 8 Compliant, 0 Not Yet Compliant.";
+    }
+  </script>
+</body>
+</html>

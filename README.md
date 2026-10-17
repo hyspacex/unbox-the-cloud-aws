@@ -113,12 +113,35 @@ Do not start with a vector database, a general workflow designer, private
 reviewer-context reasoning, MCP, real Git integration or compliance certification.
 Cross-document conflict detection is a follow-on capability.
 
-## Design documents & interactive prototype
+## Design documents & interactive prototypes
 
-- [Interactive HTML Audit Trail Prototype (`demo/index.html`)](demo/index.html)
+- [Cross-Platform Desktop Client (`desktop-client/README.md` — Windows & macOS Tesla-inspired 2-Box HUD)](desktop-client/README.md)
+- [Desktop Client Widget UI (`desktop-client/widget.html`)](desktop-client/widget.html)
+- [Interactive Web Interface Prototype (`demo/index.html`)](demo/index.html)
+- [Keel Design Spec v3.3 (`docs/research/30-design-v3.md`)](docs/research/30-design-v3.md)
 - [Architecture and API breakdown](docs/architecture.md)
 - [Enterprise demo and acceptance plan](docs/demo.md)
 - [Idea evolution history: V1 One-Pager to V3 current design](docs/idea-evolution.md)
+
+### Cross-Platform Desktop Client (`desktop-client/`)
+
+In addition to the web interface, the repository includes a cross-platform
+**Windows & macOS Desktop Client** ([`desktop-client/`](desktop-client/README.md))
+styled with minimalist **Tesla HMI design elements**:
+
+- **Draggable Rectangle with Two Boxes:** Left green telemetry box (`COMPLIANT` /
+  verified holds count) and right amber/yellow telemetry box (`NOT YET COMPLIANT` /
+  needs review count).
+- **File & Folder Drag-and-Drop:** Drop files or folders directly onto the
+  rectangle to upload to Box and trigger evaluation.
+- **Topic Subscription & Teammate Notification Info Box:** Subscribes to the
+  folder compliance topic (`topic://keel/lantern/318840021`) and notifies the
+  user when a teammate's file drop satisfies or changes compliance.
+- **Minimalist Configuration & Web Popup:** Built-in `⚙ CONFIG` drawer (Control
+  Profile segmented selector, Box Folder ID, topic URI, and toggles) plus
+  one-click popup to launch the detailed Web Interface.
+
+![Desktop Client Main HUD](desktop-client/screenshots/hud-main.png)
 
 ## Trust boundaries
 

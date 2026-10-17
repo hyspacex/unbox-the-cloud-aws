@@ -8,7 +8,7 @@ import { ClauseChecklist } from "@/components/finding/Clauses";
 import { VersionColumns } from "@/components/finding/Versions";
 import { useKeelState } from "@/components/KeelStateProvider";
 import { AgreedChanged, QuotePair } from "./QuotePair";
-import { RuleSourceRow } from "./RuleChip";
+import { RuleChip, RuleSourceRow } from "./RuleChip";
 import { Timeline } from "./Timeline";
 import { Receipt } from "./Receipt";
 import { RecordList } from "./RecordList";
@@ -151,9 +151,11 @@ export function Level2({ controlId }: { controlId: string }) {
       </div>
 
       {/* v4.1 order (design 51): rule source, control history, AGREED, CHANGED, then verdict and actions. */}
+      {/* The rule source is a small label on the first screen; set-up and framework map are its tooltip and live
+          in the Clauses disclosure. */}
       {row.rule_source ? (
-        <div className="mt-2.5">
-          <RuleSourceRow rs={row.rule_source} />
+        <div className="mt-2">
+          <RuleChip rs={row.rule_source} />
         </div>
       ) : null}
       {card.timeline?.length ? (
@@ -185,6 +187,11 @@ export function Level2({ controlId }: { controlId: string }) {
               {last.events.length ? <span style={{ color: C.secondary }}> · {last.events.map((e) => e.event_id).join(", ")}</span> : null}
             </span>
           </div>
+        ) : row.status.kind === "verified_holds" && !rta.enabled && !verify.enabled ? (
+          // A hold needs no decision: the engine's one sentence replaces the disabled action row.
+          <p className="text-[13.5px] leading-[1.5]" style={{ color: C.text }} data-testid="hold-note">
+            {verify.reason ?? rta.reason}
+          </p>
         ) : ack ? (
           <>
             <button type="button" className={inline === "ack" ? btnOpen : btnPrimary} disabled={locked} aria-expanded={inline === "ack"} onClick={() => toggle("ack")}>
@@ -252,7 +259,8 @@ export function Level2({ controlId }: { controlId: string }) {
           >
             <div className="pt-3">
               {disc === "clauses" ? (
-                <div className="kp-compact-clauses">
+                <div className="kp-compact-clauses space-y-3">
+                  {row.rule_source ? <RuleSourceRow rs={row.rule_source} /> : null}
                   <ClauseChecklist clauses={card.finding.clause_support} />
                 </div>
               ) : disc === "versions" ? (

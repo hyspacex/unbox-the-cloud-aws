@@ -212,23 +212,7 @@ export function Level1() {
                 className="mt-1 rounded-[4px] border"
               >
                 {groups.holds.map((r) => (
-                  <li key={r.control_id} className="border-b last:border-b-0" style={{ borderColor: C.border }}>
-                    <button
-                      type="button"
-                      disabled={locked}
-                      data-row={r.control_id}
-                      onClick={() => open(r)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] enabled:hover:bg-[#F4F6FA] disabled:cursor-default"
-                    >
-                      <span className="mono flex-none text-[12px] font-bold" style={{ color: C.text }}>
-                        {r.control_id}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate" style={{ color: C.secondary }} title={r.title}>
-                        {r.title}
-                      </span>
-                      {!locked ? <Chevron size={12} /> : null}
-                    </button>
-                  </li>
+                  <Row key={r.control_id} row={r} locked={locked} onOpen={open} />
                 ))}
               </motion.ul>
             ) : null}
@@ -250,14 +234,9 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-/**
- * The row's status word (v4.1 rule): the engine's short line when it is three words or fewer, otherwise the part of
- * the engine's label before the colon ("Needs review", "Acknowledge", "Verified, holds"). Both are engine text.
- */
+/** The row's status word: the engine label's text before the colon ("Needs review", "Acknowledge", "Verified, holds"). */
 function statusWord(row: ControlRow): string {
-  const s = row.status;
-  if (s.short && (s.short.match(/\S+/g) ?? []).length <= 3) return s.short;
-  return s.label.split(":")[0].trim();
+  return row.status.label.split(":")[0].trim();
 }
 
 function Row({
@@ -321,12 +300,8 @@ function Row({
                 <span className="flex-none whitespace-nowrap" style={{ color: recorded ? C.text : C.secondary }}>
                   {word}
                 </span>
-                {row.rule_source ? (
-                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-                    <span aria-hidden>·</span>
-                    <RuleChip rs={row.rule_source} />
-                  </span>
-                ) : null}
+                {/* The chip's border separates it; no "·", so a wrapped chip never starts a line with a dot. */}
+                {row.rule_source ? <RuleChip rs={row.rule_source} /> : null}
               </>
             )}
           </span>

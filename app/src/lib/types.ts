@@ -563,6 +563,8 @@ export interface Trace {
     count_line?: string;
     rows?: ControlRow[];
     recorded_at?: string;
+    /** The replayed snapshot (manifest and captured_at) for the header chip. */
+    snapshot?: Snapshot;
   };
   /** Added: for the trace's Done line ("6 re-checked, 2 not evaluated"). */
   summary?: { evaluated: number; not_evaluated: number };
@@ -693,7 +695,7 @@ export interface FindingCard {
   /** Added: every section quoted for the current binding, in order (["§3 Deployment and rollback", "§4 Backup"]). */
   binding_sections?: string[];
   /** Added: verified sentences that supported a clause and are absent from the submitted version. */
-  removed_sentences?: { quote: string; section: string; supported_clauses: string[] }[];
+  removed_sentences?: { quote: string; section: string; supported_clauses: string[]; /** short: "AES-256 per-store keys" */ label?: string }[];
   /** Added: time of the first ledger event of this finding. */
   opened_at?: string;
   /** Added: a reviewer's return to author waiting for draft approval (action approve_author_draft). */

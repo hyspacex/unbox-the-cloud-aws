@@ -298,7 +298,7 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
       pending_count_line: `${n} controls on snapshot ${snapshotId}: ${n} Re-check pending`,
       ...(final ? (() => {
         const rows = buildRows(store, profile, snapshotId, { withPrior: false });
-        return { count_line: countLine(rows, snapshotId), rows: rows.map(publicRow), recorded_at: utcNow() };
+        return { count_line: countLine(rows, snapshotId), rows: rows.map(publicRow), recorded_at: utcNow(), snapshot: store.snapshot(snapshotId) };
       })() : {}),
     };
   };

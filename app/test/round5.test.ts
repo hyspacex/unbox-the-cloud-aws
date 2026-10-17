@@ -21,7 +21,11 @@ describe("A1: the run record keeps its outcome", () => {
     });
     expect(run.outcome!.rows!.map((r) => r.status.label)).toEqual(fixture.expected().findings.map((f) => f.expected_display));
     expect(svc.getPackageView().count_line).toBe("8 controls on snapshot S3: 8 Verified holds"); // the store itself is the baseline
-    expect(svc.listRuns().runs.find((r) => r.run_id === sub.run_id)!.outcome!.count_line).toBe(fixture.expected().expected_count_line_before);
+    const listed = svc.listRuns().runs.find((r) => r.run_id === sub.run_id)!;
+    expect(listed.outcome!.count_line).toBe(fixture.expected().expected_count_line_before);
+    expect(listed.has_outcome).toBe(true);
+    expect(run.outcome!.snapshot).toMatchObject({ snapshot_id: "S4" });
+    expect(run.outcome!.snapshot!.captured_at).toMatch(/^2026-|^20\d\d-/);
     svc.reset();
   });
 });
@@ -66,7 +70,7 @@ describe("C12 and C13: binding sections and removed sentences on the card", () =
     expect(c22.binding_sections).toEqual(["§3 Deployment and rollback", "§4 Backup"]);
     const hero = buildFindingCard(h.store, h.profile, h.config, h.store.data.findings["KEEL-2026-0405"]);
     const aes = hero.removed_sentences!.find((r) => r.quote.startsWith("Each data store has its own AES-256 key"))!;
-    expect(aes).toMatchObject({ section: "§4.3 Encryption at rest and key management", supported_clauses: ["AES-256 stated"] });
+    expect(aes).toMatchObject({ section: "§4.3 Encryption at rest and key management", supported_clauses: ["AES-256 stated"], label: "AES-256 per-store keys" });
     const kms = hero.removed_sentences!.find((r) => r.quote.startsWith("All customer data at rest is encrypted using AWS KMS"))!;
     expect(kms.supported_clauses).toEqual(["encryption at rest stated", "key management model stated (AWS KMS customer-managed keys or CipherTrust)", "rotation period stated (at least annually)", "key custodians named"]);
     expect(hero.removed_sentences).toHaveLength(2);

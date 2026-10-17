@@ -205,10 +205,11 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
     r.supported_clauses.push(c.clause);
     removedMap.set(c.quote.quote, r);
   }
+  const verifiedText = [...removedMap.keys()].join(" ");
   return {
     opened_at: opened?.ts,
     binding_sections,
-    removed_sentences: [...removedMap.values()],
+    removed_sentences: [...removedMap.values()].map((r) => ({ ...r, label: listJoin(r.supported_clauses.map((c) => reasonNoun(c, verifiedText).replace(/^the /, ""))) })),
     ...(waiting ? { pending_author_draft: { reason: waitingResponse?.message ?? "", draft: draft?.text, drafted_by: draft?.drafted_by, task_id: waiting.task_id, snapshot_id: waiting.target_snapshot_id } } : {}),
     finding,
     control,

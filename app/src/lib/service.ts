@@ -178,6 +178,8 @@ export interface RunSummary {
   error?: string;
   /** The run's recorded outcome (count lines and rows), for replay. */
   outcome?: RunRecord["outcome"];
+  /** True when the run recorded final rows; older runs without them cannot replay to an outcome. */
+  has_outcome: boolean;
 }
 
 /** Recorded runs, newest first. Read-only: replaying one is GET /api/run/[id], which never changes state. */
@@ -199,6 +201,7 @@ export function listRuns(): { runs: RunSummary[] } {
       scenario: r.scenario,
       error: r.error,
       outcome: r.outcome,
+      has_outcome: !!r.outcome?.rows,
     }];
   });
   return { runs };

@@ -759,3 +759,170 @@ describe("Codex 15/16/18: display strings from the API", () => {
     svc.reset();
   });
 });
+
+// ------------------------------------------------------------------------------------------------
+// UI v4.1 (docs/research/51-ui-v4-1-team-review.md, "API additions")
+// ------------------------------------------------------------------------------------------------
+
+import { labelWords, parseStandard, TIMELINE_DETAIL_MAX_WORDS, TIMELINE_LABEL_MAX_WORDS, RULE_NAME_MAX_WORDS } from "../src/lib/engine/history";
+import type { TimelinePoint } from "../src/lib/types";
+
+function checkTimeline(points: TimelinePoint[]) {
+  for (const p of points) {
+    expect(labelWords(p.label), p.label).toBeLessThanOrEqual(TIMELINE_LABEL_MAX_WORDS);
+    expect(words(p.detail), p.detail).toBeLessThanOrEqual(TIMELINE_DETAIL_MAX_WORDS);
+    clean(p.label);
+    clean(p.detail);
+  }
+  expect(points.filter((p) => p.current)).toHaveLength(1);
+}
+
+async function allThreeActions() {
+  const c7 = svc.getFindingCard("SEC-ARCH-07");
+  const d = await svc.draftAuthorMessage(c7.finding.finding_id, DANA_REASON);
+  await svc.act({ finding_id: c7.finding.finding_id, control_id: "SEC-ARCH-07", decision_snapshot_id: "S4", action: "return_to_author", reason: DANA_REASON, author_message: d.text });
+  await svc.act({ finding_id: "KEEL-2026-0408", control_id: "SEC-ARCH-22", decision_snapshot_id: "S4", action: "verify", reason: "ok" });
+  await svc.act({ finding_id: svc.getFindingCard("SEC-ARCH-05").finding.finding_id, control_id: "SEC-ARCH-05", decision_snapshot_id: "S4", action: "acknowledge" });
+}
+
+describe("v4.1: rule source and rule name", () => {
+  it("parses the standard string into standard and clause", () => {
+    expect(parseStandard("IS-STD-014 Cryptography v4.2 §5.1")).toEqual({ standard: "IS-STD-014 Cryptography v4.2", clause: "§5.1", id: "IS-STD-014" });
+    expect(parseStandard("IS-STD-030 Resilience and Recovery v2.2 §3")).toMatchObject({ clause: "§3", id: "IS-STD-030" });
+    expect(parseStandard("Internal rule")).toEqual({ standard: "Internal rule", id: "Internal" });
+  });
+
+  it("every row carries rule_name (<= 5 words) and rule_source from the profile", () => {
+    svc.reset();
+    const rows = svc.getPackageView().rows;
+    for (const r of rows) {
+      expect(words(r.rule_name!)).toBeLessThanOrEqual(RULE_NAME_MAX_WORDS);
+      clean(r.rule_name!);
+      expect(r.rule_source!.profile_version).toBe("2026.3");
+      expect(r.rule_source!.framework_map_status).toBe("illustrative; not reviewed by a compliance owner");
+      for (const t of [r.rule_source!.chip, r.rule_source!.origin_label, r.rule_source!.set_by]) clean(t);
+    }
+    const by = (id: string) => rows.find((r) => r.control_id === id)!;
+    expect(by("SEC-ARCH-07").rule_name).toBe("Encryption and key management");
+    expect(by("SEC-ARCH-07").rule_source).toMatchObject({ standard: "IS-STD-014 Cryptography v4.2", clause: "§5.1", chip: "IS-STD-014 §5.1", origin: "team_standard", origin_label: "Bank standard", set_by: "Security Architecture (ARB)" });
+    expect(by("SEC-ARCH-07").rule_source!.framework_map).toContain("NIST CSF 2.0 PR.DS-01");
+    expect(by("SEC-ARCH-01").rule_source).toMatchObject({ origin: "learned_from_reviews", origin_label: "Learned from reviews", set_by: "ARB review history 2024–2026" });
+    expect(by("SEC-ARCH-17").rule_source).toMatchObject({ origin: "international_standard", origin_label: "International standard", reference: "ISO/IEC 27001:2022 A.8.15" });
+    expect(svc.getFindingCard("SEC-ARCH-07").row.rule_source!.chip).toBe("IS-STD-014 §5.1");
+  });
+});
+
+describe("v4.1: dashboard tiles", () => {
+  it("Hold / Need you / Recorded at S3, after the run, and after all three actions", async () => {
+    svc.reset();
+    const tiles = () => svc.getPackageView().dashboard!.tiles.map((t) => [t.key, t.label, t.value, t.tone]);
+    expect(tiles()).toEqual([["hold", "Hold", 8, "teal"], ["need_you", "Need you", 0, "grey"], ["recorded", "Recorded", 0, "grey"]]);
+    await (await svc.submit({ scenario: "architecture_v3" })).done!;
+    expect(tiles()).toEqual([["hold", "Hold", 5, "teal"], ["need_you", "Need you", 3, "amber"], ["recorded", "Recorded", 0, "grey"]]);
+    await allThreeActions();
+    expect(tiles()).toEqual([["hold", "Hold", 5, "teal"], ["need_you", "Need you", 0, "grey"], ["recorded", "Recorded", 3, "blue"]]);
+    const t = svc.getPackageView().dashboard!.tiles;
+    expect(t.find((x) => x.key === "need_you")!.value).toBe(svc.getPackageView().open_decisions);
+    svc.reset();
+  });
+});
+
+describe("v4.1: timelines", () => {
+  it("package timeline: one point per snapshot, labels and tones", async () => {
+    svc.reset();
+    let tl = svc.getPackageView().timeline!;
+    expect(tl.map((p) => [p.snapshot_id, p.label, p.tone, p.current])).toEqual([
+      ["S1", "baseline", "grey", false],
+      ["S2", "8 verified", "blue", false],
+      ["S3", "runbook v2 · holds", "teal", true],
+    ]);
+    expect(tl[2]).toMatchObject({ detail: "runbook.md v2 changed. 8 verifications hold.", changed_files: ["runbook.md"] });
+    checkTimeline(tl);
+    await (await svc.submit({ scenario: "architecture_v3" })).done!;
+    tl = svc.getPackageView().timeline!;
+    expect(tl[3]).toMatchObject({ snapshot_id: "S4", label: "architecture v3 · 3 need you", detail: "architecture.md v3 changed. 3 need your decision.", tone: "amber", changed_files: ["architecture.md"], current: true });
+    checkTimeline(tl);
+    await allThreeActions();
+    tl = svc.getPackageView().timeline!;
+    expect(tl[3]).toMatchObject({ label: "architecture v3 · recorded", tone: "blue" });
+    checkTimeline(tl);
+    svc.reset();
+  });
+
+  it("control timeline: verified, holds, needs review, returned, acknowledged", async () => {
+    await runV3();
+    const tl = (id: string) => svc.getFindingCard(id).timeline!;
+    expect(tl("SEC-ARCH-07").map((p) => p.label)).toEqual(["needs review", "verified by Priya", "holds", "architecture v3 · needs review"]);
+    expect(tl("SEC-ARCH-01").map((p) => p.label)).toEqual(["pending review", "verified by Marcus", "holds", "holds"]);
+    expect(tl("SEC-ARCH-22").at(-1)).toMatchObject({ label: "architecture v3 · needs review", tone: "amber", changed_files: ["architecture.md"] });
+    for (const id of ["SEC-ARCH-07", "SEC-ARCH-22", "SEC-ARCH-05", "SEC-ARCH-01"]) checkTimeline(tl(id));
+    expect(tl("SEC-ARCH-07")[1].tone).toBe("blue"); // a Verified on an earlier snapshot is never green
+    await allThreeActions();
+    expect(tl("SEC-ARCH-07").at(-1)).toMatchObject({ label: "returned to author", detail: "architecture.md v3 changed. Returned by Dana Okafor; due Oct 23.", tone: "blue" });
+    expect(tl("SEC-ARCH-05").at(-1)).toMatchObject({ label: "architecture v3 · acknowledged", tone: "teal" });
+    expect(tl("SEC-ARCH-22").at(-1)).toMatchObject({ tone: "green", current: true });
+    for (const id of ["SEC-ARCH-07", "SEC-ARCH-22", "SEC-ARCH-05"]) checkTimeline(tl(id));
+    svc.reset();
+  });
+});
+
+describe("v4.1: agreed, changed, open_in_document", () => {
+  it("07 replaced, 22 moved, 05 section changed, a hold has no changed block", async () => {
+    await runV3();
+    const c7 = svc.getFindingCard("SEC-ARCH-07");
+    expect(c7.agreed).toMatchObject({ file: "architecture.md", version_label: "v2", verified_by: "Priya Natarajan", byline: "Verified by Priya Natarajan · v2 §4.3 · Oct 8" });
+    expect(c7.agreed!.quote).toMatch(/customer-managed keys, rotated annually/);
+    expect(c7.changed).toMatchObject({ kind: "replaced", heading: "Changed in architecture.md v3 §4.3", file: "architecture.md", version_label: "v3", version_id: "1801102233" });
+    expect(c7.changed!.quote).toMatch(/^All customer data is protected/);
+    expect(c7.open_in_document).toEqual({ file_id: "1650233401", version_id: "1801102233", sentence: c7.changed!.quote });
+
+    const c22 = svc.getFindingCard("SEC-ARCH-22");
+    expect(c22.changed).toMatchObject({ kind: "moved", heading: "Now in runbook.md v2 §3", file: "runbook.md", file_id: "1650233403", version_id: "1801102252" });
+    expect(c22.open_in_document).toMatchObject({ file_id: "1650233403", version_id: "1801102252" });
+
+    const c5 = svc.getFindingCard("SEC-ARCH-05");
+    expect(c5.changed).toMatchObject({ kind: "section_changed", heading: "Section changed around it · v3 §4.2" });
+    expect(c5.changed!.quote).toBe(c5.agreed!.quote);
+
+    const c1 = svc.getFindingCard("SEC-ARCH-01");
+    expect(c1.changed).toBeNull();
+    expect(c1.agreed!.byline).toBe("Verified by Marcus Hale · v1 §1 · Oct 8");
+    expect(c1.open_in_document).toMatchObject({ file_id: "1650233405", version_id: "1801102271" });
+    for (const c of [c7, c22, c5, c1]) for (const t of [c.agreed?.byline, c.changed?.heading].filter((x): x is string => !!x)) clean(t);
+    svc.reset();
+  });
+
+  it("not evaluated (quarantine): changed kind none, no claim about the sentence", async () => {
+    svc.reset();
+    await (await svc.submit({ scenario: "injection" })).done!;
+    const c = svc.getFindingCard("SEC-ARCH-22");
+    expect(c.changed).toMatchObject({ kind: "none", heading: "Not checked in runbook.md v3" });
+    expect(c.changed!.quote).toBeUndefined();
+    svc.reset();
+  });
+});
+
+describe("v4.1: GET /api/file-text", () => {
+  it("returns the pinned text of a snapshot version; 404 for a version no snapshot pinned", async () => {
+    svc.reset();
+    const v2 = await svc.getFileText("1650233401", "1801102232");
+    expect(v2).toMatchObject({ file_id: "1650233401", version_id: "1801102232", version_label: "v2", file_name: "architecture.md", snapshot_ids: ["S2", "S3"] });
+    expect(v2.text).toBe(fixture.text("architecture-v2.md"));
+    await expect(svc.getFileText("1650233401", "1801102233")).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 }); // v3 not pinned before the run
+    await expect(svc.getFileText("", "x")).rejects.toMatchObject({ status: 400 });
+    await (await svc.submit({ scenario: "architecture_v3" })).done!;
+    const v3 = await svc.getFileText("1650233401", "1801102233");
+    expect(v3).toMatchObject({ version_label: "v3", snapshot_ids: ["S4"] });
+    expect(v3.text).toContain(svc.getFindingCard("SEC-ARCH-07").changed!.quote!);
+
+    vi.resetModules();
+    vi.doMock("next/server", () => ({ connection: async () => undefined }));
+    const { GET } = await import("../src/app/api/file-text/route");
+    const ok = await GET(new Request("http://x/api/file-text?file_id=1650233401&version_id=1801102233"));
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).file_name).toBe("architecture.md");
+    expect((await GET(new Request("http://x/api/file-text?file_id=1650233401&version_id=999"))).status).toBe(404);
+    vi.doUnmock("next/server");
+    svc.reset();
+  });
+});

@@ -244,3 +244,52 @@ The other `quote_pair_note` strings are:
 - "This control was not evaluated on this snapshot, so no sentence was checked."
 - "The re-check is still running; no current sentence yet."
 - "No current sentence is bound to this control."
+
+## Round 6 (UI v4.1: rule source, dashboard, timeline, agreed/changed, file text)
+
+Design: `docs/research/51-ui-v4-1-team-review.md`, section "API additions". All additive, and every string passes the wording filter.
+
+**Profile fixture** (`demo-data/lantern/profile-us-bank.json`). Every control gains `rule_name`, at most 5 words, and `source: { origin, set_by, reference?, note? }`. Both are listed in `fields`, and neither is handed to the model.
+- `origin` values: `team_standard` (set up by "Security Architecture (ARB)"), `learned_from_reviews` (SEC-ARCH-01, "ARB review history 2024–2026"), and `international_standard` (SEC-ARCH-17, reference "ISO/IEC 27001:2022 A.8.15"). The data is synthetic.
+
+**ControlRow.**
+- `rule_name?: string` comes from the profile and falls back to the title, capped at 5 words. Example: "Encryption and key management".
+- `rule_source?: RuleSource` is built in `engine/rule-source.ts`:
+  - `standard`: "IS-STD-014 Cryptography v4.2"
+  - `clause`: "§5.1"
+  - `chip`: "IS-STD-014 §5.1"
+  - `origin`: `"team_standard"`
+  - `origin_label`: "Bank standard", "International standard" or "Learned from reviews"
+  - `set_by`: "Security Architecture (ARB)"
+  - `reference?`, `note?`, `profile_version`: "2026.3"
+  - `framework_map?`: e.g. ["NIST CSF 2.0 PR.DS-01", "ISO 27001:2022 A.8.24", …]
+  - `framework_map_status`: "illustrative; not reviewed by a compliance owner"
+  `standard` and `clause` are parsed from the profile's `standard` string. These fields also appear on card rows and recorded outcome rows.
+
+**PackageView.**
+- `dashboard: { tiles: DashboardTile[] }`. Each tile is `{ key: "hold" | "need_you" | "recorded", label: "Hold" | "Need you" | "Recorded", value, tone }`, computed from displayed outcomes and decision flags.
+  - Hold counts rule-10 rows with no decision recorded.
+  - Need you equals `open_decisions`.
+  - Recorded counts rows with `decision_recorded`.
+  - Tones are teal, amber and blue, and grey when the value is 0.
+  - Values: S3 is 8/0/0, after the run 5/3/0, after the three actions 5/0/3.
+- `timeline: TimelinePoint[]` has one point per snapshot. A point is `{ snapshot_id, at (captured_at), label, detail, tone, changed_files, current }`.
+  - `label` is at most 4 words, not counting "·" and bare numbers. `detail` is at most 12 words.
+  - Demo values: S1 "baseline" (grey); S2 "8 verified" (blue); S3 "runbook v2 · holds" (teal); S4 "architecture v3 · 3 need you" (amber), which becomes "architecture v3 · recorded" (blue) after the actions.
+  - S4 detail: "architecture.md v3 changed. 3 need your decision."
+
+**FindingCard.**
+- `timeline: TimelinePoint[]` covers this control. SEC-ARCH-07 reads "needs review" → "verified by Priya" → "holds" → "architecture v3 · needs review", which becomes "returned to author" after the return.
+  - Point tone follows the row's status tone. A Verified on an earlier snapshot is blue; green appears only on the current snapshot.
+- `agreed: { quote, file, file_id, version_id, version_label?, section?, verified_by?, verified_at?, byline } | null`. The byline reads "Verified by Priya Natarajan · v2 §4.3 · Oct 8".
+- `changed: { kind, heading, quote?, file, file_id, version_label?, version_id, section? } | null`. The headings are:
+  - `replaced`: "Changed in architecture.md v3 §4.3"
+  - `moved`: "Now in runbook.md v2 §3"
+  - `section_changed`: "Section changed around it · v3 §4.2", with the unchanged sentence
+  - `none`: "Not checked in runbook.md v3", for a control not evaluated; it has no quote
+  It is null for a hold or while pending.
+- `open_in_document?: { file_id, version_id, sentence? }` targets the changed sentence. Failing that it targets the current binding, then the agreed sentence.
+
+**New route.** `GET /api/file-text?file_id=&version_id=` returns `{ file_id, version_id, version_label?, file_name, text, snapshot_ids }`.
+- It serves the pinned text of a version some snapshot pinned: from the store, else a live read of that exact version through the adapter, checked against the pinned content hash.
+- A version no snapshot pinned gets 404 `NOT_FOUND`. Missing parameters get 400. The route is read-only.

@@ -42,6 +42,11 @@ export function labelWords(s: string): number {
   return s.split(/\s+/).filter((w) => w && w !== "·" && !/^\d+$/.test(w)).length;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const prose = (iso: string) => {
+  const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(iso);
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : iso;
+};
 const stem = (fileName: string) => fileName.replace(/\.[^.]+$/, "");
 const clean = (t: string, fallback: string) => (bannedWords(t).length ? fallback : t);
 const detailOf = (t: string, fallback: string) => clean(capWords(t, TIMELINE_DETAIL_MAX_WORDS), fallback);
@@ -126,7 +131,7 @@ export function controlTimeline(store: Store, profile: ControlProfile, controlId
       row.status.kind === "verified" && d
         ? `Verified by ${d.actor.name} on ${d.binding.fileName} ${store.versionLabel(d.binding.fileId, d.binding.versionId) ?? ""}`.trim()
         : row.status.kind === "returned_to_author" && d
-          ? `Returned by ${d.actor.name}${d.due_at ? `; due ${d.due_at.slice(0, 10)}` : ""}`
+          ? `Returned by ${d.actor.name}${d.due_at ? `; due ${prose(d.due_at)}` : ""}`
           : (row.status.short ?? row.status.label);
     const detail = detailOf(mine.length ? `${phrase(mine)} changed. ${who}.` : `${who}.`, "See the record.");
     let tone = CONTROL_TONE[row.status.tone] ?? "grey";

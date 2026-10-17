@@ -13,7 +13,9 @@
     "evidence",
     "tier",
     "framework_map",
-    "reviewer_role"
+    "reviewer_role",
+    "rule_name",
+    "source"
   ],
   "handed_to_model": [
     "requirement",
@@ -40,6 +42,7 @@
     {
       "id": "SEC-ARCH-01",
       "title": "Approved services only",
+      "rule_name": "Approved services only",
       "requirement": "Every cloud service and third-party component named in the design must be on the Approved Cloud Services Catalog, or the package must reference an approved exception by id. The package must contain a list of services and components with their catalog status. A component named in the design but missing from the list is a finding.",
       "required_clauses": [
         {
@@ -84,11 +87,17 @@
           "OCC Bulletin 2023-17"
         ]
       },
-      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk"
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
+      "source": {
+        "origin": "learned_from_reviews",
+        "set_by": "ARB review history 2024–2026",
+        "note": "Added after repeated ARB findings of uncatalogued services (synthetic)."
+      }
     },
     {
       "id": "SEC-ARCH-02",
       "title": "Data classification and regulatory scope per data store",
+      "rule_name": "Data classification per store",
       "requirement": "Every data store must carry a classification label under IS-STD-003: Public, Internal, Confidential or Restricted. Stores holding nonpublic personal information must be flagged NPI (GLBA). If payment card data could be present, the design must state the PCI DSS scope boundary.",
       "required_clauses": [
         {
@@ -141,11 +150,16 @@
           "Interagency Guidelines Establishing Information Security Standards (12 CFR 30, App. B)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk"
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
+      "source": {
+        "origin": "team_standard",
+        "set_by": "Security Architecture (ARB)"
+      }
     },
     {
       "id": "SEC-ARCH-04",
       "title": "Authentication and MFA via enterprise IdP",
+      "rule_name": "MFA via enterprise IdP",
       "requirement": "All human access, for users and administrators, must authenticate through the enterprise IdP. Multi-factor authentication is required, and it must be phishing-resistant for privileged and remote access. The application must not keep local user accounts.",
       "required_clauses": [
         {
@@ -197,11 +211,16 @@
           "FFIEC Authentication and Access to Financial Institution Services and Systems (2021)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk"
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
+      "source": {
+        "origin": "team_standard",
+        "set_by": "Security Architecture (ARB)"
+      }
     },
     {
       "id": "SEC-ARCH-05",
       "title": "Least privilege, PAM, no shared admin, break-glass named",
+      "rule_name": "Least privilege and break-glass",
       "requirement": "Access must use named roles scoped to specific resources. Privileged access must be brokered through the enterprise PAM vault, and there must be no shared administrator account. A break-glass path must be named, require two-person approval, and expire.",
       "required_clauses": [
         {
@@ -263,11 +282,16 @@
           "12 CFR 30, App. B, III.C.1(a)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience and Operations"
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
+      "source": {
+        "origin": "team_standard",
+        "set_by": "Security Architecture (ARB)"
+      }
     },
     {
       "id": "SEC-ARCH-07",
       "title": "Encryption at rest and key management",
+      "rule_name": "Encryption and key management",
       "requirement": "All customer data at rest must be encrypted with AES-256. Keys must be AWS KMS customer-managed keys or held in CipherTrust Manager; provider-managed or default keys do not meet this requirement. Keys must rotate at least annually, and the key custodians must be named.",
       "required_clauses": [
         {
@@ -334,11 +358,16 @@
           "12 CFR 30, App. B, III.C.1(c)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Security Architecture"
+      "reviewer_role": "ARB reviewer, Security Architecture",
+      "source": {
+        "origin": "team_standard",
+        "set_by": "Security Architecture (ARB)"
+      }
     },
     {
       "id": "SEC-ARCH-17",
       "title": "Security events to enterprise SIEM (Splunk)",
+      "rule_name": "Security events to SIEM",
       "requirement": "Security events from control plane, network flow, application audit and model invocation sources must be forwarded to the enterprise SIEM (Splunk). Retention must follow IS-STD-021. A named team must own the alerts raised on these events.",
       "required_clauses": [
         {
@@ -392,11 +421,17 @@
           "12 CFR 30, App. B, III.C.1(f)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience and Operations"
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
+      "source": {
+        "origin": "international_standard",
+        "set_by": "Security Architecture (ARB)",
+        "reference": "ISO/IEC 27001:2022 A.8.15"
+      }
     },
     {
       "id": "SEC-ARCH-20",
       "title": "Third parties named with TPRM assessment id and inherent risk tier",
+      "rule_name": "Third-party risk assessment",
       "requirement": "Every third party or sub-processor in the design must be named and must carry a TPRM assessment id and an inherent risk tier. Each assessment must be current on the date of review.",
       "required_clauses": [
         {
@@ -452,11 +487,16 @@
           "GV.SC-07"
         ]
       },
-      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk"
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
+      "source": {
+        "origin": "team_standard",
+        "set_by": "Security Architecture (ARB)"
+      }
     },
     {
       "id": "SEC-ARCH-22",
       "title": "Recovery targets and rollback path documented",
+      "rule_name": "Recovery targets and rollback",
       "requirement": "The package must state RTO and RPO and describe a rollback path for deployments. Backups must be immutable, for example held in a vault-locked backup vault. Evidence may be in the architecture document or the runbook. Consistency of RTO and RPO with the BIA tier is pilot scope.",
       "required_clauses": [
         {
@@ -510,7 +550,11 @@
           "Interagency Paper on Sound Practices to Strengthen Operational Resilience (2020)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience and Operations"
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
+      "source": {
+        "origin": "team_standard",
+        "set_by": "Security Architecture (ARB)"
+      }
     }
   ]
 }

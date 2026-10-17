@@ -230,6 +230,8 @@ export function agreedAndChanged(
   prior: FindingCard["prior_version"],
   now: FindingCard["new_version"],
   moved: boolean,
+  /** The row's evidencing file on this snapshot (for a control that was not evaluated: the file withheld or unreadable). */
+  evidencing?: FindingCard["new_version"],
 ): Pick<FindingCard, "agreed" | "changed" | "open_in_document"> {
   const st = row.state;
   const agreed: FindingCard["agreed"] = prior
@@ -263,7 +265,8 @@ export function agreedAndChanged(
   const k = row.status.kind;
   if (k === "pending_recheck" || st.evaluation_state === "pending") changed = null;
   else if (k === "not_evaluated") {
-    changed = now ? block("none", `Not checked in ${now.file.fileName}${now.file.versionLabel ? ` ${now.file.versionLabel}` : ""}`, now) : null;
+    const e = evidencing ?? now;
+    changed = e ? block("none", `Not checked in ${e.file.fileName}${e.file.versionLabel ? ` ${e.file.versionLabel}` : ""}`, { ...e, quote: null }) : null;
   } else if (moved && now) changed = block("moved", `Now in ${where(now)}`, now, now.quote);
   else if (st.change_classification === "unchanged" && st.acknowledgment_required && now) {
     changed = block("section_changed", `Section changed around it · ${`${now.file.versionLabel ?? ""} ${secShort(now.section)}`.trim()}`, now, now.quote ?? st.binding?.quote);
@@ -387,7 +390,9 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   const nowBlock: FindingCard["new_version"] = newFile
     ? { file: { ...newFile, versionLabel: newFile.versionLabel ?? newInfo?.label }, section: newLoc?.section ?? nBlock.section, quote: newQuote }
     : null;
-  const v41 = agreedAndChanged(row, priorBlock, nowBlock, moved);
+  const evFile = row.evidencing ? snap?.files.find((f) => f.fileName === row.evidencing!.fileName) : undefined;
+  const evBlock: FindingCard["new_version"] = evFile ? { file: { ...evFile, versionLabel: evFile.versionLabel ?? row.evidencing!.versionLabel }, section: row.evidencing!.section, quote: null } : null;
+  const v41 = agreedAndChanged(row, priorBlock, nowBlock, moved, evBlock);
   return {
     ...v41,
     timeline: controlTimeline(store, profile, control.id),

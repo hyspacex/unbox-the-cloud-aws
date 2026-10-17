@@ -17,8 +17,11 @@ Never commit `app/.env.local`.
 | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Bedrock | Default AWS chain. `AWS_REGION=us-east-1` |
 | `KEEL_INFERENCE_PROFILE=us.anthropic.claude-sonnet-4-6` | Bedrock | Sent as `modelId`. `KEEL_MODEL_ID` and `KEEL_MRM_MODEL_ID` are only recorded |
 | `KEEL_EVAL_TIMEOUT_MS=180000`, `KEEL_MAX_TOKENS=16000`, `KEEL_MAX_TURNS=24` | optional | Evaluator bounds |
+| `BOX_REQUEST_TIMEOUT_MS=20000` | Box | Deadline for every Box request, including downloads and Box AI. Expiry is `BOX_TIMEOUT`. Box AI then falls back to string search |
+| `BOX_VERSION_HISTORY` | optional | Unset: a version-history failure is an error. `current-only` accepts a single current version, labelled `current`, on free plans |
 | `DECIDER_URL=http://127.0.0.1:8099` | Decider | Empty means the gate step is omitted from the trace |
-| `DECIDER_INJECTION_THRESHOLD=0.5` | Decider | P(injection) above this quarantines the file |
+| `DECIDER_INJECTION_THRESHOLD=0.5` | Decider | A P(injection) at or above this quarantines the file. The engine reads the same variable |
+| `DECIDER_QUESTION_RESERVE_TOKENS=700` | optional | Tokens of the Decider window kept for the questions when sizing chunks |
 
 ## 2. Box app setup (Developer Console and Admin Console)
 
@@ -53,13 +56,31 @@ pip install strands-decider
 strands-decider serve StrandsAgents/strands-decider-2B-qwen3.5-v1-2610 --device mlx --port 8099
 ```
 
-The first request at a new input length compiles shapes. Run `decider-smoke.ts` once before the demo to warm it.
+The first request at a new input length compiles shapes. Run `decider-smoke.ts` once before the demo to warm it. The smoke test exits 1 unless the clean v3 is accepted and the injected copy is quarantined.
+
+**Metadata probe.** The gate's `--write` metadata probe restores the folder's exact prior state:
+- If it created the instance, it deletes it.
+- If `keel_snapshot_id` was absent, it removes the field again.
+- If the field had a value, it rewrites that value.
+
+It reads the result back and prints FAIL if the restore did not take. The template check validates field types and all twelve enum codes. With `--write`, it adds missing codes with `addEnumOption`.
 
 **Task identity check (spec 3 step 11).** Run the gate with `--write`. It creates and assigns a probe task, then deletes it. Then have the reviewer approve one real task in Box while logged in as themselves. Confirm the assignment's `assigned_to` is the reviewer, not the service account. If it is not, label the human step simulated.
 
 ## 4. Fixture ids to Box ids: `app/data/box-map.json`
 
-`seed-box-folder.ts` writes it, and `upload-v3.ts` adds the v3 entry. Shape (type `BoxMap` in `app/src/lib/box/real.ts`):
+`seed-box-folder.ts` writes it, and `upload-v3.ts` adds the v3 entry.
+
+**Seeding is resumable and verified.**
+- Every Box version is downloaded and hashed. A version gets a fixture version id only when its SHA-256 equals the fixture file's. Nothing is mapped by position.
+- If a file's current version is fixture version k, the seed uploads the remaining versions after k. A rerun after an interruption picks up where it stopped.
+- If the current version matches no fixture version, nothing is uploaded over it. The problem is printed and the script exits 1.
+- Box versions with no fixture match are listed under `unmatched`.
+- The map is checkpointed after every verified upload, and only for the current `BOX_FOLDER_ID`. A map for another folder is ignored.
+
+**The v3 upload is folder-checked.** `upload-v3.ts` ignores a map written for another folder. It uses a mapped file id only after Box confirms the file's parent is `BOX_FOLDER_ID`; otherwise it looks the file up by name in that folder. It refuses to upload if the current version already equals v3.
+
+Shape (type `BoxMap` in `app/src/lib/box/real.ts`):
 
 ```json
 { "folderId": "…", "created_at": "…",
@@ -79,6 +100,14 @@ The engine uses it to map the fixture's seed ledger, snapshots S1 to S3 and prio
 | Current Box version differs from the snapshot | `… (current version ≠ snapshot; result not relied on for <file>)` | `search-tool.ts` |
 | Box AI unavailable (no AI units, 403/404/429) | `string search over 4 files (Box AI unavailable), M statements`, `fallback: true` | `search-tool.ts` |
 | Decider not configured or not answering `/health` in 1 s | Step omitted. `DeciderGate.lastOmissionReason` gives the reason for "omitted: …" | `decider.ts` |
+| Decider coverage incomplete and no injection seen | Step omitted: `omitted: incomplete coverage (k of n chunks checked): <reason>`. Causes: no `max_length`, no `usage`, or a failed request | `decider.ts` |
+| Decider sees P(injection) at or above the threshold | Quarantined at once. A later failure cannot undo it. The result carries `coverage` | `decider.ts` |
+| Box AI answered but a file's current version could not be confirmed | `string search over N files (Box AI result not used: current version unconfirmed), M statements` | `search-tool.ts` |
+| A citation's version is not the pinned version | Rejected: `cited version X is not the pinned version Y` | `search-tool.ts` and engine |
+| A Box request exceeds `BOX_REQUEST_TIMEOUT_MS` or the agent cancels | `BOX_TIMEOUT`. Box AI search falls back to string search | `real.ts` |
+| PDF or Office file whose pinned version is not current | `TEXT_REPRESENTATION_CURRENT_ONLY`. Box extracts text only for the current version | `real.ts` |
+| A new version lands while text is being extracted | `VERSION_CHANGED_DURING_EXTRACTION` | `real.ts` |
+| Existing template has a wrong field type | Gate prints FAIL with `TEMPLATE_INCOMPATIBLE`. Delete the template or set `BOX_METADATA_TEMPLATE_KEY` | `real.ts` |
 | Decider answers | `injection: no (0.03) · material change: evaluate now (0.91) · 118 ms, local` | `gateLabel()` |
 | Bedrock credentials, access or model id wrong | `evaluation_error` with code `BEDROCK_CREDENTIALS`, `BEDROCK_ACCESS_DENIED`, `BEDROCK_MODEL_NOT_FOUND`, `BEDROCK_THROTTLED`, `STRUCTURED_OUTPUT_INVALID` or `EVALUATION_TIMEOUT` | `evaluator.ts` |
 | Box text representation still processing (binary files) | `TEXT_REPRESENTATION_NOT_READY` | `real.ts` |
@@ -90,7 +119,9 @@ The engine uses it to map the fixture's seed ledger, snapshots S1 to S3 and prio
   - `GET /health` returns `{status, model, checkpoint, base_model, max_length, device, …}`.
   - `POST /v1/systemone` takes `{state, model, questions: {name: {type: "noul"|"choice", instructions, criteria}}}`.
   - A noul answer is `{type:"noul", noul: P(true)}`. A choice answer is `{type:"choice", choice, probabilities, confidence}`. The response also carries `latency_ms`.
-  - The window is 4,096 tokens and the server truncates a longer state silently. The gate therefore asks the injection question over 9,000-character chunks and takes the maximum.
+  - The server silently truncates a state longer than its window (`max_length` from `/health`, 4,096 tokens for the published checkpoints).
+  - The gate sizes chunks from the reported window and checks each response's `usage.input_tokens`. A chunk that filled the window is split and asked again.
+  - Without `max_length` or `usage`, coverage cannot be shown. The gate then quarantines if it found an injection, and otherwise omits the step. It never reports a partial pass.
   - `@strands-agents/sdk` 1.21 has a `DecisionModel` base class, in `dist/src/decisions/decision-model.d.ts:12`. It has no Decider transport, and its result has no per-option probabilities, so the gate calls HTTP directly.
 - **Strands structured output with tools.** One run handles both. `agent.invoke(prompt, { structuredOutputSchema })` registers `strands_structured_output` next to the read tools; see `dist/src/agent/agent.js:1050`. If the model replies in plain text, the next cycle is forced onto that tool; see `agent.js:1162`. This is verified offline in `app/test/integration-shape.test.ts` with a scripted Strands `Model`.
 - **ESM.** `@strands-agents/sdk` is ESM-only, and `@modelcontextprotocol/ext-tasks` exports under `import` only. `evaluator.ts` therefore loads Strands with `import()`, so `tsx` scripts work. In Next.js, list `box-typescript-sdk-gen` and `@strands-agents/sdk` in `serverExternalPackages` if bundling complains.

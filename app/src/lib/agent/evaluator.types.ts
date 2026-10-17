@@ -34,7 +34,8 @@ export interface EvaluatorInput {
 
 export interface SearchSnapshotTool {
   /** Box AI ask over the other readable files with citations validated by code; string-search fallback. */
-  search(query: string, excludeFileName?: string): Promise<{
+  /** `signal` (optional, additive): aborts the Box AI request when the agent's tool call is cancelled. */
+  search(query: string, excludeFileName?: string, signal?: AbortSignal): Promise<{
     label: string; // "Box AI ask over 4 files, 1 cited statement in runbook.md"
     fallback: boolean;
     citations: { fileName: string; versionId: string; section: string; paragraph?: number; page?: number; quote: string; validated_against_pinned_text: boolean }[];

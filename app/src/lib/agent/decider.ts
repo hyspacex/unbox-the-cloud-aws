@@ -15,9 +15,14 @@
  *       choice answer: {type:"choice", choice, probabilities: {option: p}, confidence}
  *       response:      {model, answers: {<name>: answer}, usage: {input_tokens, output_tokens}, latency_ms}
  *
- * The checkpoint window is 4,096 tokens and the server silently truncates a longer state, which
- * could cut off an injected sentence at the end of a document. So the injection question is asked
- * over overlapping chunks and the maximum P(yes) is used; the material-change question is asked once.
+ * The checkpoint window (max_length, reported by /health; 4,096 tokens for the published
+ * checkpoints) bounds state + question, and the server silently truncates a longer state, which
+ * could cut off an injected sentence. So the injection question is asked over overlapping chunks
+ * sized from the reported window, and every response's usage.input_tokens is checked: a chunk that
+ * filled the window is split and re-asked. When coverage cannot be established (no max_length, no
+ * usage, a failed request) the gate does not report a completed check: it returns null with the
+ * reason, unless an injection was already detected, in which case the quarantine stands.
+ * The first valid P(injection) at or above the threshold quarantines immediately.
  *
  * The @strands-agents/sdk 1.21 `DecisionModel` base (dist/src/decisions) has no Decider transport
  * and its DecisionResult carries no per-option probabilities, which the ledger needs, so this
@@ -34,9 +39,29 @@ export interface DeciderConfig {
   injectionThreshold: number;
   healthTimeoutMs: number;
   requestTimeoutMs: number;
-  /** Characters of document text per Decider state (about 2.5k tokens, under the 4,096-token window). */
+  /** Characters per Decider state when the server reports no window (coverage is then incomplete anyway). */
   chunkChars: number;
   chunkOverlap: number;
+  /** Tokens reserved for the questions, criteria and prompt framing out of the window. */
+  questionReserveTokens: number;
+  /** Conservative characters per token used to size chunks from the window (verified by usage). */
+  charsPerToken: number;
+  /** How many times a chunk that filled the window may be halved. */
+  maxSplitDepth: number;
+}
+
+/** What the gate actually covered; reported on every result and on lastOmissionReason. */
+export interface GateCoverage {
+  complete: boolean;
+  chunks_checked: number;
+  chunks_total: number;
+  window_tokens: number | null;
+  max_input_tokens: number | null;
+  reason?: string;
+}
+
+export interface DeciderGateResult extends InputGateResult {
+  coverage: GateCoverage;
 }
 
 export function deciderConfigFromEnv(env: NodeJS.ProcessEnv = process.env): DeciderConfig {
@@ -49,6 +74,9 @@ export function deciderConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Deci
     requestTimeoutMs: num("DECIDER_TIMEOUT_MS", 30_000),
     chunkChars: num("DECIDER_CHUNK_CHARS", 9000),
     chunkOverlap: 600,
+    questionReserveTokens: num("DECIDER_QUESTION_RESERVE_TOKENS", 700),
+    charsPerToken: 3,
+    maxSplitDepth: 4,
   };
 }
 
@@ -126,6 +154,8 @@ export class DeciderGate implements InputGate {
   private healthCache: { at: number; ok: boolean; info?: Record<string, unknown>; reason?: string } | null = null;
   /** Why the last gate() returned null, for the "omitted: ..." label in the UI and the gate script. */
   lastOmissionReason: string | null = null;
+  /** What the last gate() call covered, including partial coverage when it returned null. */
+  lastCoverage: GateCoverage | null = null;
   /** The checkpoint name Decider reported on the last successful call (recorded as model_id). */
   lastModel: string | null = null;
 
@@ -172,50 +202,105 @@ export class DeciderGate implements InputGate {
     return body;
   }
 
-  async gate(file: SnapshotFile, text: string): Promise<InputGateResult | null> {
+  async gate(file: SnapshotFile, text: string): Promise<DeciderGateResult | null> {
     this.lastOmissionReason = null;
+    this.lastCoverage = null;
     const h = await this.health();
     if (!h.ok) {
       this.lastOmissionReason = h.reason ?? "Decider unavailable";
       return null;
     }
+    const cfg = this.config;
     const started = Date.now();
-    try {
-      const chunks = chunkText(text, this.config.chunkChars, this.config.chunkOverlap);
-      let pInjection = 0;
-      let material: ChoiceAnswer | null = null;
-      for (let i = 0; i < chunks.length; i++) {
-        const questions: Record<string, unknown> = { injection: INJECTION_QUESTION };
-        if (i === 0) questions.material_change = MATERIAL_QUESTION;
-        const r = await this.ask(chunks[i], questions);
-        const inj = r.answers.injection as NoulAnswer | undefined;
-        if (!inj || typeof inj.noul !== "number") throw new DeciderUnavailable("Decider returned no injection answer");
-        pInjection = Math.max(pInjection, inj.noul);
-        if (i === 0) {
-          const m = r.answers.material_change as ChoiceAnswer | undefined;
-          if (!m || typeof m.choice !== "string") throw new DeciderUnavailable("Decider returned no material_change answer");
-          material = m;
-        }
+    const windowTokens = typeof h.info?.max_length === "number" && h.info.max_length > 0 ? (h.info.max_length as number) : null;
+    const size = windowTokens ? Math.max(500, Math.floor((windowTokens - cfg.questionReserveTokens) * cfg.charsPerToken)) : cfg.chunkChars;
+    const queue = chunkText(text, size, Math.min(cfg.chunkOverlap, Math.floor(size / 4))).map((t) => ({ text: t, depth: 0 }));
+    const cov: GateCoverage = { complete: true, chunks_checked: 0, chunks_total: queue.length, window_tokens: windowTokens, max_input_tokens: null };
+    const incomplete = (why: string) => {
+      if (cov.complete) {
+        cov.complete = false;
+        cov.reason = why;
       }
-      const choice = (MATERIAL_OPTIONS as readonly string[]).includes(material!.choice) ? (material!.choice as (typeof MATERIAL_OPTIONS)[number]) : "evaluate_now";
-      const round = (p: number) => Math.round(p * 1000) / 1000;
+    };
+    if (!windowTokens) incomplete("Decider did not report max_length, so chunk coverage of its window cannot be checked");
+
+    let pInjection = 0;
+    let material: ChoiceAnswer | null = null;
+    let first = true;
+    const round = (p: number) => Math.round(p * 1000) / 1000;
+    const result = (): DeciderGateResult => {
+      const choice = material && (MATERIAL_OPTIONS as readonly string[]).includes(material.choice) ? (material.choice as (typeof MATERIAL_OPTIONS)[number]) : "evaluate_now";
+      const quarantined = pInjection >= cfg.injectionThreshold;
+      this.lastCoverage = { ...cov };
       return {
         fileId: file.fileId,
         fileName: file.fileName,
         versionId: file.versionId,
-        injection: { answer: pInjection >= 0.5 ? "yes" : "no", probability: round(pInjection) },
-        material_change: { answer: choice, probability: round(material!.probabilities?.[choice] ?? material!.confidence ?? 0) },
+        // "yes" whenever the gate acts on it, so answer and quarantine never disagree.
+        injection: { answer: quarantined || pInjection >= 0.5 ? "yes" : "no", probability: round(pInjection) },
+        material_change: { answer: choice, probability: material ? round(material.probabilities?.[choice] ?? material.confidence ?? 0) : 0 },
         options: ["evaluate_now", "batch", "noise"],
         latency_ms: Date.now() - started,
-        quarantined: pInjection > this.config.injectionThreshold,
+        quarantined,
         available: true,
+        coverage: { ...cov },
       };
-    } catch (e) {
-      // A gate that failed mid-call did not run: omit it, never report a pass.
-      this.healthCache = null;
-      this.lastOmissionReason = e instanceof Error ? e.message : String(e);
+    };
+
+    while (queue.length) {
+      const piece = queue.shift()!;
+      const questions: Record<string, unknown> = { injection: INJECTION_QUESTION };
+      if (first) questions.material_change = MATERIAL_QUESTION;
+      let r: SystemOneResponse;
+      try {
+        r = await this.ask(piece.text, questions);
+      } catch (e) {
+        this.healthCache = null;
+        incomplete(e instanceof Error ? e.message : String(e));
+        break;
+      }
+      const inj = r.answers?.injection as NoulAnswer | undefined;
+      if (!inj || typeof inj.noul !== "number" || !Number.isFinite(inj.noul)) {
+        incomplete("Decider returned no injection probability");
+        break;
+      }
+      if (first) {
+        const m = r.answers.material_change as ChoiceAnswer | undefined;
+        if (m && typeof m.choice === "string") material = m;
+        else incomplete("Decider returned no material_change answer");
+        first = false;
+      }
+      const used = r.usage?.input_tokens;
+      if (windowTokens && typeof used === "number" && used >= windowTokens - 8 && piece.depth < cfg.maxSplitDepth && piece.text.length > 200) {
+        // The state filled the window: the server may have cut it. Count the probability (it is real
+        // evidence) but re-ask both halves so the cut part is covered.
+        pInjection = Math.max(pInjection, inj.noul);
+        if (pInjection >= cfg.injectionThreshold) {
+          cov.chunks_checked++;
+          return result();
+        }
+        const mid = Math.floor(piece.text.length / 2);
+        const ov = Math.min(cfg.chunkOverlap, Math.floor(mid / 4));
+        queue.unshift({ text: piece.text.slice(0, mid + ov), depth: piece.depth + 1 }, { text: piece.text.slice(mid - ov), depth: piece.depth + 1 });
+        cov.chunks_total += 1; // one piece became two
+        continue;
+      }
+      cov.chunks_checked++;
+      if (typeof used === "number") cov.max_input_tokens = Math.max(cov.max_input_tokens ?? 0, used);
+      if (windowTokens && typeof used !== "number") incomplete("Decider reported no usage.input_tokens, so truncation cannot be ruled out");
+      else if (windowTokens && typeof used === "number" && used >= windowTokens - 8) incomplete(`a chunk still filled the ${windowTokens}-token window after ${cfg.maxSplitDepth} splits`);
+      pInjection = Math.max(pInjection, inj.noul);
+      // A detected injection is final: no later request can discard it (Codex finding 1).
+      if (pInjection >= cfg.injectionThreshold) return result();
+    }
+
+    if (!cov.complete) {
+      // Not a completed check and no injection seen: omit, never report a pass.
+      this.lastCoverage = { ...cov };
+      this.lastOmissionReason = `incomplete coverage (${cov.chunks_checked} of ${cov.chunks_total} chunks checked): ${cov.reason}`;
       return null;
     }
+    return result();
   }
 }
 

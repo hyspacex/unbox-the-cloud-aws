@@ -8,9 +8,16 @@
  *   cd app && npx tsx scripts/seed-box-folder.ts            # dry run: prints the plan
  *   cd app && npx tsx scripts/seed-box-folder.ts --write    # uploads
  *
- * Idempotent: a file already in the folder is not uploaded again; its versions are mapped by order.
+ * Resumable and verified:
+ *   - Every Box version is downloaded and hashed; a version is mapped to a fixture version only when
+ *     its SHA-256 equals the fixture file's (never by position).
+ *   - If the file's current version is fixture version k, the remaining planned versions k+1.. are
+ *     uploaded; an interrupted run picks up where it stopped.
+ *   - If the current version matches no fixture version, nothing is uploaded over it (reported).
+ *   - box-map.json is checkpointed after every verified upload, and only for this BOX_FOLDER_ID.
  * The demo's v3 upload is a separate step: scripts/upload-v3.ts.
  */
+import { createHash } from "node:crypto";
 import { flag, fixtureText, loadEnv, readBoxMap, writeBoxMap, BOX_MAP_PATH } from "./_shared";
 import { RealBoxAdapter, missingBoxEnv, type BoxMap } from "../src/lib/box/real";
 
@@ -23,6 +30,86 @@ export const SEED_PLAN: { fileName: string; fixtureFileId: string; versions: { f
   { fileName: "approved-services-and-exceptions.md", fixtureFileId: "1650233405", versions: [{ fixtureVersionId: "1801102271", label: "v1", src: "approved-services-and-exceptions.md" }] },
 ];
 
+export type SeedPlan = typeof SEED_PLAN;
+export type SeedBox = Pick<RealBoxAdapter, "listFolderItems" | "listFileVersions" | "downloadVersionText" | "uploadFile" | "uploadFileVersion">;
+
+export interface SeedReport {
+  map: BoxMap;
+  uploads: { fileName: string; label: string; versionId: string }[];
+  problems: string[];
+}
+
+const sha = (s: string) => "sha256:" + createHash("sha256").update(s, "utf8").digest("hex");
+
+export async function seedFolder(
+  box: SeedBox,
+  folderId: string,
+  plan: SeedPlan,
+  opts: { text: (src: string) => string; checkpoint: (map: BoxMap) => void; previous?: BoxMap | null; log?: (s: string) => void; pauseMs?: number },
+): Promise<SeedReport> {
+  const log = opts.log ?? (() => undefined);
+  const map: BoxMap = {
+    folderId,
+    created_at: new Date().toISOString(),
+    files: { ...(opts.previous && opts.previous.folderId === folderId ? opts.previous.files : {}) },
+  };
+  const uploads: SeedReport["uploads"] = [];
+  const problems: string[] = [];
+  const existing = await box.listFolderItems(folderId);
+
+  for (const p of plan) {
+    const hashes = p.versions.map((v) => sha(opts.text(v.src)));
+    let fileId = existing.find((e) => e.fileName === p.fileName)?.fileId;
+    if (!fileId) {
+      const up = await box.uploadFile(folderId, p.fileName, opts.text(p.versions[0].src));
+      fileId = up.fileId;
+      uploads.push({ fileName: p.fileName, label: p.versions[0].label, versionId: up.versionId });
+      log(`upload  ${p.fileName} ${p.versions[0].label} -> file ${fileId} version ${up.versionId}`);
+    } else log(`exists  ${p.fileName} (${fileId}); checking its versions against the fixture`);
+
+    // Verify, then resume: repeat until the current version is the last planned one, or stop on a problem.
+    for (let guard = 0; guard <= p.versions.length; guard++) {
+      const versions = await box.listFileVersions(fileId); // throws on history failure: no partial map is written
+      const entry = { fixtureFileId: p.fixtureFileId, fileId, versions: {} as Record<string, string>, labels: {} as Record<string, string>, unmatched: [] as string[] };
+      const matchIdx: (number | undefined)[] = [];
+      const used = new Set<number>();
+      for (const [i, v] of versions.entries()) {
+        entry.labels[v.label ?? `v${i + 1}`] = v.versionId;
+        const r = await box.downloadVersionText(fileId, v.versionId);
+        const idx = r.ok ? hashes.findIndex((h, k) => h === r.sha256 && !used.has(k)) : -1;
+        if (idx >= 0) {
+          used.add(idx);
+          entry.versions[p.versions[idx].fixtureVersionId] = v.versionId;
+          matchIdx.push(idx);
+        } else {
+          entry.unmatched.push(v.versionId);
+          matchIdx.push(undefined);
+          if (!r.ok) problems.push(`${p.fileName} ${v.label}: could not download to verify (${r.error.code})`);
+        }
+      }
+      if (!entry.unmatched.length) delete (entry as { unmatched?: string[] }).unmatched;
+      map.files[p.fileName] = entry;
+      opts.checkpoint(map);
+
+      const currentIdx = matchIdx[matchIdx.length - 1];
+      if (currentIdx === undefined) {
+        problems.push(`${p.fileName}: current version matches no fixture version; nothing uploaded over it`);
+        break;
+      }
+      const missingEarlier = p.versions.slice(0, currentIdx).filter((v) => !entry.versions[v.fixtureVersionId]);
+      if (missingEarlier.length)
+        problems.push(`${p.fileName}: ${missingEarlier.map((v) => v.label).join(", ")} not in Box history (not retained or never uploaded); left unmapped`);
+      const next = currentIdx + 1;
+      if (next >= p.versions.length) break;
+      if (opts.pauseMs) await new Promise((r) => setTimeout(r, opts.pauseMs)); // keep version timestamps ordered
+      const up = await box.uploadFileVersion(fileId, p.fileName, opts.text(p.versions[next].src));
+      uploads.push({ fileName: p.fileName, label: p.versions[next].label, versionId: up.versionId });
+      log(`version ${p.fileName} ${p.versions[next].label} -> version ${up.versionId}`);
+    }
+  }
+  return { map, uploads, problems };
+}
+
 async function main() {
   loadEnv();
   const write = flag("write");
@@ -31,54 +118,22 @@ async function main() {
 
   console.log(`Seed plan for folder ${folderId ?? "(BOX_FOLDER_ID unset)"}:`);
   for (const p of SEED_PLAN) console.log(`  ${p.fileName}: ${p.versions.map((v) => `${v.label} <- demo-data/lantern/${v.src}`).join(", ")}`);
-  if (missing.length) {
-    console.log(`\nSKIP: needs ${missing.join(", ")} in app/.env.local (docs/INTEGRATION.md).`);
-    return;
-  }
-  if (!write) {
-    console.log("\nDry run. Pass --write to upload.");
-    return;
-  }
+  if (missing.length) return console.log(`\nSKIP: needs ${missing.join(", ")} in app/.env.local (docs/INTEGRATION.md).`);
+  if (!write) return console.log("\nDry run. Pass --write to upload.");
 
-  const box = new RealBoxAdapter();
-  const existing = await box.listFolderItems(folderId!);
-  const map: BoxMap = { folderId: folderId!, created_at: new Date().toISOString(), files: { ...(readBoxMap()?.folderId === folderId ? readBoxMap()!.files : {}) } };
-
-  for (const p of SEED_PLAN) {
-    const found = existing.find((e) => e.fileName === p.fileName);
-    let fileId: string;
-    if (found) {
-      fileId = found.fileId;
-      console.log(`exists  ${p.fileName} (${fileId}); not re-uploading`);
-    } else {
-      const first = await box.uploadFile(folderId!, p.fileName, fixtureText(p.versions[0].src));
-      fileId = first.fileId;
-      console.log(`upload  ${p.fileName} ${p.versions[0].label} -> file ${fileId} version ${first.versionId}`);
-      for (const v of p.versions.slice(1)) {
-        await new Promise((r) => setTimeout(r, 1500)); // keep version timestamps ordered
-        const up = await box.uploadFileVersion(fileId, p.fileName, fixtureText(v.src));
-        console.log(`version ${p.fileName} ${v.label} -> version ${up.versionId}`);
-      }
-    }
-    // Map by order: Box versions oldest first; fixture versions oldest first.
-    const versions = await box.listFileVersions(fileId);
-    const entry = { fixtureFileId: p.fixtureFileId, fileId, versions: {} as Record<string, string>, labels: {} as Record<string, string> };
-    versions.forEach((v, i) => {
-      entry.labels[v.label ?? `v${i + 1}`] = v.versionId;
-      const fx = p.versions[i];
-      if (fx) entry.versions[fx.fixtureVersionId] = v.versionId;
-    });
-    if (versions.length < p.versions.length)
-      console.log(`WARN    ${p.fileName}: Box returned ${versions.length} version(s), fixture has ${p.versions.length}; prior versions are not retained on this tenant (capture the local baseline)`);
-    map.files[p.fileName] = entry;
+  const previous = readBoxMap();
+  if (previous && previous.folderId !== folderId) console.log(`box-map.json is for folder ${previous.folderId}, not ${folderId}; starting a new map.`);
+  const report = await seedFolder(new RealBoxAdapter(), folderId!, SEED_PLAN, { text: fixtureText, checkpoint: writeBoxMap, previous, log: console.log, pauseMs: 1500 });
+  console.log(`\nWrote ${BOX_MAP_PATH} (${report.uploads.length} uploads this run):`);
+  console.log(JSON.stringify(report.map, null, 2));
+  if (report.problems.length) {
+    console.log("\nProblems:\n  " + report.problems.join("\n  "));
+    process.exitCode = 1;
   }
-
-  writeBoxMap(map);
-  console.log(`\nWrote ${BOX_MAP_PATH}:`);
-  console.log(JSON.stringify(map, null, 2));
 }
 
-main().catch((e) => {
-  console.error(`${(e as { code?: string }).code ?? "ERROR"}: ${e instanceof Error ? e.message : String(e)}`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && /seed-box-folder\.ts$/.test(process.argv[1]))
+  main().catch((e) => {
+    console.error(`${(e as { code?: string }).code ?? "ERROR"}: ${e instanceof Error ? e.message : String(e)}`);
+    process.exitCode = 1;
+  });

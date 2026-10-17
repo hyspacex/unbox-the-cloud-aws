@@ -8,11 +8,16 @@
  * credentials grant (BoxCcgAuth with BOX_CLIENT_ID, BOX_CLIENT_SECRET, BOX_ENTERPRISE_ID, acting as
  * the app's service account). BOX_SUBJECT_USER_ID, when set, adds the As-User header
  * (client.withAsUserHeader), which needs the "Make API calls using the as-user header" app scope.
+ * Every request, including the extracted-text download, goes through the SDK client and its network
+ * session, so auth and As-User always apply.
+ *
+ * Deadlines: every request carries a cancellationToken that fires after BOX_REQUEST_TIMEOUT_MS
+ * (default 20000) or when the caller's signal aborts (withSignal). Expiry maps to BOX_TIMEOUT.
  *
  * Error policy: methods whose return type is a result union (downloadVersionText,
  * writeFolderMetadata, aiAsk, aiTextGen) never throw for expected failures. Methods whose contract
- * returns a plain value (listFolderItems, createTask, ...) throw BoxAdapterError with a stable
- * `code` so the engine can record it (box_task_create_failed and friends).
+ * returns a plain value (listFolderItems, listFileVersions, createTask, ...) throw BoxAdapterError
+ * with a stable `code` so the engine can record it.
  *
  * Box task semantics (managers/taskAssignments.generated.ts, UpdateTaskAssignmentByIdRequestBody
  * resolutionState, and managers/tasks.generated.ts CreateTaskRequestBody action):
@@ -56,10 +61,18 @@ export interface RealBoxConfig {
   metadataScope: string; // "enterprise"
   /** Prefix that marks a Box file comment as the version comment of the version uploaded just before it. */
   versionNotePrefix: string;
+  /** Per-request deadline in ms (BOX_REQUEST_TIMEOUT_MS). */
+  requestTimeoutMs: number;
+  /**
+   * BOX_VERSION_HISTORY=current-only: accept a current-only history when Box refuses the versions
+   * endpoint (free plans). Default false: any version-history failure is an error, never a v1-only history.
+   */
+  allowCurrentOnlyHistory: boolean;
 }
 
 export function realBoxConfigFromEnv(env: NodeJS.ProcessEnv = process.env): RealBoxConfig {
   const v = (k: string) => (env[k] && env[k]!.trim() !== "" ? env[k]!.trim() : undefined);
+  const timeout = Number(v("BOX_REQUEST_TIMEOUT_MS"));
   return {
     developerToken: v("BOX_DEVELOPER_TOKEN"),
     clientId: v("BOX_CLIENT_ID"),
@@ -68,6 +81,8 @@ export function realBoxConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Real
     subjectUserId: v("BOX_SUBJECT_USER_ID"),
     metadataScope: v("BOX_METADATA_SCOPE") ?? "enterprise",
     versionNotePrefix: VERSION_NOTE_PREFIX,
+    requestTimeoutMs: Number.isFinite(timeout) && timeout > 0 ? timeout : 20_000,
+    allowCurrentOnlyHistory: v("BOX_VERSION_HISTORY") === "current-only",
   };
 }
 
@@ -122,9 +137,32 @@ export class BoxAdapterError extends Error {
 }
 
 interface BoxApiErrorLike {
+  name?: string;
   message?: string;
   responseInfo?: { statusCode?: number; code?: string; body?: { message?: string; code?: string } | unknown };
 }
+
+/** The SDK stores responseInfo.code JSON-serialized ('"unauthorized"'); decode it. */
+function plainCode(c: unknown): string | undefined {
+  if (typeof c !== "string" || !c) return undefined;
+  let s = c.trim();
+  if (s.startsWith('"')) {
+    try {
+      const parsed = JSON.parse(s);
+      if (typeof parsed === "string") s = parsed;
+    } catch {
+      s = s.replace(/^"+|"+$/g, "");
+    }
+  }
+  s = s.replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+  return s || undefined;
+}
+
+const isAbort = (e: unknown) => {
+  const name = (e as { name?: string })?.name ?? "";
+  const msg = e instanceof Error ? e.message : String(e);
+  return /AbortError|TimeoutError/.test(name) || /\babort(ed)?\b|timed? ?out|operation was aborted/i.test(msg);
+};
 
 /** Map anything thrown by the SDK to a stable {code, message}. Duck-typed: the SDK ships CJS and ESM builds. */
 export function mapBoxError(e: unknown): { code: string; message: string; status?: number } {
@@ -133,11 +171,12 @@ export function mapBoxError(e: unknown): { code: string; message: string; status
   const status = err?.responseInfo?.statusCode;
   if (typeof status === "number") {
     const body = (err.responseInfo?.body ?? {}) as { message?: string; code?: string };
-    const boxCode = err.responseInfo?.code ?? body.code;
-    const code = boxCode ? `BOX_${String(boxCode).toUpperCase()}` : `BOX_HTTP_${status}`;
+    const boxCode = plainCode(body.code) ?? plainCode(err.responseInfo?.code);
+    const code = boxCode ? `BOX_${boxCode.toUpperCase()}` : `BOX_HTTP_${status}`;
     return { code, message: `Box API ${status}${boxCode ? ` ${boxCode}` : ""}: ${body.message ?? err.message ?? "request failed"}`, status };
   }
   const msg = e instanceof Error ? e.message : String(e);
+  if (isAbort(e)) return { code: "BOX_TIMEOUT", message: `Box request aborted or past its deadline (BOX_REQUEST_TIMEOUT_MS): ${msg}` };
   if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|fetch failed|network/i.test(msg)) return { code: "BOX_NETWORK", message: `Box unreachable: ${msg}` };
   if (/token has expired|invalid_token|invalid_client|invalid_grant|unauthorized_client|401/i.test(msg))
     return {
@@ -160,27 +199,138 @@ const ident = (u: { id?: string; login?: string; name?: string } | undefined | n
 });
 const sha256 = (b: Buffer | string) => "sha256:" + createHash("sha256").update(b).digest("hex");
 
+/** Document containers that must go through extraction even when their bytes happen to be ASCII. */
+export type BinaryKind = "pdf" | "ooxml" | "ole" | null;
+const BINARY_EXT: Record<string, Exclude<BinaryKind, null>> = {
+  pdf: "pdf",
+  docx: "ooxml",
+  xlsx: "ooxml",
+  pptx: "ooxml",
+  docm: "ooxml",
+  xlsm: "ooxml",
+  pptm: "ooxml",
+  doc: "ole",
+  xls: "ole",
+  ppt: "ole",
+};
+const OLE_MAGIC = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+
+/** Extension first, then magic bytes (%PDF-, PK\x03\x04 zip container, OLE2). */
+export function detectBinary(name: string, buf: Buffer): BinaryKind {
+  const ext = /\.([A-Za-z0-9]+)$/.exec(name)?.[1]?.toLowerCase();
+  if (ext && BINARY_EXT[ext]) return BINARY_EXT[ext];
+  if (buf.subarray(0, 5).toString("latin1") === "%PDF-") return "pdf";
+  if (buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04) return "ooxml";
+  if (buf.subarray(0, 8).equals(OLE_MAGIC)) return "ole";
+  return null;
+}
+
 const TEXT_EXT = /\.(md|markdown|txt|text|csv|json|ya?ml|xml|html?)$/i;
 
 /** True when the bytes decode as UTF-8 text without NUL bytes or replacement characters. */
 function looksLikeText(buf: Buffer): boolean {
   if (buf.includes(0)) return false;
-  const s = buf.toString("utf8");
-  return !s.includes("�");
+  return !buf.toString("utf8").includes("�");
+}
+
+/** Reject when the signal fires, even if the underlying promise ignores it (body reads). */
+function withAbort<T>(p: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason ?? new DOMException("aborted", "AbortError"));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason ?? new DOMException("aborted", "AbortError"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    p.then(
+      (v) => (signal.removeEventListener("abort", onAbort), resolve(v)),
+      (e) => (signal.removeEventListener("abort", onAbort), reject(e)),
+    );
+  });
+}
+
+/** Field and option check for an existing keelReview template (also used by the integration gate). */
+export interface TemplateFieldSpec {
+  type: "string" | "enum";
+  key: string;
+  displayName: string;
+  description?: string;
+  options?: { key: string }[];
+}
+
+export function templateSpec(profile: { controls: { id: string; title?: string }[] }): TemplateFieldSpec[] {
+  return [
+    { type: "string", key: "keel_snapshot_id", displayName: "Keel snapshot id" },
+    ...profile.controls.map((c) => ({
+      type: "enum" as const,
+      key: statusFieldKey(c.id),
+      displayName: `Keel status ${c.id}`,
+      description: c.title,
+      options: PROJECTION_CODES.map((key) => ({ key })),
+    })),
+    { type: "string", key: "keel_last_human_review", displayName: "Keel last human review" },
+    { type: "string", key: "keel_record_url", displayName: "Keel record URL" },
+  ];
+}
+
+export function checkTemplateFields(
+  have: readonly { key: string; type: string; options?: readonly { key: string }[] }[],
+  wanted: TemplateFieldSpec[],
+): { missingFields: TemplateFieldSpec[]; missingOptions: { fieldKey: string; keys: string[] }[]; incompatible: { key: string; have: string; want: string }[] } {
+  const byKey = new Map(have.map((f) => [f.key, f]));
+  const missingFields: TemplateFieldSpec[] = [];
+  const missingOptions: { fieldKey: string; keys: string[] }[] = [];
+  const incompatible: { key: string; have: string; want: string }[] = [];
+  for (const w of wanted) {
+    const h = byKey.get(w.key);
+    if (!h) {
+      missingFields.push(w);
+      continue;
+    }
+    if (h.type !== w.type) {
+      incompatible.push({ key: w.key, have: h.type, want: w.type });
+      continue;
+    }
+    if (w.type === "enum") {
+      const present = new Set((h.options ?? []).map((o) => o.key));
+      const keys = (w.options ?? []).map((o) => o.key).filter((k) => !present.has(k));
+      if (keys.length) missingOptions.push({ fieldKey: w.key, keys });
+    }
+  }
+  return { missingFields, missingOptions, incompatible };
 }
 
 // ---------------------------------------------------------------------------
 // Adapter
 // ---------------------------------------------------------------------------
 
+/** Minimal surface of BoxClient the adapter uses; tests inject a stub with the same shape. */
+export type BoxClientLike = Pick<
+  BoxClient,
+  "folders" | "files" | "fileVersions" | "downloads" | "folderMetadata" | "metadataTemplates" | "tasks" | "taskAssignments" | "ai" | "users" | "uploads" | "comments" | "makeRequest"
+>;
+
 export class RealBoxAdapter implements BoxAdapter {
   readonly kind = "real" as const;
   private readonly cfg: RealBoxConfig;
-  private _client: BoxClient | null = null;
-  private _auth: BoxDeveloperTokenAuth | BoxCcgAuth | null = null;
+  private _client: BoxClientLike | null = null;
+  private readonly signal?: AbortSignal;
+  /** Set when listFileVersions returned a current-only history (BOX_VERSION_HISTORY=current-only). */
+  lastHistoryFallback: { fileId: string; reason: string } | null = null;
 
-  constructor(cfg: Partial<RealBoxConfig> = {}) {
+  constructor(cfg: Partial<RealBoxConfig> = {}, opts: { client?: BoxClientLike; signal?: AbortSignal } = {}) {
     this.cfg = { ...realBoxConfigFromEnv(), ...cfg };
+    this._client = opts.client ?? null;
+    this.signal = opts.signal;
+  }
+
+  /** A view of this adapter whose requests also abort when `signal` aborts (shares the client). */
+  withSignal(signal: AbortSignal | undefined): RealBoxAdapter {
+    if (!signal) return this;
+    return new RealBoxAdapter(this.cfg, { client: this.client(), signal: this.signal ? AbortSignal.any([this.signal, signal]) : signal });
+  }
+
+  /** Cancellation token for one request: the per-request deadline combined with the caller's signal. */
+  private ct(): AbortSignal {
+    const deadline = AbortSignal.timeout(this.cfg.requestTimeoutMs);
+    return this.signal ? AbortSignal.any([deadline, this.signal]) : deadline;
   }
 
   /** Human-readable description of which auth path is configured (for the integration gate). */
@@ -192,30 +342,22 @@ export class RealBoxAdapter implements BoxAdapter {
   }
 
   /** The SDK client, built lazily. Throws BOX_NOT_CONFIGURED with the exact env vars needed. */
-  client(): BoxClient {
+  client(): BoxClientLike {
     if (this._client) return this._client;
     const c = this.cfg;
-    if (c.developerToken) {
-      this._auth = new BoxDeveloperTokenAuth({ token: c.developerToken });
-    } else if (c.clientId && c.clientSecret && c.enterpriseId) {
-      this._auth = new BoxCcgAuth({
-        config: new CcgConfig({ clientId: c.clientId, clientSecret: c.clientSecret, enterpriseId: c.enterpriseId }),
-      });
-    } else {
+    let auth: BoxDeveloperTokenAuth | BoxCcgAuth;
+    if (c.developerToken) auth = new BoxDeveloperTokenAuth({ token: c.developerToken });
+    else if (c.clientId && c.clientSecret && c.enterpriseId)
+      auth = new BoxCcgAuth({ config: new CcgConfig({ clientId: c.clientId, clientSecret: c.clientSecret, enterpriseId: c.enterpriseId }) });
+    else
       throw new BoxAdapterError(
         "BOX_NOT_CONFIGURED",
         `Live Box is not configured: set ${missingBoxEnv().join(", ") || "BOX_DEVELOPER_TOKEN"} in app/.env.local (see docs/INTEGRATION.md), or run with MOCK_MODE=true.`,
       );
-    }
-    let client = new BoxClient({ auth: this._auth });
+    let client = new BoxClient({ auth });
     if (c.subjectUserId) client = client.withAsUserHeader(c.subjectUserId);
     this._client = client;
     return client;
-  }
-
-  private async authHeader(): Promise<string> {
-    this.client();
-    return this._auth!.retrieveAuthorizationHeader();
   }
 
   // ---- files and versions -------------------------------------------------
@@ -227,6 +369,7 @@ export class RealBoxAdapter implements BoxAdapter {
       do {
         const page = await this.client().folders.getFolderItems(folderId, {
           queryParams: { fields: ["id", "type", "name", "file_version", "sha1", "size"], usemarker: true, marker, limit: 1000 },
+          cancellationToken: this.ct(),
         });
         for (const e of page.entries ?? []) {
           const it = e as { type?: string; id: string; name?: string; fileVersion?: { id: string }; sha1?: string; size?: number };
@@ -242,10 +385,36 @@ export class RealBoxAdapter implements BoxAdapter {
     return out;
   }
 
+  /** Current version id and parent folder of a file (one request). */
+  async fileInfo(fileId: string): Promise<{ currentVersionId: string; parentId: string | null; name: string }> {
+    try {
+      const f = await this.client().files.getFileById(fileId, { queryParams: { fields: ["name", "file_version", "parent"] }, cancellationToken: this.ct() });
+      return { currentVersionId: f.fileVersion?.id ?? "", parentId: f.parent?.id ?? null, name: f.name ?? "" };
+    } catch (e) {
+      const m = mapBoxError(e);
+      throw new BoxAdapterError(m.code, `fileInfo(${fileId}): ${m.message}`, m.status);
+    }
+  }
+
+  /** Current version ids for several files; null for a file whose lookup failed (never guessed). */
+  async currentVersionIds(fileIds: string[]): Promise<Map<string, string | null>> {
+    const pairs = await Promise.all(
+      fileIds.map(async (id) => {
+        try {
+          return [id, (await this.fileInfo(id)).currentVersionId || null] as const;
+        } catch {
+          return [id, null] as const;
+        }
+      }),
+    );
+    return new Map(pairs);
+  }
+
   /**
    * Oldest first, labelled v1..vN, current version last. Box's versions endpoint excludes the
-   * current version, so it is appended from the file's file_version. Free Box accounts do not
-   * retain versions: then only the current version is returned and `priorVersionsRetained` says why.
+   * current version, so it is appended from the file's file_version. A failure of the versions
+   * endpoint throws (it is never presented as a v1-only history) unless BOX_VERSION_HISTORY=current-only,
+   * in which case the single current version is labelled "current" and lastHistoryFallback says why.
    */
   async listFileVersions(fileId: string): Promise<BoxFileVersion[]> {
     const client = this.client();
@@ -253,22 +422,31 @@ export class RealBoxAdapter implements BoxAdapter {
     try {
       file = await client.files.getFileById(fileId, {
         queryParams: { fields: ["id", "name", "file_version", "sha1", "modified_at", "modified_by", "content_modified_at", "created_at", "created_by"] },
+        cancellationToken: this.ct(),
       });
     } catch (e) {
       const m = mapBoxError(e);
       throw new BoxAdapterError(m.code, `listFileVersions(${fileId}): ${m.message}`, m.status);
     }
-    const prior = await this.priorVersions(fileId);
-    const older: BoxFileVersion[] = (prior.ok ? prior.versions : [])
-      .filter((v) => !v.trashed)
-      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
-      .map(({ trashed: _t, ...v }) => v);
     const current: BoxFileVersion = {
       versionId: file.fileVersion?.id ?? "",
       createdAt: iso(file.contentModifiedAt) ?? iso(file.modifiedAt) ?? iso(file.createdAt) ?? "",
       uploader: file.modifiedBy ? ident(file.modifiedBy) : undefined,
       sha1: file.sha1 ?? file.fileVersion?.sha1,
     };
+    const prior = await this.priorVersions(fileId);
+    if (!prior.ok) {
+      if (!this.cfg.allowCurrentOnlyHistory)
+        throw new BoxAdapterError(prior.code, `listFileVersions(${fileId}): version history unavailable: ${prior.reason}. Set BOX_VERSION_HISTORY=current-only to accept a current-only history (labelled "current").`, prior.status);
+      this.lastHistoryFallback = { fileId, reason: prior.reason };
+      current.label = "current";
+      await this.attachVersionNotes(fileId, [current]);
+      return [current];
+    }
+    const older: BoxFileVersion[] = prior.versions
+      .filter((v) => !v.trashed)
+      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
+      .map(({ trashed: _t, ...v }) => v);
     const all = [...older.filter((v) => v.versionId !== current.versionId), current];
     all.forEach((v, i) => (v.label = `v${i + 1}`));
     await this.attachVersionNotes(fileId, all);
@@ -283,11 +461,12 @@ export class RealBoxAdapter implements BoxAdapter {
   }
 
   private async priorVersions(fileId: string): Promise<
-    { ok: true; versions: (BoxFileVersion & { trashed: boolean })[] } | { ok: false; reason: string }
+    { ok: true; versions: (BoxFileVersion & { trashed: boolean })[] } | { ok: false; code: string; reason: string; status?: number }
   > {
     try {
       const res = await this.client().fileVersions.getFileVersions(fileId, {
         queryParams: { fields: ["id", "sha1", "name", "size", "created_at", "modified_at", "modified_by", "trashed_at", "version_number", "uploader_display_name"], limit: 1000 },
+        cancellationToken: this.ct(),
       });
       return {
         ok: true,
@@ -301,7 +480,7 @@ export class RealBoxAdapter implements BoxAdapter {
       };
     } catch (e) {
       const m = mapBoxError(e);
-      return { ok: false, reason: `${m.message}${m.status === 403 ? " (version history needs a paid Box plan or the app's read scope)" : ""}` };
+      return { ok: false, code: m.code, status: m.status, reason: `${m.message}${m.status === 403 ? " (version history needs a paid Box plan or the app's read scope)" : ""}` };
     }
   }
 
@@ -309,7 +488,7 @@ export class RealBoxAdapter implements BoxAdapter {
   private async attachVersionNotes(fileId: string, versions: BoxFileVersion[]): Promise<void> {
     let comments: { message: string; createdAt: string }[] = [];
     try {
-      const res = await this.client().comments.getFileComments(fileId, { queryParams: { fields: ["message", "created_at", "created_by"], limit: 1000 } });
+      const res = await this.client().comments.getFileComments(fileId, { queryParams: { fields: ["message", "created_at", "created_by"], limit: 1000 }, cancellationToken: this.ct() });
       comments = (res.entries ?? [])
         .map((c) => ({ message: c.message ?? "", createdAt: iso(c.createdAt) ?? "" }))
         .filter((c) => c.message.startsWith(this.cfg.versionNotePrefix));
@@ -324,39 +503,45 @@ export class RealBoxAdapter implements BoxAdapter {
   }
 
   async downloadVersionText(fileId: string, versionId: string): Promise<BoxReadResult> {
-    let buf: Buffer;
     let name = "";
     try {
       const client = this.client();
-      const file = await client.files.getFileById(fileId, { queryParams: { fields: ["name", "file_version"] } });
+      const file = await client.files.getFileById(fileId, { queryParams: { fields: ["name", "file_version"] }, cancellationToken: this.ct() });
       name = file.name ?? "";
-      const stream = await client.downloads.downloadFile(fileId, { queryParams: { version: versionId } });
+      const signal = this.ct();
+      const stream = await client.downloads.downloadFile(fileId, { queryParams: { version: versionId }, cancellationToken: signal });
       if (!stream) return { ok: false, error: { code: "BOX_DOWNLOAD_EMPTY", message: `Box returned no content for file ${fileId} version ${versionId}` } };
-      buf = await readByteStream(stream);
-      if (TEXT_EXT.test(name) || looksLikeText(buf)) {
-        const text = buf.toString("utf8");
-        return { ok: true, text, sha256: sha256(buf) };
-      }
-      // Binary (PDF, DOCX, ...): Box's extracted_text representation exists for the current version only.
-      if (file.fileVersion?.id && file.fileVersion.id !== versionId)
-        return {
-          ok: false,
-          error: { code: "TEXT_REPRESENTATION_CURRENT_ONLY", message: `${name} v${versionId} is not plain text and Box serves extracted text only for the current version (${file.fileVersion.id}).` },
-        };
-      return await this.extractedText(fileId, name);
+      const buf = await withAbort(readByteStream(stream), signal);
+      const binary = detectBinary(name, buf);
+      if (!binary && (TEXT_EXT.test(name) || looksLikeText(buf))) return { ok: true, text: buf.toString("utf8"), sha256: sha256(buf) };
+      // PDF / Office containers (or unknown binary): Box's extracted_text representation, bound to the pinned version.
+      // Local extraction from the pinned bytes would need a PDF/zip parser dependency; not added for the hackathon.
+      return await this.extractedText(fileId, versionId, name, binary);
     } catch (e) {
       const m = mapBoxError(e);
       return { ok: false, error: { code: m.code, message: `download ${name || fileId} version ${versionId}: ${m.message}` } };
     }
   }
 
-  /** extracted_text representation with x-rep-hints; 202 or pending -> TEXT_REPRESENTATION_NOT_READY (fixture code). */
-  private async extractedText(fileId: string, name: string): Promise<BoxReadResult> {
+  /**
+   * extracted_text representation, bound to `versionId`: file_version and representations are read in
+   * one request and must name the pinned version; the version is re-read after the text download and a
+   * change fails the read. Content is fetched through the SDK client (auth, As-User, deadline apply).
+   * 202 or pending -> TEXT_REPRESENTATION_NOT_READY (fixture code).
+   */
+  private async extractedText(fileId: string, versionId: string, name: string, kind: BinaryKind): Promise<BoxReadResult> {
     const client = this.client();
     const file = await client.files.getFileById(fileId, {
-      queryParams: { fields: ["representations"] },
+      queryParams: { fields: ["file_version", "representations"] },
       headers: new GetFileByIdHeaders({ xRepHints: "[extracted_text]" }),
+      cancellationToken: this.ct(),
     });
+    const current = file.fileVersion?.id;
+    if (current !== versionId)
+      return {
+        ok: false,
+        error: { code: "TEXT_REPRESENTATION_CURRENT_ONLY", message: `${name} is ${kind ?? "binary"}; Box serves extracted text for the current version only (${current ?? "unknown"}), not the pinned version ${versionId}.` },
+      };
     const rep = file.representations?.entries?.find((r) => r.representation === "extracted_text");
     if (!rep) return { ok: false, error: { code: "TEXT_REPRESENTATION_UNSUPPORTED", message: `${name}: Box offers no extracted_text representation for this file type.` } };
     const state = rep.status?.state;
@@ -364,10 +549,15 @@ export class RealBoxAdapter implements BoxAdapter {
     if (state === "pending" || state === "none") return notReady;
     const tpl = rep.content?.urlTemplate;
     if (!tpl) return notReady;
-    const res = await fetch(tpl.replace("{+asset_path}", ""), { headers: { Authorization: await this.authHeader() } });
+    const signal = this.ct();
+    const res = await client.makeRequest({ url: tpl.replace("{+asset_path}", ""), method: "GET", responseFormat: "binary", cancellationToken: signal });
     if (res.status === 202) return notReady;
-    if (!res.ok) return { ok: false, error: { code: `BOX_HTTP_${res.status}`, message: `${name}: extracted_text download failed (${res.status}).` } };
-    const text = await res.text();
+    if (res.status < 200 || res.status >= 300 || !res.content)
+      return { ok: false, error: { code: `BOX_HTTP_${res.status}`, message: `${name}: extracted_text download failed (${res.status}).` } };
+    const text = (await withAbort(readByteStream(res.content), signal)).toString("utf8");
+    const after = await client.files.getFileById(fileId, { queryParams: { fields: ["file_version"] }, cancellationToken: this.ct() });
+    if (after.fileVersion?.id !== versionId)
+      return { ok: false, error: { code: "VERSION_CHANGED_DURING_EXTRACTION", message: `${name}: a new version (${after.fileVersion?.id}) arrived while extracting text for ${versionId}; extraction discarded.` } };
     return { ok: true, text, sha256: sha256(text) };
   }
 
@@ -375,7 +565,7 @@ export class RealBoxAdapter implements BoxAdapter {
 
   async readFolderMetadata(folderId: string, templateKey: string): Promise<Record<string, string | null> | null> {
     try {
-      const md = await this.client().folderMetadata.getFolderMetadataById(folderId, this.cfg.metadataScope, templateKey);
+      const md = await this.client().folderMetadata.getFolderMetadataById(folderId, this.cfg.metadataScope, templateKey, { cancellationToken: this.ct() });
       const raw = ((md as { extraData?: Record<string, unknown> }).extraData ?? (md as { rawData?: Record<string, unknown> }).rawData ?? {}) as Record<string, unknown>;
       const out: Record<string, string | null> = {};
       for (const [k, v] of Object.entries(raw)) if (!k.startsWith("$")) out[k] = v == null ? null : String(v);
@@ -395,7 +585,7 @@ export class RealBoxAdapter implements BoxAdapter {
       if (existing === null) {
         const body: Record<string, string> = {};
         for (const [k, v] of Object.entries(fields)) if (v !== null) body[k] = v;
-        await client.folderMetadata.createFolderMetadataById(folderId, this.cfg.metadataScope, templateKey, body);
+        await client.folderMetadata.createFolderMetadataById(folderId, this.cfg.metadataScope, templateKey, body, { cancellationToken: this.ct() });
         return { ok: true };
       }
       const ops: { op: string; path: string; value?: string }[] = [];
@@ -405,7 +595,7 @@ export class RealBoxAdapter implements BoxAdapter {
           if (has) ops.push({ op: "remove", path: `/${k}` });
         } else ops.push({ op: has ? "replace" : "add", path: `/${k}`, value: v });
       }
-      if (ops.length) await client.folderMetadata.updateFolderMetadataById(folderId, this.cfg.metadataScope, templateKey, ops);
+      if (ops.length) await client.folderMetadata.updateFolderMetadataById(folderId, this.cfg.metadataScope, templateKey, ops, { cancellationToken: this.ct() });
       return { ok: true };
     } catch (e) {
       const m = mapBoxError(e);
@@ -413,45 +603,66 @@ export class RealBoxAdapter implements BoxAdapter {
     }
   }
 
+  /** Delete the folder's metadata instance (integration gate cleanup of an instance it created). */
+  async deleteFolderMetadata(folderId: string, templateKey: string): Promise<BoxWriteResult> {
+    try {
+      await this.client().folderMetadata.deleteFolderMetadataById(folderId, this.cfg.metadataScope, templateKey, { cancellationToken: this.ct() });
+      return { ok: true };
+    } catch (e) {
+      const m = mapBoxError(e);
+      return { ok: false, error: { code: m.code, message: `deleteFolderMetadata(${folderId}, ${templateKey}): ${m.message}` } };
+    }
+  }
+
+  /** Read the template's fields; null when it does not exist. */
+  async readMetadataTemplate(templateKey: string): Promise<{ key: string; type: string; options?: { key: string }[] }[] | null> {
+    try {
+      const t = await this.client().metadataTemplates.getMetadataTemplate(this.cfg.metadataScope, templateKey, { cancellationToken: this.ct() });
+      return (t.fields ?? []).map((f) => ({ key: f.key, type: String(f.type), options: (f.options ?? []).map((o) => ({ key: o.key })) }));
+    } catch (e) {
+      const m = mapBoxError(e);
+      if (m.status === 404) return null;
+      throw new BoxAdapterError(m.code, `readMetadataTemplate(${templateKey}): ${m.message}`, m.status);
+    }
+  }
+
   /**
    * Idempotent: creates the keelReview template (keel_snapshot_id, one enum keel_status_<ID> per
-   * control with the twelve codes, keel_last_human_review, keel_record_url), or adds any missing
-   * fields to an existing one. Needs the "Manage enterprise properties" scope and an admin-authorized app.
+   * control with the twelve codes, keel_last_human_review, keel_record_url), or adds missing fields
+   * (addField) and missing enum codes (addEnumOption) to an existing one. A field with the wrong type
+   * cannot be fixed in place and fails with TEMPLATE_INCOMPATIBLE. Needs "Manage enterprise properties".
    */
   async ensureMetadataTemplate(
     profile: { controls: { id: string; title?: string }[] },
     templateKey: string = process.env.BOX_METADATA_TEMPLATE_KEY || "keelReview",
-  ): Promise<{ ok: true; created: boolean; added_fields: string[] } | { ok: false; error: { code: string; message: string } }> {
-    const wanted = [
-      { type: "string" as const, key: "keel_snapshot_id", displayName: "Keel snapshot id" },
-      ...profile.controls.map((c) => ({
-        type: "enum" as const,
-        key: statusFieldKey(c.id),
-        displayName: `Keel status ${c.id}`,
-        description: c.title,
-        options: PROJECTION_CODES.map((key) => ({ key })),
-      })),
-      { type: "string" as const, key: "keel_last_human_review", displayName: "Keel last human review" },
-      { type: "string" as const, key: "keel_record_url", displayName: "Keel record URL" },
-    ];
+  ): Promise<
+    | { ok: true; created: boolean; added_fields: string[]; added_options: { fieldKey: string; keys: string[] }[] }
+    | { ok: false; error: { code: string; message: string } }
+  > {
+    const wanted = templateSpec(profile);
     const scope = this.cfg.metadataScope;
     try {
       const client = this.client();
-      let tpl;
-      try {
-        tpl = await client.metadataTemplates.getMetadataTemplate(scope, templateKey);
-      } catch (e) {
-        if (mapBoxError(e).status !== 404) throw e;
+      const have = await this.readMetadataTemplate(templateKey);
+      if (!have) {
+        await client.metadataTemplates.createMetadataTemplate({ scope, templateKey, displayName: "Keel review", fields: wanted }, { cancellationToken: this.ct() });
+        return { ok: true, created: true, added_fields: wanted.map((f) => f.key), added_options: [] };
       }
-      if (!tpl) {
-        await client.metadataTemplates.createMetadataTemplate({ scope, templateKey, displayName: "Keel review", fields: wanted });
-        return { ok: true, created: true, added_fields: wanted.map((f) => f.key) };
-      }
-      const have = new Set((tpl.fields ?? []).map((f) => f.key));
-      const missing = wanted.filter((f) => !have.has(f.key));
-      if (missing.length)
-        await client.metadataTemplates.updateMetadataTemplate(scope, templateKey, missing.map((f) => ({ op: "addField", data: f })));
-      return { ok: true, created: false, added_fields: missing.map((f) => f.key) };
+      const check = checkTemplateFields(have, wanted);
+      if (check.incompatible.length)
+        return {
+          ok: false,
+          error: {
+            code: "TEMPLATE_INCOMPATIBLE",
+            message: `${scope}.${templateKey} has fields of the wrong type: ${check.incompatible.map((i) => `${i.key} is ${i.have}, needs ${i.want}`).join("; ")}. Delete or rename the template (or set BOX_METADATA_TEMPLATE_KEY) and rerun.`,
+          },
+        };
+      const ops = [
+        ...check.missingFields.map((f) => ({ op: "addField", data: { ...f } })),
+        ...check.missingOptions.flatMap((m) => m.keys.map((key) => ({ op: "addEnumOption", fieldKey: m.fieldKey, data: { key } }))),
+      ];
+      if (ops.length) await client.metadataTemplates.updateMetadataTemplate(scope, templateKey, ops, { cancellationToken: this.ct() });
+      return { ok: true, created: false, added_fields: check.missingFields.map((f) => f.key), added_options: check.missingOptions };
     } catch (e) {
       const m = mapBoxError(e);
       return { ok: false, error: { code: m.code, message: `ensureMetadataTemplate(${scope}.${templateKey}): ${m.message}` } };
@@ -462,13 +673,10 @@ export class RealBoxAdapter implements BoxAdapter {
 
   async createTask(fileId: string, message: string, action: "review" | "complete", dueAt?: string): Promise<{ task_id: string }> {
     try {
-      const task = await this.client().tasks.createTask({
-        item: { id: fileId, type: "file" },
-        action,
-        message,
-        dueAt: dueAt ? dateTimeFromString(dueAt) : undefined,
-        completionRule: "all_assignees",
-      });
+      const task = await this.client().tasks.createTask(
+        { item: { id: fileId, type: "file" }, action, message, dueAt: dueAt ? dateTimeFromString(dueAt) : undefined, completionRule: "all_assignees" },
+        { cancellationToken: this.ct() },
+      );
       if (!task.id) throw new BoxAdapterError("BOX_TASK_NO_ID", "Box created a task but returned no id");
       return { task_id: task.id };
     } catch (e) {
@@ -477,12 +685,16 @@ export class RealBoxAdapter implements BoxAdapter {
     }
   }
 
+  async deleteTask(taskId: string): Promise<void> {
+    await this.client().tasks.deleteTaskById(taskId, { cancellationToken: this.ct() });
+  }
+
   async assignTask(taskId: string, assignee: { id: string } | { login: string }): Promise<{ assignment_id: string; assigned_to: BoxIdentity }> {
     try {
-      const a = await this.client().taskAssignments.createTaskAssignment({
-        task: { id: taskId, type: "task" },
-        assignTo: "id" in assignee ? { id: assignee.id } : { login: assignee.login },
-      });
+      const a = await this.client().taskAssignments.createTaskAssignment(
+        { task: { id: taskId, type: "task" }, assignTo: "id" in assignee ? { id: assignee.id } : { login: assignee.login } },
+        { cancellationToken: this.ct() },
+      );
       return { assignment_id: a.id ?? "", assigned_to: ident(a.assignedTo) };
     } catch (e) {
       const m = mapBoxError(e);
@@ -492,7 +704,7 @@ export class RealBoxAdapter implements BoxAdapter {
 
   async listTaskAssignments(taskId: string): Promise<BoxTaskAssignmentView[]> {
     try {
-      const res = await this.client().taskAssignments.getTaskAssignments(taskId);
+      const res = await this.client().taskAssignments.getTaskAssignments(taskId, { cancellationToken: this.ct() });
       return (res.entries ?? []).map((a) => ({
         assignment_id: a.id ?? "",
         assigned_to: ident(a.assignedTo),
@@ -508,35 +720,28 @@ export class RealBoxAdapter implements BoxAdapter {
 
   // ---- Box AI ---------------------------------------------------------------
 
-  /** Box AI ask with citations. Any failure (no AI units, AI disabled, 403/404/429) -> unavailable with the reason. */
+  /** Box AI ask with citations. Any failure (no AI units, AI disabled, 403/404/429, deadline) -> unavailable with the reason. */
   async aiAsk(fileIds: string[], prompt: string, _opts: { citations: true }): Promise<BoxAiAskResponse> {
     if (fileIds.length === 0) return { unavailable: true, reason: "no files to ask" };
     try {
-      const res = await this.client().ai.createAiAsk({
-        mode: fileIds.length > 1 ? "multiple_item_qa" : "single_item_qa",
-        prompt,
-        items: fileIds.slice(0, 25).map((id) => ({ id, type: "file" as const })),
-        includeCitations: true,
-      });
+      const res = await this.client().ai.createAiAsk(
+        {
+          mode: fileIds.length > 1 ? "multiple_item_qa" : "single_item_qa",
+          prompt,
+          items: fileIds.slice(0, 25).map((id) => ({ id, type: "file" as const })),
+          includeCitations: true,
+        },
+        { cancellationToken: this.ct() },
+      );
       if (!res) return { unavailable: true, reason: "Box AI returned no content (HTTP 204)" };
       // Box AI citations carry no version. Box AI reads the current version, so stamp each citation
       // with its file's current version id; callers reject citations whose version is not the pinned
       // one (spec 3 step 6). If the lookup fails, versionId stays undefined rather than guessed.
       const cited = [...new Set((res.citations ?? []).map((c) => c.id ?? "").filter(Boolean))];
-      const current = new Map<string, string>();
-      await Promise.all(
-        cited.map(async (id) => {
-          try {
-            const f = await this.client().files.getFileById(id, { queryParams: { fields: ["file_version"] } });
-            if (f.fileVersion?.id) current.set(id, f.fileVersion.id);
-          } catch {
-            /* leave undefined */
-          }
-        }),
-      );
+      const current = await this.currentVersionIds(cited);
       return {
         answer: res.answer ?? "",
-        citations: (res.citations ?? []).map((c) => ({ fileId: c.id ?? "", versionId: current.get(c.id ?? ""), content: c.content ?? "" })),
+        citations: (res.citations ?? []).map((c) => ({ fileId: c.id ?? "", versionId: current.get(c.id ?? "") ?? undefined, content: c.content ?? "" })),
       };
     } catch (e) {
       return { unavailable: true, reason: aiReason(e) };
@@ -547,7 +752,7 @@ export class RealBoxAdapter implements BoxAdapter {
   async aiTextGen(fileIds: string[], prompt: string): Promise<BoxAiTextGenResponse> {
     if (fileIds.length === 0) return { unavailable: true, reason: "text gen needs one file as context" };
     try {
-      const res = await this.client().ai.createAiTextGen({ prompt, items: [new AiTextGenItemsField({ id: fileIds[0], type: "file" })] });
+      const res = await this.client().ai.createAiTextGen({ prompt, items: [new AiTextGenItemsField({ id: fileIds[0], type: "file" })] }, { cancellationToken: this.ct() });
       return { text: res.answer ?? "" };
     } catch (e) {
       return { unavailable: true, reason: aiReason(e) };
@@ -556,7 +761,7 @@ export class RealBoxAdapter implements BoxAdapter {
 
   async currentUser(): Promise<BoxIdentity> {
     try {
-      return ident(await this.client().users.getUserMe());
+      return ident(await this.client().users.getUserMe(undefined, undefined, this.ct()));
     } catch (e) {
       const m = mapBoxError(e);
       throw new BoxAdapterError(m.code, `currentUser: ${m.message}`, m.status);
@@ -567,7 +772,7 @@ export class RealBoxAdapter implements BoxAdapter {
 
   async uploadFile(folderId: string, name: string, text: string): Promise<{ fileId: string; versionId: string }> {
     try {
-      const res = await this.client().uploads.uploadFile({ attributes: { name, parent: { id: folderId } }, file: stringToByteStream(text) });
+      const res = await this.client().uploads.uploadFile({ attributes: { name, parent: { id: folderId } }, file: stringToByteStream(text) }, { cancellationToken: this.ct() });
       const f = res.entries?.[0];
       return { fileId: f?.id ?? "", versionId: f?.fileVersion?.id ?? "" };
     } catch (e) {
@@ -579,9 +784,9 @@ export class RealBoxAdapter implements BoxAdapter {
   async uploadFileVersion(fileId: string, name: string, text: string, versionNote?: string): Promise<{ fileId: string; versionId: string }> {
     try {
       const client = this.client();
-      const res = await client.uploads.uploadFileVersion(fileId, { attributes: { name }, file: stringToByteStream(text) });
+      const res = await client.uploads.uploadFileVersion(fileId, { attributes: { name }, file: stringToByteStream(text) }, { cancellationToken: this.ct() });
       const f = res.entries?.[0];
-      if (versionNote) await client.comments.createComment({ message: this.cfg.versionNotePrefix + versionNote, item: { id: fileId, type: "file" } });
+      if (versionNote) await client.comments.createComment({ message: this.cfg.versionNotePrefix + versionNote, item: { id: fileId, type: "file" } }, { cancellationToken: this.ct() });
       return { fileId, versionId: f?.fileVersion?.id ?? "" };
     } catch (e) {
       const m = mapBoxError(e);
@@ -599,6 +804,7 @@ function aiReason(e: unknown): string {
   if (m.status === 403) return `Box AI not permitted or AI units exhausted (${m.message})`;
   if (m.status === 404) return `Box AI not enabled for this app or item not found (${m.message})`;
   if (m.status === 429) return `Box AI rate limited (${m.message})`;
+  if (m.code === "BOX_TIMEOUT") return `Box AI did not answer before the deadline (${m.message})`;
   return m.message;
 }
 
@@ -609,6 +815,7 @@ function aiReason(e: unknown): string {
 /**
  * Maps the fixture's synthetic Box ids to the tenant's real ids, so the engine can reuse
  * demo-data/lantern (snapshots, ledger seed, expected findings) against a live folder.
+ * Versions are mapped only when the downloaded bytes hash to the fixture file (never by position).
  */
 export interface BoxMap {
   folderId: string;
@@ -618,10 +825,12 @@ export interface BoxMap {
     {
       fixtureFileId: string;
       fileId: string;
-      /** fixture versionId -> Box versionId, e.g. "1801102232" -> "1987654321" */
+      /** fixture versionId -> Box versionId, e.g. "1801102232" -> "1987654321"; hash-verified only */
       versions: Record<string, string>;
-      /** label -> Box versionId, e.g. "v2" -> "1987654321" */
+      /** label -> Box versionId, e.g. "v2" -> "1987654321" (Box order) */
       labels: Record<string, string>;
+      /** Box versions whose content matched no fixture version (left unmapped). */
+      unmatched?: string[];
     }
   >;
 }

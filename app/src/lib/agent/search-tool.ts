@@ -25,7 +25,7 @@ export interface SearchResult {
 
 /** SearchSnapshotTool whose results also carry the recorded trace step. */
 export interface SnapshotSearchTool extends SearchSnapshotTool {
-  search(query: string, excludeFileName?: string): Promise<SearchResult>;
+  search(query: string, excludeFileName?: string, signal?: AbortSignal): Promise<SearchResult>;
 }
 
 export interface SearchToolOptions {
@@ -73,20 +73,39 @@ export function makeSearchSnapshotTool(
 ): SnapshotSearchTool {
   const origin = opts.originMs ?? Date.now();
   const maxCitations = opts.maxCitations ?? 10;
-  let currentVersions: Promise<Map<string, string | null>> | null = null;
 
-  /** fileId -> current Box version id (null when Box could not say). Computed once per tool. */
-  const loadCurrentVersions = () =>
-    (currentVersions ??= Promise.all(
-      files.map(async ({ file }) => {
+  /**
+   * fileId -> current Box version id, re-read on every request (never cached: a version can land
+   * between two searches). null when Box could not say. Uses the adapter's one-request lookup when it
+   * has one (RealBoxAdapter.currentVersionIds), else the last entry of listFileVersions.
+   */
+  const loadCurrentVersions = async (b: BoxAdapter, targets: EvaluatorFileText[]): Promise<Map<string, string | null>> => {
+    const fast = (b as { currentVersionIds?: (ids: string[]) => Promise<Map<string, string | null>> }).currentVersionIds;
+    if (typeof fast === "function") {
+      try {
+        return await fast.call(b, targets.map((t) => t.file.fileId));
+      } catch {
+        return new Map(targets.map((t) => [t.file.fileId, null]));
+      }
+    }
+    const pairs = await Promise.all(
+      targets.map(async ({ file }) => {
         try {
-          const versions = await box.listFileVersions(file.fileId);
+          const versions = await b.listFileVersions(file.fileId);
           return [file.fileId, versions.length ? versions[versions.length - 1].versionId : null] as const;
         } catch {
           return [file.fileId, null] as const;
         }
       }),
-    ).then((pairs) => new Map(pairs)));
+    );
+    return new Map(pairs);
+  };
+
+  /** The adapter scoped to the tool call's signal when it supports that (RealBoxAdapter.withSignal). */
+  const scoped = (signal?: AbortSignal): BoxAdapter => {
+    const w = (box as { withSignal?: (s: AbortSignal) => BoxAdapter }).withSignal;
+    return signal && typeof w === "function" ? w.call(box, signal) : box;
+  };
 
   const toCitation = (f: SnapshotFile, text: string, quote: string): SearchCitation | null => {
     if (!quoteValid(quote, text)) return null;
@@ -129,8 +148,9 @@ export function makeSearchSnapshotTool(
     return out;
   }
 
-  async function search(query: string, excludeFileName?: string): Promise<SearchResult> {
+  async function search(query: string, excludeFileName?: string, signal?: AbortSignal): Promise<SearchResult> {
     const t0 = Date.now();
+    const b = scoped(signal);
     const others = files.filter((f) => f.file.fileName !== excludeFileName);
     const names = others.map((f) => f.file.fileName);
     const terms = splitQuery(query);
@@ -145,12 +165,12 @@ export function makeSearchSnapshotTool(
     const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
     const ask = others.length
-      ? await box.aiAsk(others.map((f) => f.file.fileId), searchPrompt(query), { citations: true })
+      ? await b.aiAsk(others.map((f) => f.file.fileId), searchPrompt(query), { citations: true })
       : ({ unavailable: true, reason: "no other readable files in the snapshot" } as const);
 
-    if (ask.unavailable) {
+    const fallbackResult = (why: string, labelReason: string, extra: Record<string, unknown> = {}): SearchResult => {
       const citations = stringSearch(query, others);
-      const label = `string search over ${plural(others.length, "file")} (Box AI unavailable), ${plural(citations.length, "statement")}`;
+      const label = `string search over ${plural(others.length, "file")} (${labelReason}), ${plural(citations.length, "statement")}`;
       const step = emit({
         source: "app",
         kind: "tool_call",
@@ -160,14 +180,24 @@ export function makeSearchSnapshotTool(
         durationMs: Date.now() - t0,
         ts: new Date(t0).toISOString(),
         args: { ...args, mode: "string_search", include_citations: false },
-        result: { files_asked: names, cited_statements: citations.length, citations, fallback: "string_search", box_ai_unavailable_reason: ask.reason },
-        detail: `search_snapshot fell back to normalized string search over pinned texts (Box AI unavailable: ${ask.reason}); terms ${terms.map((t) => `'${t}'`).join(", ")}`,
+        result: { files_asked: names, cited_statements: citations.length, citations, fallback: "string_search", box_ai_unavailable_reason: why, ...extra },
+        detail: `search_snapshot fell back to normalized string search over pinned texts (${why}); terms ${terms.map((t) => `'${t}'`).join(", ")}`,
       });
       return { label, fallback: true, citations, step };
-    }
+    };
+
+    if (ask.unavailable) return fallbackResult(`Box AI unavailable: ${ask.reason}`, "Box AI unavailable");
 
     // Box AI answered. Validate each cited passage against the pinned text of the cited file.
-    const current = await loadCurrentVersions();
+    // Box AI read current versions; re-check them now, after the answer, for this request.
+    const current = await loadCurrentVersions(b, others);
+    const unknown = others.filter((f) => current.get(f.file.fileId) == null).map((f) => f.file.fileName);
+    if (unknown.length)
+      // The current-version contract cannot be established: Box AI's answer is not used at all.
+      return fallbackResult(`current Box version of ${unknown.join(", ")} could not be confirmed, so the Box AI answer was not used`, "Box AI result not used: current version unconfirmed", {
+        box_ai_answer_discarded: true,
+        version_check: { matches: false, unconfirmed: unknown },
+      });
     const byId = new Map(others.map((f) => [f.file.fileId, f]));
     const mismatched = others.filter((f) => current.get(f.file.fileId) !== f.file.versionId).map((f) => f.file.fileName);
     const answerNorm = norm(ask.answer ?? "");
@@ -180,6 +210,10 @@ export function makeSearchSnapshotTool(
       const content = (c.content ?? "").trim();
       if (!f) {
         rejected.push({ fileId: c.fileId, content: content.slice(0, 300), reason: "cited file is not among the asked snapshot files" });
+        continue;
+      }
+      if (c.versionId && c.versionId !== f.file.versionId) {
+        rejected.push({ fileId: c.fileId, fileName: f.file.fileName, content: content.slice(0, 300), reason: `cited version ${c.versionId} is not the pinned version ${f.file.versionId}` });
         continue;
       }
       if (mismatched.includes(f.file.fileName)) {

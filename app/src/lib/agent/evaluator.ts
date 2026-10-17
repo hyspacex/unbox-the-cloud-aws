@@ -198,9 +198,10 @@ export class BedrockEvaluator implements Evaluator {
         exclude_file: z.string().optional().describe("fileName of the primary evidencing file to leave out"),
         control_id: z.string().optional().describe("The control id this call is for, from the control list"),
       }),
-      callback: async ({ query, exclude_file, control_id }) => {
+      callback: async ({ query, exclude_file, control_id }, context) => {
         const started = Date.now();
-        const res = await tools.search.search(query, exclude_file);
+        // Strands' execution-scoped signal: cancelling the invocation aborts the Box AI request too.
+        const res = await tools.search.search(query, exclude_file, context?.cancelSignal);
         const own = (res as { step?: TraceStep }).step;
         // Tag the step with the control so the finding card can show it as basis provenance.
         if (own && control_id) own.args = { ...(own.args ?? {}), control_id };
@@ -301,22 +302,28 @@ export class BedrockEvaluator implements Evaluator {
  * Tiny live probe for the integration gate: one Strands Agent call to the configured inference
  * profile. Returns the model id and latency. No document text is sent.
  */
-export async function probeBedrock(cfg: Partial<BedrockEvaluatorConfig> = {}): Promise<{ ok: true; modelId: string; inferenceProfile: string; latencyMs: number; reply: string } | { ok: false; code: string; message: string }> {
-  const c = { ...bedrockConfigFromEnv(), ...cfg };
+export async function probeBedrock(cfg: Partial<BedrockEvaluatorConfig> & { probeTimeoutMs?: number } = {}, opts: { model?: Model } = {}): Promise<{ ok: true; modelId: string; inferenceProfile: string; latencyMs: number; reply: string } | { ok: false; code: string; message: string }> {
+  const c: BedrockEvaluatorConfig & { probeTimeoutMs?: number } = { ...bedrockConfigFromEnv(), ...cfg };
   const started = Date.now();
   try {
     const { Agent, BedrockModel } = await loadStrands();
     const agent = new Agent({
-      model: new BedrockModel({ modelId: c.inferenceProfile, region: c.region, temperature: 0, maxTokens: 32 }),
+      model: opts.model ?? new BedrockModel({ modelId: c.inferenceProfile, region: c.region, temperature: 0, maxTokens: 32 }),
       systemPrompt: "Reply with the single word: ready",
       printer: false,
     });
-    const r = await agent.invoke("Integration gate probe.", { cancelSignal: AbortSignal.timeout(30_000) });
+    const r = await agent.invoke("Integration gate probe.", { cancelSignal: AbortSignal.timeout(c.probeTimeoutMs ?? 30_000) });
     const reply = r.lastMessage.content
       .map((b) => (b.type === "textBlock" ? (b as { text: string }).text : ""))
       .join("")
       .trim();
-    return { ok: true, modelId: c.modelId, inferenceProfile: c.inferenceProfile, latencyMs: Date.now() - started, reply };
+    const latencyMs = Date.now() - started;
+    // Strands returns cancellation as a result, not an exception: never count it as ready.
+    if (r.stopReason !== "endTurn")
+      return { ok: false, code: r.stopReason === "cancelled" ? "EVALUATION_TIMEOUT" : "BEDROCK_PROBE_ABNORMAL", message: `probe ended with stopReason ${r.stopReason} after ${latencyMs} ms (reply ${JSON.stringify(reply.slice(0, 80))})` };
+    if (reply.toLowerCase().replace(/[^a-z]/g, "") !== "ready")
+      return { ok: false, code: "BEDROCK_PROBE_UNEXPECTED", message: `expected the reply "ready", got ${JSON.stringify(reply.slice(0, 80))}` };
+    return { ok: true, modelId: c.modelId, inferenceProfile: c.inferenceProfile, latencyMs, reply };
   } catch (e) {
     const m = mapBedrockError(e, c);
     return { ok: false, code: m.code, message: m.message };

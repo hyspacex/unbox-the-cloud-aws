@@ -10,11 +10,69 @@
  */
 import { createHash } from "node:crypto";
 import { Checklist, flag, has, loadEnv, fixtureText } from "./_shared";
-import { RealBoxAdapter, missingBoxEnv, statusFieldKey } from "../src/lib/box/real";
+import { RealBoxAdapter, checkTemplateFields, missingBoxEnv, templateSpec } from "../src/lib/box/real";
 import { probeBedrock, bedrockConfigFromEnv } from "../src/lib/agent/evaluator";
 import { DeciderGate, gateLabel } from "../src/lib/agent/decider";
 import { quoteValid } from "../src/lib/engine/normalize";
 import type { BoxFolderItem } from "../src/lib/box/adapter";
+
+type Row = { status: "PASS" | "FAIL" | "SKIP"; reason: string };
+type ProbeBox = Pick<RealBoxAdapter, "readFolderMetadata" | "writeFolderMetadata" | "deleteFolderMetadata">;
+
+/**
+ * Write keel_snapshot_id=GATE-<ts>, read it back, then restore the exact prior state in finally:
+ * an instance the probe created is deleted; a field that was absent is removed; a prior value is
+ * rewritten. Restoration is read back too, and a failed restoration is a FAIL (Codex finding 15).
+ */
+export async function metadataProbe(box: ProbeBox, folderId: string, templateKey: string, now = Date.now()): Promise<Row> {
+  const before = await box.readFolderMetadata(folderId, templateKey);
+  const prior = before ? before.keel_snapshot_id ?? null : undefined; // undefined: no instance at all
+  const probe = `GATE-${now}`;
+  let roundTrip: Row | null = null;
+  let restore = "";
+  try {
+    const w = await box.writeFolderMetadata(folderId, templateKey, { keel_snapshot_id: probe });
+    if (!w.ok) roundTrip = { status: "FAIL", reason: `${w.error.code}: ${w.error.message}` };
+    else {
+      const after = await box.readFolderMetadata(folderId, templateKey);
+      roundTrip = after?.keel_snapshot_id === probe ? { status: "PASS", reason: `wrote and read back keel_snapshot_id=${probe}` } : { status: "FAIL", reason: `read back ${JSON.stringify(after?.keel_snapshot_id)} instead of ${probe}` };
+    }
+  } catch (e) {
+    roundTrip = { status: "FAIL", reason: `round trip threw: ${e instanceof Error ? e.message : String(e)}` };
+  } finally {
+    try {
+      const r = prior === undefined ? await box.deleteFolderMetadata(folderId, templateKey) : await box.writeFolderMetadata(folderId, templateKey, { keel_snapshot_id: prior });
+      const check = await box.readFolderMetadata(folderId, templateKey);
+      const restored = prior === undefined ? check === null : (check?.keel_snapshot_id ?? null) === prior;
+      // Judged by the read-back state: a 404 on deleting an instance that was never created is fine.
+      restore = restored
+          ? prior === undefined
+            ? "probe instance deleted (none existed before)"
+            : prior === null
+              ? "keel_snapshot_id removed again (it was absent)"
+              : `restored keel_snapshot_id=${prior}`
+          : `restore did not take${r.ok ? "" : ` (${r.error.code}: ${r.error.message})`}: read back ${JSON.stringify(check === null ? null : check.keel_snapshot_id ?? null)}, expected ${prior === undefined ? "no instance" : JSON.stringify(prior)}`;
+    } catch (e) {
+      restore = `restore failed: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+  const restoredOk = !/failed|did not take/.test(restore);
+  if (!restoredOk) return { status: "FAIL", reason: `${roundTrip?.reason ?? ""}; ${restore}. Fix the folder's keelReview instance before the demo` };
+  return { status: roundTrip!.status, reason: `${roundTrip!.reason}; ${restore}` };
+}
+
+/** Read-only template check: every field present with the right type and all twelve enum codes. */
+export function templateRow(have: { key: string; type: string; options?: { key: string }[] }[] | null, profile: { controls: { id: string }[] }, templateKey: string): Row {
+  if (!have) return { status: "FAIL", reason: `template ${templateKey} does not exist; rerun with --write to create it (needs Manage enterprise properties)` };
+  const c = checkTemplateFields(have, templateSpec(profile));
+  const issues = [
+    ...c.incompatible.map((i) => `${i.key} is ${i.have}, needs ${i.want} (cannot be fixed in place: delete the template or set BOX_METADATA_TEMPLATE_KEY)`),
+    ...c.missingFields.map((f) => `missing field ${f.key}`),
+    ...c.missingOptions.map((m) => `${m.fieldKey} lacks ${m.keys.join(", ")}`),
+  ];
+  if (!issues.length) return { status: "PASS", reason: `${templateKey} has all ${have.length} fields with the right types and all twelve codes` };
+  return { status: "FAIL", reason: issues.join("; ") + (c.incompatible.length ? "" : "; rerun with --write to add them") };
+}
 
 async function main() {
   const loaded = loadEnv();
@@ -105,35 +163,16 @@ async function main() {
       if (write) {
         const r = await box.ensureMetadataTemplate(profile, templateKey);
         if (!r.ok) return { status: "FAIL", reason: `${r.error.code}: ${r.error.message}` };
-        return { status: "PASS", reason: `${process.env.BOX_METADATA_SCOPE || "enterprise"}.${templateKey} ${r.created ? "created" : "exists"}${r.added_fields.length && !r.created ? `; added ${r.added_fields.join(", ")}` : ""}` };
+        const added = [...(r.created ? [] : r.added_fields.map((f) => `field ${f}`)), ...r.added_options.map((o) => `${o.fieldKey} options ${o.keys.join(",")}`)];
+        return { status: "PASS", reason: `${process.env.BOX_METADATA_SCOPE || "enterprise"}.${templateKey} ${r.created ? "created" : "exists"}${added.length ? `; added ${added.join("; ")}` : ""}` };
       }
-      try {
-        const t = await box.client().metadataTemplates.getMetadataTemplate(process.env.BOX_METADATA_SCOPE || "enterprise", templateKey);
-        const keys = new Set((t.fields ?? []).map((f) => f.key));
-        const missing = ["keel_snapshot_id", ...profile.controls.map((c) => statusFieldKey(c.id)), "keel_last_human_review", "keel_record_url"].filter((k) => !keys.has(k));
-        return missing.length ? { status: "FAIL", reason: `template exists but lacks ${missing.join(", ")}; rerun with --write to add them` } : { status: "PASS", reason: `${templateKey} has all ${keys.size} fields` };
-      } catch (e) {
-        const status = (e as { responseInfo?: { statusCode?: number } }).responseInfo?.statusCode;
-        if (status === 404) return { status: "FAIL", reason: `template ${templateKey} does not exist; rerun with --write to create it (needs Manage enterprise properties)` };
-        throw e;
-      }
+      return templateRow(await box.readMetadataTemplate(templateKey), profile, templateKey);
     });
 
-    // Folder metadata write + read back (restores the previous value)
+    // Folder metadata write + read back, exact restore in finally
     if (!write) cl.skip("Box folder metadata write/read", "read-only run; pass --write");
     else if (!folderId) cl.skip("Box folder metadata write/read", "needs BOX_FOLDER_ID");
-    else
-      await cl.run("Box folder metadata write/read", async () => {
-        const before = await box.readFolderMetadata(folderId, templateKey);
-        const probe = `GATE-${Date.now()}`;
-        const w = await box.writeFolderMetadata(folderId, templateKey, { keel_snapshot_id: probe });
-        if (!w.ok) return { status: "FAIL", reason: `${w.error.code}: ${w.error.message}` };
-        const after = await box.readFolderMetadata(folderId, templateKey);
-        const restored = before?.keel_snapshot_id ? await box.writeFolderMetadata(folderId, templateKey, { keel_snapshot_id: before.keel_snapshot_id }) : { ok: true };
-        return after?.keel_snapshot_id === probe
-          ? { status: "PASS", reason: `wrote and read back keel_snapshot_id=${probe}; ${before?.keel_snapshot_id ? `restored ${before.keel_snapshot_id}` : "instance created"}${restored.ok ? "" : " (restore failed)"}` }
-          : { status: "FAIL", reason: `read back ${JSON.stringify(after?.keel_snapshot_id)} instead of ${probe}` };
-      });
+    else await cl.run("Box folder metadata write/read", () => metadataProbe(box, folderId, templateKey));
 
     // Task round trip
     if (!write) cl.skip("Box task round trip", "read-only run; pass --write");
@@ -150,7 +189,7 @@ async function main() {
             ? { status: "PASS", reason: `task ${task_id} on ${f.fileName}, assignment ${a.assignment_id} to ${a.assigned_to.name} <${a.assigned_to.login}> id ${a.assigned_to.id}, state ${mine.resolution_state}. Identity check: have ${reviewerLogin} approve one task in Box and confirm assigned_to here is that user, not the service account` }
             : { status: "FAIL", reason: `assignment ${a.assignment_id} not listed on task ${task_id}` };
         } finally {
-          await box.client().tasks.deleteTaskById(task_id).catch(() => undefined);
+          await box.deleteTask(task_id).catch(() => undefined);
         }
       });
 
@@ -202,7 +241,8 @@ async function main() {
   process.exitCode = cl.summary();
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exitCode = 1;
-});
+if (process.argv[1] && /integration-gate\.ts$/.test(process.argv[1]))
+  main().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });

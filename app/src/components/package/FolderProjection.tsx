@@ -24,7 +24,8 @@ export function FolderProjection({
   }
   const stale = projection.keel_snapshot_id !== currentSnapshotId;
   const failed = projection.result === "failed" || projection.result === "ambiguous" || projection.pointer_check?.matches === false;
-  const inFlight = !failed && (writing || stale);
+  // "deferred" means the pointer moved and the write was skipped; that is not in flight.
+  const inFlight = !failed && projection.result !== "deferred" && (writing || stale);
   const review = projection.keel_last_human_review?.split("|");
   return (
     <Disclosure

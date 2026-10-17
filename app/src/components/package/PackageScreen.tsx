@@ -20,7 +20,8 @@ import { TraceEmpty, TraceLine, TracePanel, TraceSummary, type RunSummaryCounts,
 import { FolderProjection } from "./FolderProjection";
 import { OpenTasks } from "./OpenTasks";
 
-type RunUi = { runId: string; steps: TraceStep[]; meta: TraceMeta; running: boolean };
+type RunUi = { runId: string; steps: TraceStep[]; meta: TraceMeta; running: boolean; summary?: { evaluated: number; not_evaluated: number } };
+type WithSummary = { summary?: { evaluated: number; not_evaluated: number } };
 type Snap = { view: PackageView; rows: ControlRow[]; countLine: string };
 
 const STAGGER_MS = 80;
@@ -139,7 +140,9 @@ export function PackageScreen() {
       setRows(v.rows);
       setCountLine(v.count_line);
       setOrder(orderFor(v));
-      if (!anyPending(v)) setPriorCount(null);
+      const pc = (v as PackageView & { prior_count_line?: string }).prior_count_line;
+      if (pc) setPriorCount(pc);
+      else if (!anyPending(v)) setPriorCount(null);
     },
     [orderFor],
   );
@@ -273,7 +276,11 @@ export function PackageScreen() {
           );
         },
         onDone: async (final) => {
-          setRun((r) => (r && r.runId === runId ? { ...r, running: false, steps: final?.steps?.length ? final.steps : r.steps } : r));
+          setRun((r) =>
+            r && r.runId === runId
+              ? { ...r, running: false, steps: final?.steps?.length ? final.steps : r.steps, summary: (final as WithSummary | undefined)?.summary ?? r.summary }
+              : r,
+          );
           await flip(runId);
           loadTasks();
           // Projection and tasks land after findings; once the reveal has finished, apply one response whole.
@@ -305,6 +312,7 @@ export function PackageScreen() {
           runId: t.run_id,
           steps: t.steps,
           running: !t.done,
+          summary: (t as WithSummary).summary,
           meta: {
             run_id: t.run_id,
             mode_label: t.mode_label,
@@ -562,7 +570,7 @@ export function PackageScreen() {
   const orderedRows = order ? order.map((id) => rows.find((r) => r.control_id === id)).filter((r): r is ControlRow => Boolean(r)) : rows;
   const extra = rows.filter((r) => !orderedRows.includes(r));
   const displayRows = [...orderedRows, ...extra];
-  const engineSummary = (run as unknown as { summary?: { re_checked?: number; not_evaluated?: number } } | null)?.summary;
+  const engineSummary = run?.summary;
   const summary: RunSummaryCounts = {
     total: view.rows.length,
     notEvaluated: engineSummary?.not_evaluated ?? view.rows.filter((r) => r.status.kind === "not_evaluated").length,
@@ -677,7 +685,7 @@ export function PackageScreen() {
                 currentSnapshotId={view.snapshot.snapshot_id}
                 defaultOpen={Boolean(run) && !running}
                 folderName={view.header.folderName}
-                writing={running || (Boolean(run) && view.projection != null && view.projection.keel_snapshot_id !== view.snapshot.snapshot_id && view.projection.result === "ok")}
+                writing={Boolean((view as PackageView & { projection_in_flight?: boolean }).projection_in_flight) || running}
               />
             </div>
             <OpenTasks tasks={tasks} error={tasksErr} />

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Lato } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/components/AppProvider";
-import { Footer, TopBar } from "@/components/Chrome";
+import { KeelStateProvider } from "@/components/KeelStateProvider";
 import { getConfig, toAppConfig } from "@/lib/config";
 import type { AppConfig } from "@/lib/types";
 
@@ -20,6 +20,12 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+const lato = Lato({
+  variable: "--font-lato",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -32,14 +38,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${lato.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <AppProvider initialConfig={initialConfig()}>
-          <div id="keel-app-root" className="min-h-full flex flex-col flex-1">
-            <TopBar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
+          <KeelStateProvider>
+            {/* Chrome is decided by route group on the server: (box) is the Box page, (keel) keeps TopBar and Footer. */}
+            <div id="keel-app-root" className="min-h-full flex flex-col flex-1">
+              {children}
+            </div>
+          </KeelStateProvider>
         </AppProvider>
       </body>
     </html>

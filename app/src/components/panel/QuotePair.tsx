@@ -1,0 +1,94 @@
+"use client";
+
+import type { FindingCard } from "@/lib/types";
+import { wordDiff } from "@/lib/ui/diff";
+import { C, shortSection } from "./parts";
+
+const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').trim();
+
+/**
+ * WAS / NOW: the sentence a person verified, pinned to its version, and the sentence that stands in the same
+ * place now (or the current binding when the support moved to another file). Inserted words are underlined.
+ * Every quote shown is the engine's validated quote; nothing is paraphrased here.
+ */
+export function QuotePair({ card }: { card: FindingCard }) {
+  const prior = card.prior_version;
+  const next = card.new_version;
+  const binding = card.finding.evidence[0] ?? null;
+  const nextMoved = Boolean(next && prior && next.file.fileId !== prior.file.fileId);
+  const bindingMoved = !next?.quote && Boolean(binding && prior && binding.fileId !== prior.file.fileId);
+  const moved = nextMoved || bindingMoved || card.finding.change_classification === "moved";
+  const nowQuote = next?.quote ?? (bindingMoved ? binding!.quote : null);
+  const nowFile = bindingMoved ? { name: binding!.fileName, v: binding!.versionLabel ?? "", s: binding!.section } : next ? { name: next.file.fileName, v: next.file.versionLabel ?? "", s: next.section } : null;
+  const same = Boolean(prior && nowQuote && norm(prior.quote) === norm(nowQuote));
+
+  if (!prior && !nowQuote) return null;
+
+  const wasWhere = prior ? `${prior.file.versionLabel ?? ""} ${shortSection(prior.section)}`.trim() : "";
+  const nowWhere = nowFile ? (moved ? `${nowFile.name} ${nowFile.v} ${shortSection(nowFile.s)}` : `${nowFile.v} ${shortSection(nowFile.s)}`).trim() : "";
+
+  return (
+    <section aria-label="Reviewed sentence and current sentence" className="space-y-3">
+      <Block head="Was" where={wasWhere} title={prior ? `${prior.file.fileName} ${prior.file.versionLabel ?? ""}, ${prior.section ?? ""}` : undefined}>
+        {prior ? <Quote>{prior.quote}</Quote> : <Muted>No sentence was verified for this control.</Muted>}
+      </Block>
+      <Block
+        head={moved ? "Current binding" : "Now"}
+        where={nowWhere}
+        tag={same && !moved ? "unchanged" : moved && same ? "same sentence" : undefined}
+        title={nowFile ? `${nowFile.name} ${nowFile.v}, ${nowFile.s ?? ""}` : undefined}
+      >
+        {nowQuote ? (
+          prior && !same && !moved ? (
+            <Quote>
+              {wordDiff(prior.quote, nowQuote).map((op, i) =>
+                op.type === "del" ? null : op.type === "ins" ? (
+                  <span key={i} className="underline decoration-[1.5px] underline-offset-[3px]" style={{ textDecorationColor: C.amber }}>
+                    {op.text}
+                  </span>
+                ) : (
+                  <span key={i}>{op.text}</span>
+                ),
+              )}
+            </Quote>
+          ) : (
+            <Quote>{nowQuote}</Quote>
+          )
+        ) : (
+          <Muted>No sentence in the current snapshot supports this control.</Muted>
+        )}
+      </Block>
+    </section>
+  );
+}
+
+function Block({ head, where, tag, title, children }: { head: string; where: string; tag?: string; title?: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-1 flex items-baseline gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: C.secondary }} title={title}>
+        <span>{head}</span>
+        {where ? <span className="normal-case tracking-normal font-normal text-[12px]">· {where}</span> : null}
+        {tag ? <span className="ml-auto normal-case tracking-normal font-normal text-[11.5px]">{tag}</span> : null}
+      </div>
+      <div className="border-l-[3px] pl-3" style={{ borderColor: C.border }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Quote({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[14px] leading-[1.5] line-clamp-6" style={{ color: C.text }}>
+      {children}
+    </p>
+  );
+}
+
+function Muted({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[13px] leading-[1.5]" style={{ color: C.secondary }}>
+      {children}
+    </p>
+  );
+}

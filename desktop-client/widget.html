@@ -3,25 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KEEL · Tesla-Inspired Cross-Platform Desktop Compliance Client</title>
+  <title>KEEL · Ultra-Minimal Auto-Hide Desktop Widget</title>
   <style>
     :root {
-      --obsidian: #0a0b0e;
-      --graphite: #12141a;
-      --surface: #181b22;
-      --surface-hover: #1f232c;
-      --hairline: rgba(255, 255, 255, 0.09);
-      --hairline-bright: rgba(255, 255, 255, 0.18);
-      --text-primary: #f4f6f8;
-      --text-secondary: #8e96a4;
-      --text-muted: #5c6470;
-      --tesla-green: #17c964;
-      --tesla-green-glow: rgba(23, 201, 100, 0.14);
-      --tesla-amber: #f5a524;
-      --tesla-amber-glow: rgba(245, 165, 36, 0.14);
-      --tesla-blue: #3b82f6;
-      --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --bg-tile: rgba(14, 16, 21, 0.92);
+      --bg-panel: rgba(12, 14, 18, 0.97);
+      --green: #17c964;
+      --green-dim: rgba(23, 201, 100, 0.14);
+      --amber: #f5a524;
+      --amber-dim: rgba(245, 165, 36, 0.16);
+      --text: #f4f6f8;
+      --muted: #7d8594;
+      --hairline: rgba(255, 255, 255, 0.08);
+      --hairline-hover: rgba(255, 255, 255, 0.22);
+      --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
     * {
@@ -32,781 +28,704 @@
 
     body {
       margin: 0;
-      padding: 16px;
-      background: radial-gradient(circle at 50% 0%, #1a1f2c 0%, #07080a 70%);
-      color: var(--text-primary);
+      padding: 14px;
+      background: radial-gradient(circle at 50% 20%, #161b26 0%, #07080b 75%);
+      color: var(--text);
       font-family: var(--font);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
+      overflow-x: hidden;
     }
 
-    /* Draggable Rectangle Shell (Windows & macOS Frameless HUD) */
-    .tesla-widget {
-      width: 400px;
-      max-width: 100%;
-      background: linear-gradient(180deg, rgba(24, 27, 34, 0.96) 0%, rgba(12, 14, 18, 0.98) 100%);
-      border: 1px solid var(--hairline-bright);
-      border-radius: 18px;
-      box-shadow:
-        0 24px 60px rgba(0, 0, 0, 0.75),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
-      overflow: hidden;
+    /* =====================================================================
+       ULTRA-COMPACT DRAGGABLE RECTANGLE (216px wide!)
+       - Border & controls auto-hide when idle (`border-color: transparent`)
+       - Can also auto-hide/tuck into the screen edge (`edge-docked`)
+       ===================================================================== */
+    .widget-anchor {
       position: relative;
-      backdrop-filter: blur(24px);
+      width: 224px;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Top Draggable Status Bar */
-    .hud-topbar {
+    /* Screen-Edge Auto-Hide Dock State */
+    .widget-anchor.edge-docked {
+      transform: translateX(176px);
+    }
+    .widget-anchor.edge-docked:hover,
+    .widget-anchor.edge-docked.notif-peek {
+      transform: translateX(0);
+    }
+
+    .micro-shell {
       -webkit-app-region: drag;
       cursor: grab;
-      height: 42px;
-      padding: 0 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--hairline);
-      background: rgba(10, 11, 14, 0.65);
+      position: relative;
+      border-radius: 14px;
+      padding: 5px;
+      /* Auto-hide outer border by default; only reveals on hover/focus */
+      background: rgba(10, 12, 16, 0.35);
+      border: 1px solid transparent;
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .hud-brand {
-      display: flex;
-      align-items: center;
-      gap: 9px;
+    .micro-shell:hover,
+    .micro-shell.show-chrome,
+    .micro-shell.dragover {
+      background: rgba(12, 14, 19, 0.94);
+      border-color: var(--hairline-hover);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
     }
 
-    .pulse-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--tesla-green);
-      box-shadow: 0 0 10px var(--tesla-green);
-    }
-
-    .hud-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--text-primary);
-    }
-
-    .hud-sub {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-secondary);
-    }
-
-    .hud-actions {
+    /* Auto-Hide Micro Controls (invisible until hover) */
+    .auto-hide-bar {
       -webkit-app-region: no-drag;
       display: flex;
       align-items: center;
-      gap: 6px;
+      justify-content: space-between;
+      height: 0;
+      opacity: 0;
+      overflow: hidden;
+      padding: 0 4px;
+      transition: height 0.18s ease, opacity 0.18s ease, margin-bottom 0.18s ease;
     }
 
-    .icon-btn {
-      background: rgba(255, 255, 255, 0.04);
+    .micro-shell:hover .auto-hide-bar,
+    .micro-shell.show-chrome .auto-hide-bar {
+      height: 20px;
+      opacity: 1;
+      margin-bottom: 4px;
+    }
+
+    .ah-folder {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .live-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    .ah-btns {
+      display: flex;
+      gap: 3px;
+    }
+
+    .mini-btn {
+      background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--hairline);
-      color: var(--text-secondary);
-      border-radius: 8px;
-      padding: 4px 9px;
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
+      color: #cbd5e1;
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-size: 9px;
+      font-weight: 700;
       cursor: pointer;
-      transition: all 0.15s ease;
+    }
+    .mini-btn:hover,
+    .mini-btn.active {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
     }
 
-    .icon-btn:hover,
-    .icon-btn.active {
-      background: rgba(255, 255, 255, 0.12);
-      color: var(--text-primary);
-      border-color: var(--hairline-bright);
-    }
-
-    /* Main HUD Content */
-    .hud-body {
-      padding: 16px;
-    }
-
-    /* Two-Box Core: Left Green Compliance | Right Yellow Not Yet Compliant */
-    .dual-telemetry {
+    /* THE TWO BOXES: Left Green (Compliant) | Right Yellow (Not Yet Compliant) */
+    .two-boxes {
+      -webkit-app-region: no-drag;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 14px;
+      gap: 6px;
+      position: relative;
     }
 
-    .telemetry-box {
+    .stat-tile {
       position: relative;
-      border-radius: 14px;
-      padding: 16px 14px 14px;
-      background: var(--surface);
+      height: 64px;
+      border-radius: 10px;
+      background: var(--bg-tile);
       border: 1px solid var(--hairline);
+      padding: 8px 10px 7px;
       cursor: pointer;
-      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
-      overflow: hidden;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      overflow: hidden;
+      transition: transform 0.14s ease, border-color 0.14s ease;
     }
 
-    .telemetry-box:hover {
-      transform: translateY(-2px);
-      background: var(--surface-hover);
+    .stat-tile:hover {
+      transform: translateY(-1px);
     }
 
-    .telemetry-box.compliant {
-      background: linear-gradient(180deg, rgba(23, 201, 100, 0.09) 0%, rgba(24, 27, 34, 0.9) 100%);
-      border-color: rgba(23, 201, 100, 0.35);
+    .stat-tile.green {
+      background: linear-gradient(180deg, rgba(23, 201, 100, 0.11) 0%, rgba(14, 16, 21, 0.95) 100%);
+      border-color: rgba(23, 201, 100, 0.28);
     }
 
-    .telemetry-box.non-compliant {
-      background: linear-gradient(180deg, rgba(245, 165, 36, 0.11) 0%, rgba(24, 27, 34, 0.9) 100%);
-      border-color: rgba(245, 165, 36, 0.4);
+    .stat-tile.yellow {
+      background: linear-gradient(180deg, rgba(245, 165, 36, 0.13) 0%, rgba(14, 16, 21, 0.95) 100%);
+      border-color: rgba(245, 165, 36, 0.34);
     }
 
-    /* Bottom Laser Light Bar (Tesla Energy Style) */
-    .telemetry-box::after {
+    /* Bottom Laser Accent */
+    .stat-tile::after {
       content: "";
       position: absolute;
-      left: 14px;
-      right: 14px;
+      left: 10px;
+      right: 10px;
       bottom: 0;
-      height: 2.5px;
+      height: 2px;
       border-radius: 2px;
     }
-
-    .telemetry-box.compliant::after {
-      background: var(--tesla-green);
-      box-shadow: 0 0 12px var(--tesla-green);
+    .stat-tile.green::after {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    .stat-tile.yellow::after {
+      background: var(--amber);
+      box-shadow: 0 0 8px var(--amber);
     }
 
-    .telemetry-box.non-compliant::after {
-      background: var(--tesla-amber);
-      box-shadow: 0 0 12px var(--tesla-amber);
-    }
-
-    .t-micro-header {
+    .tile-row {
       display: flex;
-      align-items: center;
+      align-items: baseline;
       justify-content: space-between;
-      font-size: 9.5px;
+    }
+
+    .tile-num {
+      font-size: 30px;
+      font-weight: 400;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.03em;
+    }
+    .stat-tile.green .tile-num { color: var(--green); }
+    .stat-tile.yellow .tile-num { color: var(--amber); }
+
+    .tile-delta {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+    .tile-delta.down {
+      background: rgba(245, 165, 36, 0.2);
+      color: var(--amber);
+    }
+    .tile-delta.up {
+      background: rgba(23, 201, 100, 0.2);
+      color: var(--green);
+    }
+
+    .tile-label {
+      font-size: 8.5px;
       font-weight: 700;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: var(--text-secondary);
-      margin-bottom: 6px;
+      color: var(--muted);
     }
 
-    .t-number {
-      font-size: 46px;
-      font-weight: 300;
-      line-height: 1;
-      letter-spacing: -0.03em;
-      font-variant-numeric: tabular-nums;
-      margin: 4px 0 8px;
-    }
-
-    .telemetry-box.compliant .t-number {
-      color: var(--tesla-green);
-      text-shadow: 0 0 24px rgba(23, 201, 100, 0.35);
-    }
-
-    .telemetry-box.non-compliant .t-number {
-      color: var(--tesla-amber);
-      text-shadow: 0 0 24px rgba(245, 165, 36, 0.35);
-    }
-
-    .t-sub {
-      font-size: 11px;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    /* Recessed File & Folder Drag-and-Drop Bay */
-    .drop-bay {
-      border-radius: 12px;
-      border: 1px dashed rgba(255, 255, 255, 0.16);
-      background: rgba(10, 11, 14, 0.55);
-      padding: 11px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      cursor: pointer;
-      transition: all 0.16s ease;
-      margin-bottom: 12px;
-    }
-
-    .drop-bay:hover,
-    .drop-bay.dragover {
-      border-color: var(--tesla-blue);
-      background: rgba(59, 130, 246, 0.1);
-    }
-
-    .drop-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .drop-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--hairline);
-      display: grid;
-      place-items: center;
-      font-size: 13px;
-      color: var(--text-primary);
-    }
-
-    .drop-title {
-      font-size: 11.5px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .drop-hint {
-      font-size: 10px;
-      color: var(--text-secondary);
-    }
-
-    .drop-tag {
-      font-family: var(--mono);
-      font-size: 9.5px;
-      color: var(--text-secondary);
-      padding: 3px 7px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--hairline);
-    }
-
-    /* Topic Notification Info Box (Teammate File Drop Feed) */
-    .topic-info-box {
-      border-radius: 12px;
-      background: rgba(24, 27, 34, 0.92);
-      border: 1px solid var(--hairline-bright);
-      padding: 12px 14px;
-      cursor: pointer;
-      transition: all 0.16s ease;
-    }
-
-    .topic-info-box:hover {
-      border-color: rgba(59, 130, 246, 0.55);
-      background: rgba(30, 35, 46, 0.96);
-    }
-
-    .tib-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 5px;
-    }
-
-    .tib-topic {
-      font-family: var(--mono);
-      font-size: 9.5px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #60a5fa;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .tib-time {
-      font-family: var(--mono);
-      font-size: 9.5px;
-      color: var(--text-muted);
-    }
-
-    .tib-headline {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 4px;
-      line-height: 1.35;
-    }
-
-    .tib-detail {
-      font-size: 11px;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
-      line-height: 1.4;
-    }
-
-    .tib-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-top: 7px;
-      border-top: 1px solid var(--hairline);
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-primary);
-    }
-
-    /* Tesla Configuration Panel (Slide-over / Toggle) */
-    .config-panel {
+    /* Drag & Drop Translucent Overlay (Zero space when idle; appears on file drag) */
+    .drop-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      background: rgba(14, 165, 233, 0.24);
+      border: 1.5px dashed #38bdf8;
+      backdrop-filter: blur(4px);
       display: none;
-      padding: 16px;
-      background: rgba(12, 14, 18, 0.98);
-      border-top: 1px solid var(--hairline);
+      place-items: center;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: #fff;
+      z-index: 10;
+    }
+    .micro-shell.dragover .drop-overlay {
+      display: grid;
     }
 
-    .config-panel.open {
+    /* =====================================================================
+       HIGH-INTENTION NOTIFICATION PILL (1-Line Delta + Teammate + File)
+       - Immediately shows regression (Amber `8→6`) vs satisfied (Green `6→8`)
+       ===================================================================== */
+    .notif-pill {
+      -webkit-app-region: no-drag;
+      margin-top: 6px;
+      border-radius: 9px;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .notif-pill:hover {
+      transform: translateY(-1px);
+    }
+
+    /* State 1: Compliance Regressed / Changed (Amber-Red Intention) */
+    .notif-pill.regressed {
+      background: rgba(45, 26, 8, 0.95);
+      border: 1px solid rgba(245, 165, 36, 0.65);
+      box-shadow: 0 6px 18px rgba(245, 165, 36, 0.18);
+    }
+
+    /* State 2: Compliance Satisfied / Restored (Emerald Green Intention) */
+    .notif-pill.satisfied {
+      background: rgba(6, 42, 24, 0.95);
+      border: 1px solid rgba(23, 201, 100, 0.65);
+      box-shadow: 0 6px 18px rgba(23, 201, 100, 0.18);
+    }
+
+    .np-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+
+    .notif-pill.regressed .np-badge {
+      background: var(--amber);
+      color: #090a0d;
+    }
+
+    .notif-pill.satisfied .np-badge {
+      background: var(--green);
+      color: #052e16;
+    }
+
+    .np-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .np-primary {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .np-secondary {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: #cbd5e1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .np-arrow {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text);
+      opacity: 0.75;
+    }
+
+    /* =====================================================================
+       ULTRA-COMPACT TESLA CONFIG SHEET (Same 214px width!)
+       ===================================================================== */
+    .mini-config {
+      -webkit-app-region: no-drag;
+      display: none;
+      padding: 6px 4px 2px;
+    }
+    .mini-config.open {
       display: block;
     }
 
-    .cfg-section-label {
-      font-size: 9.5px;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
-    }
-
-    /* Tesla Segmented Pill Bar */
-    .segmented-control {
+    .seg-bar {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      background: #090a0d;
-      padding: 3px;
-      border-radius: 10px;
+      background: #07080b;
+      padding: 2px;
+      border-radius: 7px;
       border: 1px solid var(--hairline);
-      margin-bottom: 14px;
+      margin-bottom: 7px;
     }
-
-    .seg-btn {
+    .seg-opt {
       background: transparent;
       border: none;
-      color: var(--text-secondary);
-      padding: 7px 6px;
-      font-size: 10.5px;
-      font-weight: 600;
-      border-radius: 7px;
+      color: var(--muted);
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 4px 2px;
+      border-radius: 5px;
       cursor: pointer;
-      transition: all 0.15s ease;
+    }
+    .seg-opt.active {
+      background: #222632;
+      color: #fff;
     }
 
-    .seg-btn.active {
-      background: #222631;
-      color: var(--text-primary);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    .mini-field {
+      margin-bottom: 6px;
     }
-
-    .cfg-field {
-      margin-bottom: 11px;
-    }
-
-    .cfg-field label {
+    .mini-field label {
       display: block;
-      font-size: 10px;
-      color: var(--text-secondary);
-      margin-bottom: 4px;
-      letter-spacing: 0.06em;
+      font-size: 8.5px;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2px;
     }
-
-    .cfg-input {
+    .mini-input {
       width: 100%;
-      background: #090a0d;
+      background: #07080b;
       border: 1px solid var(--hairline);
-      border-radius: 8px;
-      padding: 8px 10px;
-      color: var(--text-primary);
+      border-radius: 6px;
+      padding: 5px 7px;
+      color: var(--text);
       font-family: var(--mono);
-      font-size: 11px;
-      outline: none;
+      font-size: 9.5px;
     }
 
-    .cfg-input:focus {
-      border-color: var(--hairline-bright);
-    }
-
-    .cfg-toggle-row {
+    .mini-toggle {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 7px 0;
-      border-top: 1px solid var(--hairline);
-      font-size: 11.5px;
-      color: var(--text-primary);
+      font-size: 9.5px;
+      color: #cbd5e1;
+      padding: 4px 0;
     }
 
-    .tesla-switch {
-      width: 36px;
-      height: 20px;
+    .t-pill-switch {
+      width: 28px;
+      height: 15px;
       border-radius: 999px;
-      background: var(--tesla-green);
+      background: var(--green);
       position: relative;
       cursor: pointer;
-      transition: background 0.15s ease;
     }
-
-    .tesla-switch.off {
-      background: #2b303c;
-    }
-
-    .tesla-switch::after {
+    .t-pill-switch.off { background: #2c3240; }
+    .t-pill-switch::after {
       content: "";
       position: absolute;
       top: 2px;
       right: 2px;
-      width: 16px;
-      height: 16px;
+      width: 11px;
+      height: 11px;
       border-radius: 50%;
       background: #fff;
-      transition: transform 0.15s ease;
+      transition: transform 0.14s ease;
+    }
+    .t-pill-switch.off::after {
+      transform: translateX(-13px);
     }
 
-    .tesla-switch.off::after {
-      transform: translateX(-16px);
-    }
-
-    .cfg-save-btn {
-      width: 100%;
-      margin-top: 10px;
-      padding: 9px;
-      border-radius: 9px;
-      border: 1px solid var(--hairline-bright);
-      background: #f4f6f8;
-      color: #0a0b0e;
-      font-weight: 700;
-      font-size: 11px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-
-    /* Popup Web Interface Detail Drawer (Shown when clicking Green/Yellow Box or Notification) */
-    .web-popup-modal {
+    /* Compact Web Detail Popover (Opens on click) */
+    .mini-popup {
       display: none;
-      margin-top: 14px;
-      width: 400px;
-      max-width: 100%;
-      background: var(--graphite);
-      border: 1px solid var(--hairline-bright);
-      border-radius: 16px;
-      padding: 14px 16px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+      margin-top: 8px;
+      width: 224px;
+      background: var(--bg-panel);
+      border: 1px solid var(--hairline-hover);
+      border-radius: 12px;
+      padding: 9px 10px;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.7);
+      font-size: 10px;
     }
+    .mini-popup.open { display: block; }
 
-    .web-popup-modal.open {
-      display: block;
-    }
-
-    .wpm-top {
+    .mp-head {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      padding-bottom: 8px;
-      margin-bottom: 10px;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      padding-bottom: 4px;
       border-bottom: 1px solid var(--hairline);
     }
 
-    .wpm-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--text-primary);
+    .mp-row {
+      padding: 5px 6px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 2.5px solid var(--amber);
+      margin-bottom: 5px;
     }
-
-    .wpm-item {
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: var(--surface);
-      border: 1px solid var(--hairline);
-      margin-bottom: 7px;
-      font-size: 11px;
-    }
-
-    .wpm-item-head {
-      display: flex;
-      justify-content: space-between;
-      font-family: var(--mono);
-      font-size: 10px;
-      margin-bottom: 3px;
+    .mp-row.ok {
+      border-left-color: var(--green);
     }
   </style>
 </head>
 <body>
 
-  <!-- DRAGGABLE DESKTOP CLIENT WIDGET (WINDOWS & MACOS) -->
-  <div class="tesla-widget" id="teslaWidget">
+  <div class="widget-anchor" id="widgetAnchor">
+    <div class="micro-shell" id="teslaWidget" title="Drag files or folders directly onto this widget">
 
-    <!-- Top Draggable Handle -->
-    <header class="hud-topbar" id="dragHandle">
-      <div class="hud-brand">
-        <span class="pulse-dot" title="Subscribed to Box Compliance Topic"></span>
-        <span class="hud-title">KEEL</span>
-        <span class="hud-sub" id="hudFolderLabel">BOX · 318840021 · S4</span>
+      <!-- Auto-Hide Top Micro Bar (Only visible on hover or when pinned) -->
+      <div class="auto-hide-bar" id="autoHideBar">
+        <span class="ah-folder">
+          <span class="live-dot"></span>
+          <span id="folderTag">LANTERN · S4</span>
+        </span>
+        <div class="ah-btns">
+          <button class="mini-btn" id="btnSimDrop" onclick="cycleTeammateDrop()" title="Simulate Teammate Drop">⚡</button>
+          <button class="mini-btn" id="btnDock" onclick="toggleEdgeDock()" title="Auto-Hide to Screen Edge">⇥</button>
+          <button class="mini-btn" id="btnConfig" onclick="toggleConfig()" title="Configure">⚙</button>
+        </div>
       </div>
-      <div class="hud-actions">
-        <button class="icon-btn" id="btnSimDrop" onclick="simulateTeammateCycle()" title="Simulate Teammate File Drop via Topic">
-          ⚡ DROP
+
+      <!-- Core Two-Box View -->
+      <div id="hudCore">
+        <div class="two-boxes" id="dropTarget">
+          <div class="drop-overlay">⇣ DROP TO BOX</div>
+
+          <!-- Left Green Box: Compliant -->
+          <div class="stat-tile green" id="boxCompliant" onclick="openPopup('COMPLIANT')">
+            <div class="tile-row">
+              <span class="tile-num" id="greenNum">6</span>
+              <span class="tile-delta down" id="greenDelta">−2</span>
+            </div>
+            <span class="tile-label">COMPLIANT</span>
+          </div>
+
+          <!-- Right Yellow Box: Not Yet Compliant -->
+          <div class="stat-tile yellow" id="boxNonCompliant" onclick="openPopup('NEEDS_REVIEW')">
+            <div class="tile-row">
+              <span class="tile-num" id="yellowNum">2</span>
+              <span class="tile-delta down" id="yellowDelta">+2</span>
+            </div>
+            <span class="tile-label">UNMET</span>
+          </div>
+        </div>
+
+        <!-- 1-Line High-Intention Notification Pill -->
+        <div class="notif-pill regressed" id="notifPill" onclick="openPopup('NEEDS_REVIEW')">
+          <span class="np-badge" id="npBadge">8→6 ⚠</span>
+          <div class="np-text">
+            <span class="np-primary" id="npPrimary">J. Park · architecture.md</span>
+            <span class="np-secondary" id="npSecondary">SEC-ARCH-07 CMK lost</span>
+          </div>
+          <span class="np-arrow">↗</span>
+        </div>
+      </div>
+
+      <!-- Ultra-Compact Config View (Replaces HUD Core inside same 214px shell) -->
+      <div class="mini-config" id="configPanel">
+        <div class="seg-bar">
+          <button class="seg-opt active" onclick="pickProfile(this, 6, 2)">US (8)</button>
+          <button class="seg-opt" onclick="pickProfile(this, 7, 1)">EU (8)</button>
+          <button class="seg-opt" onclick="pickProfile(this, 2, 1)">Live (3)</button>
+        </div>
+        <div class="mini-field">
+          <label>Box Folder ID</label>
+          <input class="mini-input" id="cfgFolder" value="318840021" />
+        </div>
+        <div class="mini-field">
+          <label>Topic Subscription</label>
+          <input class="mini-input" id="cfgTopic" value="lantern/318840021" />
+        </div>
+        <div class="mini-toggle">
+          <span>Auto-Hide Border</span>
+          <div class="t-pill-switch" id="swBorder" onclick="toggleBorderMode(this)"></div>
+        </div>
+        <div class="mini-toggle">
+          <span>Edge Auto-Hide</span>
+          <div class="t-pill-switch off" id="swEdge" onclick="toggleEdgeDock(); this.classList.toggle('off')"></div>
+        </div>
+        <button class="mini-btn" style="width:100%;margin-top:6px;padding:5px;background:#f4f6f8;color:#0a0b0e" onclick="toggleConfig()">
+          DONE
         </button>
-        <button class="icon-btn" id="btnConfig" onclick="toggleConfig()" title="Configure Desktop Client">
-          ⚙ CONFIG
-        </button>
-      </div>
-    </header>
-
-    <!-- Main HUD Body -->
-    <div class="hud-body" id="hudBody">
-
-      <!-- Two-Box Core: Left Green Compliance | Right Yellow Not Yet Compliant -->
-      <div class="dual-telemetry">
-        <div class="telemetry-box compliant" id="boxCompliant" onclick="openWebPopup('COMPLIANT')">
-          <div class="t-micro-header">
-            <span>COMPLIANT</span>
-            <span style="color:var(--tesla-green)">● VERIFIED</span>
-          </div>
-          <div class="t-number" id="greenNum">6</div>
-          <div class="t-sub">
-            <span>Evidence Holds</span>
-            <span>↗</span>
-          </div>
-        </div>
-
-        <div class="telemetry-box non-compliant" id="boxNonCompliant" onclick="openWebPopup('NEEDS_REVIEW')">
-          <div class="t-micro-header">
-            <span>NOT YET COMPLIANT</span>
-            <span style="color:var(--tesla-amber)">▲ REVIEW</span>
-          </div>
-          <div class="t-number" id="yellowNum">2</div>
-          <div class="t-sub">
-            <span id="yellowSub">1 Critical · 1 Low</span>
-            <span>↗</span>
-          </div>
-        </div>
       </div>
 
-      <!-- Drag and Drop File / Folder Surface -->
-      <div class="drop-bay" id="dropBay" onclick="document.getElementById('hiddenFilePicker').click()">
-        <div class="drop-left">
-          <div class="drop-icon">⇣</div>
-          <div>
-            <div class="drop-title">Drop File or Folder to Box</div>
-            <div class="drop-hint">Auto-runs Decider 2B + Bedrock + Box AI</div>
-          </div>
-        </div>
-        <span class="drop-tag">WIN / MAC</span>
-        <input type="file" id="hiddenFilePicker" multiple style="display:none" onchange="onFilesDropped(this.files)" />
-      </div>
-
-      <!-- Subscribed Topic Notification Info Box -->
-      <div class="topic-info-box" id="topicInfoBox" onclick="openWebPopup('NEEDS_REVIEW')">
-        <div class="tib-header">
-          <span class="tib-topic">
-            <span>● TOPIC EVENT</span>
-            <span id="tibTopicUri">topic://keel/lantern/318840021</span>
-          </span>
-          <span class="tib-time" id="tibTime">S4 · 00:50 UTC</span>
-        </div>
-        <div class="tib-headline" id="tibHeadline">
-          Teammate J. Park dropped architecture.md (v3)
-        </div>
-        <div class="tib-detail" id="tibDetail">
-          Compliance changed (8 → 6 Compliant, 0 → 2 Not Yet Compliant): SEC-ARCH-07 KMS CMK &amp; rotation missing; SEC-ARCH-22 moved to runbook.md.
-        </div>
-        <div class="tib-footer">
-          <span>Popup Web Interface for Full Diff</span>
-          <span style="color:#60a5fa">OPEN WEB UI ↗</span>
-        </div>
-      </div>
-
+      <input type="file" id="filePicker" multiple style="display:none" onchange="handleFiles(this.files)" />
     </div>
 
-    <!-- Tesla-Inspired Minimalist Configuration Drawer -->
-    <section class="config-panel" id="configPanel" aria-label="Desktop Client Configuration">
-      <div class="cfg-section-label">Control Profile (Project Template)</div>
-      <div class="segmented-control">
-        <button class="seg-btn active" onclick="selectProfile(this, 'US BANK · 8 CONTROLS', 6, 2)">US Bank (8)</button>
-        <button class="seg-btn" onclick="selectProfile(this, 'EU DORA · 8 CONTROLS', 7, 1)">EU DORA (8)</button>
-        <button class="seg-btn" onclick="selectProfile(this, 'LIVE SLICE · 3 CONTROLS', 2, 1)">Live Slice (3)</button>
+    <!-- Compact Web Detail Popover -->
+    <div class="mini-popup" id="webPopupModal">
+      <div class="mp-head">
+        <span id="mpTitle">UNMET CONTROLS (2)</span>
+        <button class="mini-btn" onclick="openFullWeb()">WEB UI ↗</button>
       </div>
-
-      <div class="cfg-field">
-        <label for="cfgFolderId">Box Package Folder ID</label>
-        <input id="cfgFolderId" class="cfg-input" value="318840021 (Project Lantern ARB Package)" />
-      </div>
-
-      <div class="cfg-field">
-        <label for="cfgTopic">Subscribed Compliance Topic</label>
-        <input id="cfgTopic" class="cfg-input" value="topic://keel/lantern/318840021/compliance" />
-      </div>
-
-      <div class="cfg-field">
-        <label for="cfgWebUrl">Web Interface Detail Endpoint</label>
-        <input id="cfgWebUrl" class="cfg-input" value="../demo/index.html" />
-      </div>
-
-      <div class="cfg-toggle-row">
-        <span>Teammate File-Drop Notifications</span>
-        <div class="tesla-switch" onclick="this.classList.toggle('off')"></div>
-      </div>
-
-      <div class="cfg-toggle-row">
-        <span>Always On Top (Windows &amp; macOS HUD)</span>
-        <div class="tesla-switch" onclick="this.classList.toggle('off')"></div>
-      </div>
-
-      <button class="cfg-save-btn" onclick="saveConfig()">Save &amp; Return to HUD</button>
-    </section>
-
+      <div id="mpBody"></div>
+    </div>
   </div>
 
-  <!-- Popup Web Interface Preview Card -->
-  <section class="web-popup-modal" id="webPopupModal" aria-label="Web Interface Detail Popup">
-    <div class="wpm-top">
-      <span class="wpm-title" id="wpmTitle">WEB INTERFACE POPUP · NOT YET COMPLIANT (2)</span>
-      <button class="icon-btn" onclick="launchFullWebInterface()">FULL WEB PAGE ↗</button>
-    </div>
-    <div id="wpmList"></div>
-  </section>
-
   <script>
-    const STATES = [
+    const EVENTS = [
       {
+        mode: "regressed",
         snap: "S4",
         green: 6,
+        gDelta: "−2",
+        gClass: "down",
         yellow: 2,
-        headline: "Teammate J. Park dropped architecture.md (v3)",
-        detail: "Compliance changed (8 → 6 Compliant, 0 → 2 Not Yet Compliant): SEC-ARCH-07 KMS CMK & rotation missing; SEC-ARCH-22 moved to runbook.md."
+        yDelta: "+2",
+        yClass: "down",
+        badge: "8→6 ⚠",
+        primary: "J. Park · architecture.md",
+        secondary: "SEC-ARCH-07 CMK lost"
       },
       {
+        mode: "satisfied",
         snap: "S5",
         green: 8,
+        gDelta: "+2",
+        gClass: "up",
         yellow: 0,
-        headline: "Teammate J. Park dropped architecture.md (v4 · CMK Restored)",
-        detail: "Compliance satisfied (6 → 8 Compliant, 2 → 0 Not Yet Compliant): SEC-ARCH-07 KMS CMK & annual rotation verified; SEC-ARCH-22 acknowledged on runbook.md."
+        yDelta: "−2",
+        yClass: "up",
+        badge: "6→8 ✓",
+        primary: "J. Park · architecture-v4.md",
+        secondary: "SEC-ARCH-07 CMK restored"
       }
     ];
-    let stateIdx = 0;
+    let evIdx = 0;
 
-    function simulateTeammateCycle() {
-      stateIdx = (stateIdx + 1) % STATES.length;
-      const st = STATES[stateIdx];
-      document.getElementById("greenNum").textContent = st.green;
-      document.getElementById("yellowNum").textContent = st.yellow;
-      document.getElementById("yellowSub").textContent = st.yellow === 0 ? "All Controls Verified" : "1 Critical · 1 Low";
-      document.getElementById("hudFolderLabel").textContent = `BOX · 318840021 · ${st.snap}`;
-      document.getElementById("tibTime").textContent = `${st.snap} · JUST NOW`;
-      document.getElementById("tibHeadline").textContent = st.headline;
-      document.getElementById("tibDetail").textContent = st.detail;
+    function cycleTeammateDrop() {
+      evIdx = (evIdx + 1) % EVENTS.length;
+      applyEvent(EVENTS[evIdx]);
+    }
+
+    function applyEvent(ev) {
+      document.getElementById("folderTag").textContent = `LANTERN · ${ev.snap}`;
+      document.getElementById("greenNum").textContent = ev.green;
+      const gD = document.getElementById("greenDelta");
+      gD.textContent = ev.gDelta;
+      gD.className = `tile-delta ${ev.gClass}`;
+
+      document.getElementById("yellowNum").textContent = ev.yellow;
+      const yD = document.getElementById("yellowDelta");
+      yD.textContent = ev.yDelta;
+      yD.className = `tile-delta ${ev.yClass}`;
+
+      const pill = document.getElementById("notifPill");
+      pill.className = `notif-pill ${ev.mode}`;
+      document.getElementById("npBadge").textContent = ev.badge;
+      document.getElementById("npPrimary").textContent = ev.primary;
+      document.getElementById("npSecondary").textContent = ev.secondary;
+
+      // Temporarily peek out if edge-docked
+      const anchor = document.getElementById("widgetAnchor");
+      if (anchor.classList.contains("edge-docked")) {
+        anchor.classList.add("notif-peek");
+        setTimeout(() => anchor.classList.remove("notif-peek"), 4000);
+      }
     }
 
     function toggleConfig() {
       const cfg = document.getElementById("configPanel");
-      const hud = document.getElementById("hudBody");
-      const btn = document.getElementById("btnConfig");
+      const core = document.getElementById("hudCore");
+      const shell = document.getElementById("teslaWidget");
       const isOpen = cfg.classList.toggle("open");
-      hud.style.display = isOpen ? "none" : "block";
-      btn.classList.toggle("active", isOpen);
+      core.style.display = isOpen ? "none" : "block";
+      shell.classList.toggle("show-chrome", isOpen);
+      document.getElementById("btnConfig").classList.toggle("active", isOpen);
     }
 
-    function selectProfile(btn, label, g, y) {
-      document.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+    function toggleEdgeDock() {
+      const anchor = document.getElementById("widgetAnchor");
+      const docked = anchor.classList.toggle("edge-docked");
+      document.getElementById("btnDock").classList.toggle("active", docked);
+    }
+
+    function toggleBorderMode(sw) {
+      const off = sw.classList.toggle("off");
+      document.getElementById("teslaWidget").classList.toggle("show-chrome", off);
+    }
+
+    function pickProfile(btn, g, y) {
+      document.querySelectorAll(".seg-opt").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       document.getElementById("greenNum").textContent = g;
       document.getElementById("yellowNum").textContent = y;
     }
 
-    function saveConfig() {
-      const topicVal = document.getElementById("cfgTopic").value.trim();
-      document.getElementById("tibTopicUri").textContent = topicVal.replace("topic://", "");
-      document.getElementById("configPanel").classList.remove("open");
-      document.getElementById("hudBody").style.display = "block";
-      document.getElementById("btnConfig").classList.remove("active");
-    }
+    function openPopup(type) {
+      const pop = document.getElementById("webPopupModal");
+      const title = document.getElementById("mpTitle");
+      const body = document.getElementById("mpBody");
+      pop.classList.add("open");
 
-    function openWebPopup(mode) {
-      const modal = document.getElementById("webPopupModal");
-      const list = document.getElementById("wpmList");
-      const title = document.getElementById("wpmTitle");
-      modal.classList.add("open");
-
-      if (mode === "COMPLIANT") {
-        title.textContent = "WEB INTERFACE POPUP · COMPLIANT HOLDS (6)";
-        list.innerHTML = `
-          <div class="wpm-item">
-            <div class="wpm-item-head"><span style="color:var(--tesla-green)">SEC-ARCH-01 · VERIFIED HOLDS</span><span>approved-services.md v1</span></div>
-            <div style="color:var(--text-secondary)">Approved AWS services only • Verified by Marcus Hale</div>
-          </div>
-          <div class="wpm-item">
-            <div class="wpm-item-head"><span style="color:var(--tesla-green)">SEC-ARCH-02 · VERIFIED HOLDS</span><span>data-flow.md v1</span></div>
-            <div style="color:var(--text-secondary)">NPI (GLBA) classification per store • Verified by Marcus Hale</div>
-          </div>
-          <div class="wpm-item">
-            <div class="wpm-item-head"><span style="color:var(--tesla-green)">SEC-ARCH-04 / 05 / 17 / 20</span><span>architecture.md v3</span></div>
-            <div style="color:var(--text-secondary)">4 additional controls unchanged &amp; holding on Snapshot S4</div>
+      if (type === "COMPLIANT") {
+        title.textContent = "COMPLIANT HOLDS (6)";
+        body.innerHTML = `
+          <div class="mp-row ok">
+            <strong>SEC-ARCH-01 / 02 / 04 / 05 / 17 / 20</strong>
+            <div style="color:var(--muted)">6 controls verified &amp; holding on S4</div>
           </div>
         `;
       } else {
-        title.textContent = "WEB INTERFACE POPUP · NOT YET COMPLIANT (2)";
-        list.innerHTML = `
-          <div class="wpm-item" style="border-color:rgba(245,165,36,0.45)">
-            <div class="wpm-item-head"><span style="color:var(--tesla-amber)">SEC-ARCH-07 · CRITICAL · WEAKENED</span><span>architecture.md v3</span></div>
-            <div style="color:var(--text-primary);font-weight:600;margin-bottom:2px;">Needs review: key-management evidence missing</div>
-            <div style="color:var(--text-secondary)">KMS CMK &amp; annual rotation sentence removed in v3; Box AI searched 4 other files (0 citations).</div>
+        title.textContent = "UNMET / NEEDS REVIEW (2)";
+        body.innerHTML = `
+          <div class="mp-row">
+            <strong>SEC-ARCH-07 · Critical</strong>
+            <div style="color:var(--muted)">KMS CMK &amp; rotation missing in v3</div>
           </div>
-          <div class="wpm-item" style="border-color:rgba(245,165,36,0.35)">
-            <div class="wpm-item-head"><span style="color:var(--tesla-amber)">SEC-ARCH-22 · LOW · MOVED</span><span>runbook.md v2</span></div>
-            <div style="color:var(--text-primary);font-weight:600;margin-bottom:2px;">Needs review: evidence binding changed</div>
-            <div style="color:var(--text-secondary)">RTO/RPO &amp; 15-min rollback removed from architecture.md v3, found in runbook.md §3.</div>
+          <div class="mp-row">
+            <strong>SEC-ARCH-22 · Low</strong>
+            <div style="color:var(--muted)">Binding moved to runbook.md §3</div>
           </div>
         `;
       }
     }
 
-    function launchFullWebInterface() {
-      const targetUrl = document.getElementById("cfgWebUrl").value || "../demo/index.html";
+    function openFullWeb() {
       if (window.keelDesktop && window.keelDesktop.openWebInterface) {
         window.keelDesktop.openWebInterface({ filter: "NEEDS_REVIEW", snapshot: "S4", controlId: "SEC-ARCH-07" });
       } else {
-        window.open(targetUrl, "_blank");
+        window.open("../demo/index.html", "_blank");
       }
     }
 
-    // Drag and drop handlers
-    const dropBay = document.getElementById("dropBay");
+    // Whole widget is the Drag & Drop File/Folder zone
+    const shell = document.getElementById("teslaWidget");
     ["dragenter", "dragover"].forEach(ev => {
-      dropBay.addEventListener(ev, e => {
+      shell.addEventListener(ev, e => {
         e.preventDefault();
-        dropBay.classList.add("dragover");
+        shell.classList.add("dragover");
       });
     });
     ["dragleave", "drop"].forEach(ev => {
-      dropBay.addEventListener(ev, e => {
+      shell.addEventListener(ev, e => {
         e.preventDefault();
-        dropBay.classList.remove("dragover");
+        shell.classList.remove("dragover");
       });
     });
-    dropBay.addEventListener("drop", e => {
-      onFilesDropped(e.dataTransfer.files);
+    shell.addEventListener("drop", e => {
+      handleFiles(e.dataTransfer.files);
     });
 
-    function onFilesDropped(files) {
+    function handleFiles(files) {
       if (!files || !files.length) return;
-      const names = Array.from(files).map(f => f.name).join(", ");
-      document.getElementById("greenNum").textContent = "8";
-      document.getElementById("yellowNum").textContent = "0";
-      document.getElementById("tibTime").textContent = "S5 · DROPPED NOW";
-      document.getElementById("tibHeadline").textContent = `Dropped ${names} into Box Folder #318840021`;
-      document.getElementById("tibDetail").textContent =
-        "Decider 2B cleared input (112 ms) • Bedrock + Box AI verified all 8 controls → 8 Compliant, 0 Not Yet Compliant.";
+      const name = files[0].name;
+      applyEvent({
+        mode: "satisfied",
+        snap: "S5",
+        green: 8,
+        gDelta: "+2",
+        gClass: "up",
+        yellow: 0,
+        yDelta: "−2",
+        yClass: "up",
+        badge: "6→8 ✓",
+        primary: `You · ${name}`,
+        secondary: "Uploaded to Box & verified"
+      });
     }
   </script>
 </body>

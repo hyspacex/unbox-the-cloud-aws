@@ -8,42 +8,38 @@ It connects a team's shared **Box Package Folder** (`318840021 · Project Lanter
 
 ## Visual Walkthrough & Screenshots
 
-### 1. Main Draggable Two-Box HUD (`6 Compliant` | `2 Not Yet Compliant`)
+### 1. Borderless Auto-Hide Idle HUD (`224px` Ultra-Compact Footprint)
 
-- **Left Green Telemetry Box (`COMPLIANT · ● VERIFIED`):** Displays the real-time count of controls whose evidence is verified and holds on the current Box folder snapshot (`6` on Snapshot `S4`), accented by a Tesla Energy green laser bar (`#17c964`).
-- **Right Amber/Yellow Telemetry Box (`NOT YET COMPLIANT · ▲ REVIEW`):** Displays the count of controls needing review (`2` on Snapshot `S4`: `1 Critical · 1 Low`), accented by a Tesla warning amber laser bar (`#f5a524`).
-- **Recessed File & Folder Drop Bay (`Drop File or Folder to Box`):** Drag and drop individual files or entire project folders from **Windows Explorer** or **macOS Finder** directly onto the widget.
-- **Subscribed Topic Notification Info Box (`topic://keel/lantern/318840021`):** Live pub/sub feed alerting you when a teammate's file drop changes or satisfies compliance (`Teammate J. Park dropped architecture.md (v3)`).
+- **Auto-Hide Border & Chrome:** In idle state on the desktop, the outer window frame and top bar completely auto-hide (`border: transparent`, top micro-bar height `0px`). Only the two floating obsidian tiles and the active 1-line delta notification pill are visible. Hovering over the widget smoothly reveals the top micro-bar (`● LANTERN · S4`, `⚡` simulate drop, `⇥` edge auto-hide dock, `⚙` config).
+- **Screen-Edge Auto-Hide (`⇥`):** Can also tuck into the right edge of the screen and automatically peek out for 4 seconds whenever a teammate file-drop event arrives on the subscribed topic.
+- **Left Green Tile (`COMPLIANT`):** Big tabular numeral (`6`) + live delta badge (`−2`) + bottom green laser bar (`#17c964`).
+- **Right Amber/Yellow Tile (`UNMET`):** Big tabular numeral (`2`) + live delta badge (`+2`) + bottom amber laser bar (`#f5a524`).
+- **Zero-Space Drag & Drop:** The entire two-box rectangle itself is the file/folder drop zone (`⇣ DROP TO BOX` translucent overlay appears only while dragging files/folders over it).
+- **High-Intention 1-Line Notification Pill (`8→6 ⚠`):** Amber-highlighted badge immediately shows **direction (`8→6 ⚠`)**, **who + file (`J. Park · architecture.md`)**, and **which clause changed (`SEC-ARCH-07 CMK lost`)**.
 
 ![KEEL Main Draggable 2-Box HUD](screenshots/hud-main.png)
 
 ---
 
-### 2. Teammate File Drop Satisfies Compliance (`6 → 8 Compliant`, `2 → 0 Not Yet Compliant`)
+### 2. Teammate File Drop Satisfies Compliance (`6→8 ✓` Emerald Intention)
 
-When a teammate drops a remediated file (or when you click **`⚡ DROP`** / drop `architecture.md (v4 · CMK Restored)` onto the widget), the subscribed topic pushes a real-time notification and the two telemetry boxes update immediately:
+When a teammate drops a remediated file (`architecture-v4.md`), the notification pill flips to **Emerald Green (`6→8 ✓`)** and the tile deltas flip to **`+2`** / **`−2`**:
 
 ![KEEL Teammate File Drop Satisfied](screenshots/hud-teammate-drop-satisfied.png)
 
 ---
 
-### 3. Minimalist Tesla-Style Configuration Panel (`⚙ CONFIG`)
+### 3. Ultra-Compact Tesla Configuration Sheet (`⚙`)
 
-Clicking **`⚙ CONFIG`** in the top bar flips the rectangle into a clean **Tesla HMI Settings Sheet**:
-
-- **Control Profile (Project Template) Segmented Pill Bar:** Switch between `US Bank (8)`, `EU DORA (8)`, and `Live Slice (3)`.
-- **Box Package Folder ID:** Configure which Box folder the desktop client uploads to and monitors.
-- **Subscribed Compliance Topic:** Configure the pub/sub topic channel (`topic://keel/lantern/318840021/compliance`).
-- **Web Interface Detail Endpoint:** Target URL opened when clicking either box or the notification card.
-- **Tesla Toggles:** Enable/disable `Teammate File-Drop Notifications` and `Always On Top (Windows & macOS HUD)`.
+Hovering the widget and clicking **`⚙`** swaps the interior of the same `224px` rectangle into a minimal Tesla settings sheet (`US (8) | EU (8) | Live (3)` segmented control, `Box Folder ID`, `Topic Subscription`, `Auto-Hide Border` switch, and `Edge Auto-Hide` switch):
 
 ![KEEL Tesla Configuration Drawer](screenshots/hud-config.png)
 
 ---
 
-### 4. Popup Click for Web Interface Details
+### 4. One-Click Web Interface Popover (`↗`)
 
-Clicking the **Left Green Box**, the **Right Yellow Box**, or the **Topic Notification Info Box** pops open the **Web Interface Detail Drawer** (and **`FULL WEB PAGE ↗`** launches the complete two-dimensional Web Interface at [`../demo/index.html`](../demo/index.html)):
+Clicking the **Left Green Tile**, the **Right Yellow Tile**, or the **Notification Pill** opens a compact popover summary with a **`WEB UI ↗`** button to launch the full Web Interface ([`../demo/index.html`](../demo/index.html)):
 
 ![KEEL Web Interface Detail Popup](screenshots/hud-web-popup.png)
 

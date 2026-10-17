@@ -6,15 +6,15 @@ let webInterfaceWindow = null;
 
 function createWidgetWindow() {
   widgetWindow = new BrowserWindow({
-    width: 390,
-    height: 310,
-    minWidth: 340,
-    minHeight: 240,
+    width: 252,
+    height: 168,
+    minWidth: 224,
+    minHeight: 120,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     resizable: true,
-    hasShadow: true,
+    hasShadow: false,
     titleBarStyle: "hidden",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

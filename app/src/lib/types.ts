@@ -573,6 +573,8 @@ export interface Trace {
     open_decisions?: number;
     /** Added (UI v4): the owl's summary sentence for the recorded rows. */
     decision_summary?: string;
+    /** Added (UI v4): the snapshot's files with per-file decision counts, as on PackageView (replay table and dots). */
+    files?: PackageFile[];
   };
   /** Added: for the trace's Done line ("6 re-checked, 2 not evaluated"). */
   summary?: { evaluated: number; not_evaluated: number };

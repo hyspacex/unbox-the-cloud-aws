@@ -367,3 +367,23 @@ describe("follow-ups from lanes A and B", () => {
     svc.reset();
   });
 });
+
+describe("Trace.outcome.files for replay", () => {
+  it("recorded with the run, survives a reset, and is rebuilt on read for older runs", async () => {
+    const sub = await runV3();
+    const live = svc.getPackageView().files!;
+    const o = svc.getRun(sub.run_id).outcome!;
+    expect(o.files).toEqual(live);
+    expect(o.files!.find((f) => f.file_name === "architecture.md")).toMatchObject({ version_label: "v3", open_decisions: 2 });
+    expect(o.files!.find((f) => f.file_name === "runbook.md")).toMatchObject({ open_decisions: 1, control_ids: ["SEC-ARCH-22"] });
+    svc.reset(); // back to S3; the recorded outcome is the run's own
+    const after = svc.getRun(sub.run_id).outcome!;
+    expect(after.files).toEqual(o.files);
+    expect(after.open_decisions).toBe(3);
+    // A run recorded before outcome.files existed: rebuilt from the recorded rows and snapshot.
+    delete svc.internals.store().data.runs[sub.run_id].outcome!.files;
+    const rebuilt = svc.getRun(sub.run_id).outcome!.files!;
+    expect(rebuilt.map((f) => [f.file_name, f.version_label, f.control_ids.length, f.open_decisions])).toEqual(o.files!.map((f) => [f.file_name, f.version_label, f.control_ids.length, f.open_decisions]));
+    svc.reset();
+  });
+});

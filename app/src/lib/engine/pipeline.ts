@@ -9,7 +9,7 @@
  * TraceStep with real timestamps and durations, tagged by source (app, box, decider, agent, boxai).
  */
 import { bubbleFor } from "./bubble";
-import { decisionFlags, decisionSummary, needsDecision } from "./summary";
+import { decisionFlags, decisionSummary, needsDecision, packageFiles } from "./summary";
 import type { BoxAdapter } from "../box/adapter";
 import type { DiffHint, Evaluator, EvaluatorInput, EvaluatorResult, InputGate, SearchSnapshotTool } from "../agent/evaluator.types";
 import type { KeelConfig } from "../config";
@@ -308,6 +308,7 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
           rows: rows.map((r) => ({ ...publicRow(r), ...decisionFlags(store, r) })),
           open_decisions: evalState === "pending" ? 0 : rows.filter((r) => needsDecision(store, r)).length,
           decision_summary: decisionSummary(store, rows, snapshotId, evalState),
+          files: store.snapshot(snapshotId) ? packageFiles(store, store.snapshot(snapshotId)!, rows) : undefined,
           recorded_at: utcNow(),
           snapshot: store.snapshot(snapshotId),
         };

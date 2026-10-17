@@ -249,7 +249,11 @@ function outcomeWithShort(o: RunRecord["outcome"], s: Store = store()): RunRecor
     rows,
     open_decisions: o.open_decisions ?? openDecisionsFromRows(rows),
     decision_summary: o.decision_summary ?? decisionSummaryFromRows(rows, o.snapshot_id, state),
-    ...(o.files ? { files: o.files } : o.snapshot ? { files: packageFilesFromRows(s, o.snapshot, rows) } : {}),
+    ...(() => {
+      if (o.files) return { files: o.files };
+      const snap = o.snapshot ?? s.snapshot(o.snapshot_id);
+      return snap ? { files: packageFilesFromRows(s, snap, rows) } : {};
+    })(),
   };
 }
 

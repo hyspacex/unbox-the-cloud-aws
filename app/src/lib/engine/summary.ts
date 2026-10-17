@@ -146,6 +146,30 @@ export function packageFiles(store: Store, snap: Snapshot, rows: RowWithState[],
   });
 }
 
+/**
+ * The same file list from public rows alone (a run's recorded outcome read later): rows are matched
+ * to files by their evidencing file name; decision counts come from the rows' recorded flags.
+ */
+export function packageFilesFromRows(store: Store, snap: Snapshot, rows: ControlRow[]): PackageFile[] {
+  return snap.files.map((f) => {
+    const v = store.versionInfo(f.fileId, f.versionId);
+    const text = store.text(f.versionId);
+    const mine = rows.filter((r) => r.evidencing?.fileName === f.fileName);
+    return {
+      file_id: f.fileId,
+      file_name: f.fileName,
+      version_id: f.versionId,
+      version_label: f.versionLabel ?? v?.label,
+      ...(v?.createdAt ? { updated_at: v.createdAt } : {}),
+      ...(text !== undefined ? { size_bytes: Buffer.byteLength(text, "utf8") } : {}),
+      ...(v?.uploader ? { uploader: v.uploader } : {}),
+      control_ids: mine.map((r) => r.control_id),
+      open_decisions: mine.filter((r) => r.needs_decision ?? needsDecisionOnRow(r, false)).length,
+      recorded_decisions: mine.filter((r) => r.decision_recorded ?? recordedOnRow(r, false)).length,
+    };
+  });
+}
+
 // ------------------------------------------------------------------------------------------------
 // Receipt
 // ------------------------------------------------------------------------------------------------

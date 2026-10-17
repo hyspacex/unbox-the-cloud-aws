@@ -1,11 +1,11 @@
-# Design spec v3.1: Keel
+# Design spec v3.2: Keel
 
 **Know what changed, and who reviewed that exact evidence.**
 Tagline under the title: Files have versions. Compliance evidence should too.
 
 Keel adds version-bound control-evidence history and re-review rules to a Box review workflow. When a design package in Box changes, an agent on Bedrock re-assesses each control against a pinned snapshot of the package, code validates every quote and records every evaluation, and a named reviewer records the disposition against that exact evidence. The machine never says "satisfied" and never turns anything green.
 
-Status: v3.1, revised after Codex round two (`21-review-codex-v2.md`) and Dana Okafor round two (`22-review-persona-v2.md`). Changelog at the end.
+Status: v3.2, revised after Codex round two (`21-review-codex-v2.md`), Dana Okafor round two (`22-review-persona-v2.md`), and Codex round three (`31-review-codex-v3.md`, all three panelists convinced subject to five contract edits, applied here). Changelog at the end.
 
 Two changes drive this version. From Codex: the product is one fully specified, executable review transaction, with everything else labelled fixture, proposal, or pilot gate. From Dana: staleness is keyed to the evidence binding and the machine classification, with a per-tier materiality rule, not to the snapshot. That one rule decides whether a reviewer gets one re-review per upload or eight.
 
@@ -36,10 +36,10 @@ Buyer, weekly volume, and pilot timeline come from one persona review and stay o
 6. **Validation.** Every quote must string-match the pinned version text. A finding with a required quote that fails validation becomes `not_evaluated`. Every control in the profile must have exactly one finding; unknown control ids are rejected.
 7. **Staleness.** For each control with a prior human verification, code determines whether the verification holds: the evidencing file's version is unchanged, or it changed and the classification is `unchanged`. Then the profile's materiality rule applies by tier: Critical-tier controls require a human acknowledgment when the evidencing file changed even if the quote is unchanged; High and Medium hold without a click. A holding verification writes a `verification_holds` event.
 8. **Ledger.** One logical evaluation per snapshot with attempt events underneath. Append-only. Every event carries snapshot id, control id, event type, machine assessment, prior machine assessment, clause support, evidence with file, version, section, page, quote, model id, MRM model id, inference profile, prompt version and hash, UTC observation time, coverage, and the result of each Box write. No-change evaluations are recorded. Retries are attempts, deduplicated at the side-effect layer.
-9. **Projection into Box.** One folder-level metadata instance: `keel_snapshot_id`, one enum field per control carrying the displayed status, `keel_last_human_review`, `keel_record_url`. During evaluation or after a failed write the fields read `pending` or `stale` and the UI shows the write outcome. No per-file rollups.
-10. **Human disposition.** Keel creates one Box task per finding that needs review, assigned to the configured reviewer, carrying finding id and snapshot id. The reviewer completes it in Box with a message; the message is their reason. Keel polls, reads the responding identity from Box, checks that the control's evidence binding is still current, and records the response. For `returned_to_author`, Keel creates a second Box task assigned to the configured author quoting the lost clause with a due date. If author task creation is unavailable on the tenant, the beat is **Confirm finding** and author routing is shown as proposed.
+9. **Projection into Box.** One folder-level metadata instance on the package folder: `keel_snapshot_id` (string), one enum field per control with fixed codes (`PENDING`, `NOT_EVALUATED`, `VERIFIED`, `VERIFIED_HOLDS`, `ACKNOWLEDGE`, `NEEDS_REVIEW_BINDING`, `NEEDS_REVIEW_WEAKENED`, `NEEDS_REVIEW_ABSENT`, `NEEDS_REVIEW_CONFLICT`, `RETURNED_TO_AUTHOR`, `NOT_APPLICABLE`, `EXCEPTION`), `keel_last_human_review` (string, encoded `name|role|controlId|snapshotId|utc`), `keel_record_url`. Publication is a separate outcome from evaluation: before the write, Keel re-reads the authoritative current snapshot pointer and writes only if it still matches. Box retains its last successfully written values until a write succeeds; a failed or ambiguous write is read back and recorded as a projection event with `last_projected_snapshot`. Consumers must check `keel_snapshot_id` against Keel's current snapshot before trusting a status field. No per-file rollups.
+10. **Human disposition.** Keel creates one Box task of action `review` per finding that needs review, attached to the evidencing file, assigned to the configured reviewer, with the finding id and snapshot id in the task message. Keel stores an immutable server-side mapping from task id and assignment id to finding id, control id, and snapshot id; ids in the message are for the human, not for state. Response-to-action mapping: assignment resolution `rejected` with a message records `returned_to_author` with the message as the reason and the profile's default remediation window (5 business days) as the due date; resolution `approved` with a message containing the attestation phrase records `verified` only if every clause is supported and the assessment is not contradicted; resolution `completed` records an acknowledgment event and no disposition. Keel polls assignments, records `assigned_to` as the responding identity as returned by Box, both the Box `completed_at` and Keel's ingestion time, and deduplicates on assignment id plus `completed_at`. Whether `assigned_to` is a separately authenticated actor is proven at the integration gate or the step is labelled simulated. For `returned_to_author`, Keel creates a second Box task assigned to the configured author quoting the lost clauses with the due date; the disposition is recorded only after that task is created successfully. If author task creation is unavailable, the beat is **Confirm finding**: the acknowledgment event is recorded, no disposition is written, the row keeps its Needs review label, and author routing is shown as proposed.
 11. **Stale action handling.** If a newer snapshot arrived between card open and action, the server compares evidence bindings. If this control's binding is unchanged, the action is applied to the new snapshot and the response says so. If the binding changed, the action is rejected with what changed and the card reloads.
-12. **Display.** One current outcome per control row, with a secondary line "Verified by [name], [role], on [file] v[version], [UTC time]". Machine detail expands on the finding card. Both fields are shown, labelled, only on the card.
+12. **Display.** One current outcome per control row, with a secondary line "Verified by [name], [role], on [file] v[version], [UTC time]". Machine detail expands on the finding card. Both fields are shown, labelled, only on the card. The reducer receives separate inputs: the authoritative current snapshot, the control's current disposition on that snapshot (default `unreviewed`), the most recent prior verification as a separate historical record (never installed as the current disposition), the verification-holds flag, the machine assessment and classification, the unsupported-clause list, the evaluation state with reason, the control tier, and the prior displayed status for strike-through.
 
 ## 4. Status model
 
@@ -59,12 +59,12 @@ Buyer, weekly volume, and pilot timeline come from one persona review and stay o
 - Exception record (proposed): control, finding, snapshot, risk owner (not the reviewer, not on the project), recommended residual rating, compensating control, IRM reference, expiry at most 365 days, approver role gated by residual rating. `exception_approved` is written only by the IRM integration or an approver-role user, never by the reviewer.
 
 ### Displayed status: ordered rules
-Inputs: evaluation state, machine assessment, change classification, human disposition with its binding, verification-holds flag, control tier.
+Inputs: as listed in section 3 step 12. Current disposition and prior verification are distinct inputs. Assessment precedence inside the machine field: `not_evaluated` over `evidence_contradicted` over `evidence_absent` over `evidence_weakened` over `evidence_found`; code applies it, not the model.
 
 1. Evaluation state `pending`: **Re-check pending** (prior status shown struck through).
 2. Evaluation state `error` or assessment `not_evaluated`: **Not evaluated**, with reason.
-3. Disposition `superseded` (profile changed since verification): **Superseded, re-verify under profile v[n]**.
-4. Disposition `not_applicable` approved and applicability unchanged: **Not applicable**.
+3. Disposition `superseded` (profile changed since verification): **Superseded, re-verify under profile v[n]**. Proposed; unreachable in the build.
+4. Disposition `not_applicable` approved and applicability unchanged: **Not applicable**. Proposed; unreachable in the build.
 5. Disposition `exception_approved` and not expired: **Exception approved until [date]**. Expired: **Exception expired, re-review due**.
 6. Disposition `exception_requested`: **Exception requested**.
 7. Disposition `compensating_control` with its evidence validated: **Compensating control**.
@@ -78,23 +78,23 @@ Inputs: evaluation state, machine assessment, change classification, human dispo
 15. Assessment `evidence_contradicted`: **Needs review: conflicting evidence**.
 16. Otherwise (`evidence_found`, `unreviewed`): **Pending review**.
 
-The top line counts current displayed statuses: "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)." After the human action: "6 Verified holds, 1 Verified, 1 Returned to author."
+The top line counts current displayed outcomes (not dispositions): "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)." After the human action: "6 Verified holds, 1 Verified, 1 Returned to author."
 
 ### Rules enforced by code
 - Only the human response handler writes a disposition, after checking: responding identity is on the configured reviewer list for the demo (role validity and project membership from the directory are a pilot gate), is not the configured author of the evidencing file, and the control's binding is current.
-- `verified` additionally requires every required clause `supported` by a validated quote in the current snapshot, and the reviewer's explicit attestation in the task message.
+- `verified` additionally requires every required clause `supported` by a validated quote in the current snapshot, the machine assessment not `evidence_contradicted`, and the reviewer's explicit attestation in the task message. A contradicted assessment must be resolved by a new snapshot before Verify is possible in this build.
 - A result for an older snapshot is recorded as history and never changes displayed status.
 - A response whose binding is no longer current is recorded; re-applied if the binding is unchanged, rejected with explanation otherwise.
 
 ## 5. Control profile
 
-Nine fields per control: ID, Title, Requirement, Required clauses, Standard, Applicability, Evidence locations, Tier, Framework map (illustrative), Reviewer role. Severity is a lookup of control tier by application tier. Materiality per tier is a profile-level setting.
+Ten fields per control: ID, Title, Requirement, Required clauses, Standard, Applicability, Evidence locations, Tier, Framework map (illustrative), Reviewer role. Severity is a lookup of control tier by application tier. Materiality per tier is a profile-level setting.
 
 **Demo profile, US bank, eight controls, five documents:** approved services only; data classification and regulatory scope per store; authentication and MFA via enterprise IdP; least privilege with PAM and break-glass; encryption at rest and key management (SEC-ARCH-07, Critical, the hero); security events to the enterprise SIEM; third parties named with TPRM assessment id and tier; recovery targets and rollback path documented (SEC-ARCH-22, the counterexample; consistency with the BIA tier is pilot scope). An EU alternate exists as a fixture.
 
 Why eight and not three: a board reviewing three controls is not a board, and the materiality rule only shows its value when most rows hold while one or two need review. The build plan carries a stopping rule: if the full path exceeds the rehearsed budget at hour three, cut files before controls, down to the live-slice fallback of three controls and two documents.
 
-Excluded from both profiles because they generate noise from documents: diagram currency, contract matching, bare retention numbers, TLS version nagging.
+Excluded from both profiles by design hypothesis, not measurement: controls we expect to generate noise from documents, namely diagram currency, contract matching, bare retention numbers, and TLS version nagging. The shadow evaluation would test that hypothesis.
 
 ## 6. The experience
 
@@ -103,7 +103,7 @@ Header: project, application id, tier, regulatory scope, ARB decision, current s
 
 ### Finding card
 Header: finding id, severity, project, review owner, opened (UTC).
-Control: id, title, Requirement, Required clauses with per-clause marks, Standard, framework map labelled illustrative, profile version.
+Control: id, title, Requirement, Required clauses with per-clause marks (for the hero: encryption at rest supported; key management model unsupported; rotation period unsupported), Standard, framework map labelled illustrative, profile version. For the counterexample both clauses, recovery targets and rollback path, are shown supported with their runbook quotes.
 Machine assessment, labelled "machine assessment, not a verdict": result, classification, basis bullets from recorded operations (prior quote not found after normalization; N other files searched, from the coverage record; weaker statement found at section and paragraph; other assertions changed), model id, MRM model id, inference profile, prompt version and hash, normalization disclosed, trace link.
 Two columns: prior version with Box version id, deep link, uploader, verified-by name, role, UTC time, hash, section and page, quote highlighted. New version with Box version id, deep link, uploader, version comment, hash, section and page, word-level diff.
 Related: the other controls in this snapshot with their outcomes, including the counterexample and the holding verifications.
@@ -159,7 +159,7 @@ Demo documents are synthetic. Document text leaves Box for the laptop and the Be
 ## 9. Positioning
 
 - Box Automate fires on upload, runs AI steps, routes approvals, iterates over files, and keeps run history. Keel does not rebuild it. We did not find a documented native version-bound control-evidence ledger with re-review rules; Keel adds that to a Box workflow. The proposed production trigger is Automate calling Keel.
-- Continuous-compliance platforms test infrastructure through APIs and accept documents as uploads. Keel reads the design evidence across versions.
+- Continuous-compliance platforms test infrastructure through APIs and review uploaded documents as evidence, some with AI checks of adequacy. We did not find one that tracks a control's supporting clauses inside design documents across versions and binds the reviewer's response to those versions. That selected transaction is what Keel does.
 - Approval and "changed since approval" tools record who approved which version and that a page changed. Keel adds which control lost which clause, whether support survives elsewhere in the package, which verifications still hold, and binds the reviewer's response to that exact evidence.
 - For AWS judges: the model never owns state. It proposes a per-clause assessment with quotes against a pinned snapshot; code validates, records, applies staleness and materiality, and enforces that only a person records a disposition.
 
@@ -198,7 +198,13 @@ One synthetic probe during research caught a planted removal on a 7-page documen
 9. Late result from an older snapshot: recorded as history, displayed status unchanged.
 10. Model output includes an unknown control id or a disposition field: rejected.
 11. Box metadata write fails: event recorded, projection shows failed.
-12. Same task response delivered twice: one disposition, two attempt records.
+12. Same task response delivered twice: one disposition, one author task, two attempt records.
+13. History selection: after a new snapshot, the prior verification is shown on the secondary line and never installed as the current disposition.
+14. Contradiction precedence: a control with full clause support and a conflicting quote is `evidence_contradicted`; Verify is blocked until a new snapshot resolves it.
+15. Incomplete input: a truncated or partially read file sets coverage incomplete and the dependent controls `not_evaluated` with the read reason, distinct from the quote-validation reason.
+16. Missing or duplicate findings from the model: evaluation state `error`, displayed **Not evaluated**, no partial application.
+17. Projection failure: Keel shows the failure and `last_projected_snapshot`; Box retains its previous values; the consumer rule in section 3 step 9 catches the mismatch.
+18. Confirm-finding fallback: acknowledgment recorded, no disposition, row label unchanged, author routing labelled proposed.
 
 ## 13. Risks
 
@@ -212,6 +218,12 @@ One synthetic probe during research caught a planted removal on a 7-page documen
 | Quote shown to a reviewer who cannot see the source | Single restricted synthetic folder; same audience for reviewer, author, and service account |
 
 ## 14. Changelog
+
+### v3.2 (Codex round three)
+- Reducer inputs made explicit: current disposition and prior verification are separate; counts are of displayed outcomes; Not applicable and Superseded marked proposed and unreachable; Verify blocked while contradicted; machine assessment precedence fixed in code.
+- Box projection contract: fixed enum codes, encoded last-review field, publication freshness check, Box retains last confirmed values, consumer rule.
+- Task contract: review task attached to the evidencing file, immutable id mapping, resolution-to-action mapping, reason and due-date sources, response and ingestion times, dedup key, Confirm finding as acknowledgment only, Return to author only after author task success.
+- Ten profile fields; noise exclusions labelled hypothesis; compliance-platform comparison qualified; card shows both missing hero clauses and both supported recovery clauses; six acceptance cases added.
 
 ### v3.1 (Dana round two)
 - Staleness keyed to evidence binding and classification, with per-tier materiality; `verification_holds` events; "Verified, holds" and "Acknowledge" rows. (Dana 9.1, 9.2.)

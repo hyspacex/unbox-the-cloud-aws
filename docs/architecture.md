@@ -187,9 +187,21 @@ Respect Box limits, retry transient errors with backoff, and surface failures.
 4. Preserve raw extraction provenance separately from confirmed business values.
 5. Compare numbers, dates and enums deterministically in Lambda.
 6. Call `POST /ai/ask` with baseline/candidate snapshots and
-   `include_citations: true` for semantic explanations.
-7. Validate response shape, evidence and source/version bindings.
-8. Show unsupported findings as Unverified; never invent a quote or location.
+   `include_citations: true` for semantic explanations and idea-evolution
+   classification.
+7. Classify each finding into an explicit **Idea Evolution State** for the visual
+   history graph:
+   - **`ADDED` (`+ Added`):** A new sub-idea, capability, dependency or commitment
+     not present in the baseline.
+   - **`PIVOTED` (`↻ Pivoted`):** An existing commitment or design choice whose
+     direction, scope or value materially changed (`before -> after`).
+   - **`REMOVED` (`− Removed`):** A previously approved constraint, safeguard or
+     scope item that was dropped or scoped out.
+   - **`RETAINED` (`✓ Retained`):** Core commitments unchanged from the baseline.
+   - **`HARMLESS_REWORDING`:** Wording-only edits that do not alter meaning or
+     trigger business approval.
+8. Validate response shape, evidence and source/version bindings.
+9. Show unsupported findings as Unverified; never invent a quote or location.
 
 An extraction response is not a metadata write. Persist selected fields through
 the metadata instance APIs when useful. Box metadata is file-level; use the

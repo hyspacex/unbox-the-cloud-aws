@@ -22,9 +22,11 @@ A proposal can retain its title and most of its wording while quietly changing
 its budget, data handling or implementation scope. File history records uploads;
 an old approval does not explain whether the team accepted these new commitments.
 
-EpistemicBox makes **agreement drift** visible:
+EpistemicBox makes **agreement drift and idea evolution** visible:
 
 - Compare with the last approved revision, not merely the previous upload.
+- Visually track which sub-ideas or commitments were **`+ Added`**, **`↻ Pivoted`**,
+  **`− Removed`**, or **`✓ Retained`** across a revision history graph.
 - Separate material changes from harmless paraphrases.
 - Show before/after evidence and source references.
 - Route changes to the appropriate business reviewers.
@@ -107,6 +109,7 @@ Cross-document conflict detection is a follow-on capability.
 
 - [Architecture and API breakdown](docs/architecture.md)
 - [Enterprise demo and acceptance plan](docs/demo.md)
+- [Idea evolution history: V1 One-Pager to V3 current design](docs/idea-evolution.md)
 
 ## Trust boundaries
 

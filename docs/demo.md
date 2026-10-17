@@ -37,7 +37,7 @@ the demo, not a claim that live AI inference finishes in 15 seconds.
 | 0:00-0:15 | Introduce team name and members' actual build responsibilities in one sentence | No individual biographies or invented credentials |
 | 0:15-0:40 | Explain the bank's problem: an approved EU-only plan becomes a US rollout draft | Old approval is not consent to a new commitment |
 | 0:40-1:00 | State the promise and show one architecture strip: Box folders/AI/review, AWS Bedrock decision model/workflow/ledger | The platform roles are clear without an architecture tour |
-| 1:00-1:15 | Open the prepared folder comparison: Bedrock suggests `Enterprise AI Initiative (Type 1 One-Way Door)` and highlights `"EU only" -> "US processing"` while V1 remains approved | Folder triage + a large before/after card expose the hidden escalation immediately |
+| 1:00-1:15 | Open the prepared folder comparison: Bedrock suggests `Enterprise AI Initiative (Type 1 One-Way Door)` and the visual history badges show `[↻ PIVOTED] EU only -> US processing` while V1 remains approved | Folder triage + visual `+ Added / ↻ Pivoted / − Removed` badges expose the hidden escalation immediately |
 | 1:15-1:35 | Expand the old/new source excerpts, version IDs and observation time | The finding has inspectable evidence, not just an AI verdict |
 | 1:35-1:55 | Confirm the review plan and create the required Privacy review task in Box | A detected change becomes a real assigned workflow |
 | 1:55-2:20 | The actual reviewer approves the synthetic region exception in a pre-opened Box tab; refresh authoritative status | Consent is a human action on a version-bound review packet |
@@ -84,9 +84,12 @@ explicitly labeled; no hidden prerecorded "live" responses.
   reconciliation and baseline promotion. Do not call those live unless they are.
 - Pre-open the real reviewer's authenticated Box session on a separate tab or
   device, using synthetic documents. No password/MFA step belongs on stage.
-- Show one main screen with an approved-baseline badge, the before/after card,
-  review status and a compact timeline. Use one source expansion and one Box tab
-  switch, not a tour across service consoles.
+- Show one main screen with an approved-baseline badge, the visual idea
+  evolution strip (`+ Added`, `↻ Pivoted`, `− Removed`, `✓ Retained`), the
+  before/after card, review status and a compact timeline. Use one source
+  expansion and one Box tab switch, not a tour across service consoles.
+- For our own project's dogfooding trail (how EpistemicBox evolved from the V1
+  One-Pager to V3), see [docs/idea-evolution.md](idea-evolution.md).
 - Give each asynchronous live step a 10-second stage wait budget. This is a
   presentation cutoff, not a service SLA. If a step is still pending, show its
   actual state and switch to an explicitly labeled recorded walkthrough.

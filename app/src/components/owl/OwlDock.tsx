@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { PUSH_QUERY } from "@/components/box/BoxPush";
+import { PANEL_WIDTH, PUSH_QUERY } from "@/components/box/BoxPush";
 import { useKeelState, type KeelState } from "@/components/KeelStateProvider";
 import { useMedia } from "@/lib/ui/useMedia";
 import { Owl } from "./Owl";
@@ -34,7 +34,7 @@ export function OwlDock() {
   const { owlRef, ...s } = useKeelState();
   const pushing = useMedia(PUSH_QUERY);
   const hidden = s.panel.open && !pushing;
-  const right = s.panel.open && pushing ? 420 + 24 : 24;
+  const right = s.panel.open && pushing ? PANEL_WIDTH + 24 : 24;
   const [settledAt, setSettledAt] = useState(right);
   const settled = settledAt === right;
   // The bubble shows whenever the owl is on screen and still: with the panel closed, or pushed beside it.

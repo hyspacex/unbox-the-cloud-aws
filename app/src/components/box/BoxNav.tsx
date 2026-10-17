@@ -4,7 +4,7 @@ import Link from "next/link";
 import { IconClock, IconFolder, IconNote, IconSync, IconTrash } from "./icons";
 
 const ITEMS = [
-  { label: "All Files", Icon: IconFolder, active: true },
+  { label: "All Projects", Icon: IconFolder, active: true },
   { label: "Recents", Icon: IconClock },
   { label: "Synced", Icon: IconSync },
   { label: "Notes", Icon: IconNote },

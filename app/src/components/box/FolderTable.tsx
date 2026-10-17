@@ -13,7 +13,7 @@ import { StatusCard } from "./StatusCard";
 import { Toast } from "./Toast";
 import { FileTypeIcon, IconChevronRight, IconInfo, IconMore, IconNewVersion } from "./icons";
 
-const CRUMBS = ["All Files", "Project Lantern"];
+const CRUMBS = ["All Projects", "Project Lantern"];
 const FOLDER = "Security Review Package";
 /** Grid template lives in globals.css (.box-grid): container queries keep Name at 260 px and drop Actions, Size, then Updated. */
 const COLS = "box-grid";

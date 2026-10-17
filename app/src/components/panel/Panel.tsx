@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The Keel side panel (design 50-ui-v4 section 2.4). 420 px, full height, fixed right, over the Box page (no dim,
+ * The Keel side panel (design 50-ui-v4 section 2.4). PANEL_WIDTH (540 px), full height, fixed right, over the Box page (no dim,
  * no reflow). Level 1 lists what needs the reviewer; level 2 is one control or one menu screen. Esc closes level 2
  * first, then the panel; focus is trapped while open and returns to the owl on close.
  */
@@ -10,6 +10,7 @@ import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { useKeelState, type PanelView } from "@/components/KeelStateProvider";
 import { useFocusTrap } from "@/lib/ui/useFocusTrap";
 import { OwlMark } from "@/components/owl";
+import { PANEL_WIDTH } from "@/components/box/BoxPush";
 import { Level1 } from "./Level1";
 import { Level2 } from "./Level2";
 import { MENU_TITLES, MenuScreenView } from "./MenuScreens";
@@ -28,7 +29,7 @@ function PresentOnly({ children }: { children: React.ReactNode }) {
 
 const viewKey = (v: PanelView) => (v.kind === "level1" ? "level1" : v.kind === "control" ? `control:${v.controlId}` : `menu:${v.screen}`);
 
-/** Scoped overrides so the reused full-page screens fit 420 px. Viewport breakpoints do not apply inside the panel. */
+/** Scoped overrides so the reused full-page screens fit the panel width. Viewport breakpoints do not apply inside the panel. */
 const PANEL_CSS = `
 .kp-root .kp-one-col section { grid-template-columns: minmax(0,1fr) !important; }
 .kp-root .kp-compact > div { padding: 0 !important; margin: 0 !important; max-width: none !important; }
@@ -147,12 +148,12 @@ export function Panel() {
           role="dialog"
           aria-modal="false"
           aria-label="Keel"
-          initial={{ x: 420 }}
+          initial={{ x: PANEL_WIDTH }}
           animate={{ x: 0 }}
-          exit={{ x: 420 }}
+          exit={{ x: PANEL_WIDTH }}
           transition={{ duration: DUR.panel, ease: EASE_OUT }}
-          className="kp-root box-root fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-full flex-col border-l bg-white font-[inherit]"
-          style={{ borderColor: C.border, boxShadow: "-8px 0 24px rgba(0,0,0,.06)", color: C.text }}
+          className="kp-root box-root fixed right-0 top-0 z-50 flex h-full max-w-full flex-col border-l bg-white font-[inherit]"
+          style={{ width: PANEL_WIDTH, borderColor: C.border, boxShadow: "-8px 0 24px rgba(0,0,0,.06)", color: C.text }}
           data-view={key}
         >
           <style>{PANEL_CSS}</style>

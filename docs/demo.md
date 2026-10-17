@@ -230,3 +230,19 @@ On October 12 the runbook changed its escalation contact, Keel re-evaluated, not
 verification was recorded as holding. That is the most common outcome in the system, and showing it first is the
 point: a no-change evaluation is still recorded. The verifications themselves were made on S2, and level 2 names
 the reviewer and version.
+
+## Screens to capture
+
+Rehearsal captures live locally under `app/.review/v4/` (gitignored). The set that tells the story, in the order of the two-minute script above:
+
+1. Baseline at 1440: the welcome screen with the standards header, the timeline scrubber and the board at Need you 0, Recorded 0, Still verified 8. Or the panel open on tiles 8, 0, 0, the package timeline and the eight holding items.
+2. A holding item at level 2: the rule chip, the AGREED sentence and who verified it.
+3. The Upload menu with **Upload new version**, then the owl working with a step line in its bubble.
+4. After the run: tiles 5, 3, 0, the badge, the summary bubble and amber dots.
+5. Level 2 for encryption: the rule chip, AGREED above CHANGED, and the verdict line.
+6. The control timeline, from "verified by Priya" to "architecture v3 · needs review".
+7. The Box AI draft for the author, then the "Returned to author by Dana Okafor" receipt.
+8. Level 1 at the close: tiles 5, 2, 1, with encryption under RECORDED.
+9. The Box file preview with the sentence highlighted, and the version menu on v2.
+10. The Box details pane with the Keel review metadata.
+11. Level 1 at 1024x768, where the panel overlays the page.

@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Keel · 30 s reel</title>
+<!--
+  Keel reel. Every frame is a pure function of t (window.seek), so render.py can step it frame by frame.
+  Timing comes from cues.js, which music.py writes from the same score the soundtrack is rendered from.
+  Open in a browser to preview with sound: click to play, space pauses, R restarts, ?t=12 jumps.
+  All text is from the synthetic demo-data/lantern fixture.
+-->
+<style>
+  @font-face { font-family: Lato; font-weight: 400; src: url(fonts/lato-400.woff2) format("woff2"); }
+  @font-face { font-family: Lato; font-weight: 700; src: url(fonts/lato-700.woff2) format("woff2"); }
+  @font-face { font-family: Geist; font-weight: 100 900; src: url(fonts/geist.woff2) format("woff2"); }
+  @font-face { font-family: "Geist Mono"; font-weight: 100 900; src: url(fonts/geist-mono.woff2) format("woff2"); }
+  :root {
+    --navy: #1f2a44; --navy-deep: #0d1424; --navy-mid: #172036; --cream: #fff4d6; --box: #0061d5; --box-dark: #004ca8;
+    --beak: #e9a23b; --paper: #f5f3ee; --line: #e2dfd7; --ink: #17191c; --muted: #61656d;
+    --amber-ink: #b45309; --amber-dot: #c2570c; --amber-bg: #fcf1d8;
+    --blue-ink: #1b3784; --blue-bg: #eaeefa; --green-dot: #178a47; --green: #3ecf7a; --red: #e0574b;
+    --display: Geist, Lato, sans-serif; --ui: Lato, sans-serif; --mono: "Geist Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+  body { display: grid; place-items: center; -webkit-font-smoothing: antialiased; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--navy-deep); transform-origin: center; flex: none; }
+  canvas.full, .full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  #world { position: absolute; inset: 0; transform-origin: 960px 540px; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .abs { position: absolute; }
+  .will { will-change: transform, opacity; }
+
+  .head { position: absolute; left: 0; right: 0; text-align: center; font-family: var(--display); font-weight: 700;
+    letter-spacing: -0.035em; color: #fff; line-height: 1; white-space: nowrap; }
+  .w { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.08em 0.02em 0.14em; margin: -0.08em -0.02em -0.14em; }
+  .wi { display: inline-block; transform-origin: 50% 80%; }
+  .sp { display: inline-block; width: 0.26em; }
+  .wl { display: inline-block; transform-origin: 50% 60%; }
+
+  /* scene 1 */
+  .doc { position: absolute; left: 830px; top: 210px; width: 260px; transform-origin: 50% 70%; }
+  .doc svg { width: 260px; height: 300px; display: block; filter: drop-shadow(0 30px 40px rgb(0 0 0 / .35)); }
+  .doc .lab { margin-top: 18px; display: flex; justify-content: center; align-items: center; gap: 12px;
+    font: 700 24px var(--ui); color: #c9d3ea; }
+  .vpill { font: 700 22px var(--mono); padding: 5px 14px; border-radius: 999px; color: #fff; background: #3a4766; }
+  .vpill.blue { background: var(--box); } .vpill.amber { background: var(--amber-dot); }
+
+  /* scene 2 */
+  .chip { position: absolute; left: 0; top: 0; white-space: nowrap; font: 600 24px var(--mono); color: #dfe6f5;
+    padding: 12px 20px; border-radius: 14px; background: rgb(31 42 68 / .85); border: 1px solid rgb(255 255 255 / .12);
+    box-shadow: 0 20px 40px -20px rgb(0 0 0 / .6); display: flex; align-items: center; gap: 12px; }
+  .chip i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  #seed { left: 951px; top: 531px; width: 18px; height: 18px; border-radius: 50%; background: var(--cream);
+    box-shadow: 0 0 30px 8px rgb(255 244 214 / .6), 0 0 90px 30px rgb(0 97 213 / .35); }
+
+  /* lockup */
+  #owlA { left: 730px; top: 310px; width: 460px; height: 460px; overflow: visible; }
+  #wm { left: 860px; top: 330px; font: 700 300px/1 var(--ui); color: #fff; letter-spacing: -0.03em; white-space: nowrap; }
+  #tag { left: 872px; top: 660px; font: 500 46px/1.28 var(--display); color: #b9c4de; letter-spacing: -0.015em; white-space: nowrap; }
+  #tag .hl { color: var(--cream); position: relative; }
+  #tagLine { position: absolute; left: 0; right: 0; bottom: 2px; height: 5px; border-radius: 3px; background: var(--beak); transform-origin: 0 50%; }
+  #built { left: 0; right: 0; top: 905px; display: flex; justify-content: center; align-items: center; gap: 18px; }
+  #built .lbl { font: 600 22px var(--mono); color: #7f8aa6; letter-spacing: .12em; text-transform: uppercase; margin-right: 6px; }
+  .pill { font: 700 26px var(--ui); color: #e6ebf7; padding: 12px 24px; border-radius: 999px; border: 1.5px solid rgb(255 255 255 / .18);
+    background: rgb(255 255 255 / .05); display: inline-flex; align-items: center; gap: 12px; }
+  .pill b { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  /* light scenes */
+  .paper { position: absolute; inset: 0; background: var(--paper); }
+  .paper::after { content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(rgb(23 25 28 / .07) 1.4px, transparent 1.5px); background-size: 36px 36px; }
+  .kicker { font: 600 22px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .cap { position: absolute; left: 150px; top: 72px; }
+  .cap .h { margin-top: 10px; font: 700 66px/1 var(--display); letter-spacing: -0.035em; color: var(--ink); white-space: nowrap; }
+  .cap.dark .h { color: #fff; } .cap.dark .kicker { color: #8792ad; }
+  .num { display: inline-block; font: 700 24px var(--mono); color: #fff; background: var(--box); border-radius: 8px; padding: 2px 10px; margin-right: 14px; letter-spacing: 0; }
+
+  .card { position: absolute; background: #fff; border-radius: 22px; border: 1px solid var(--line);
+    box-shadow: 0 2px 0 rgb(23 25 28 / .03), 0 40px 80px -40px rgb(23 25 28 / .35); }
+  #folder { left: 150px; top: 215px; width: 1620px; height: 760px; overflow: hidden; transform-origin: 50% 40%; }
+  #folder .bar { position: absolute; left: 0; right: 0; top: 0; height: 92px; border-bottom: 1px solid var(--line); }
+  .wordmark { position: absolute; left: 34px; top: 22px; display: flex; align-items: center; gap: 12px; font: 700 40px var(--ui); color: var(--box); letter-spacing: -0.02em; }
+  .search { position: absolute; left: 360px; top: 22px; width: 700px; height: 50px; border-radius: 10px; background: #f3f4f6; border: 1px solid #e5e7eb;
+    font: 400 22px var(--ui); color: #8b8f96; padding: 12px 22px; }
+  .avatar { position: absolute; border-radius: 50%; background: var(--box); color: #fff; font: 700 24px var(--ui); display: grid; place-items: center; }
+  .crumbs { position: absolute; left: 50px; top: 124px; font: 400 26px var(--ui); color: #6b7280; white-space: nowrap; }
+  .crumbs b { color: var(--ink); font-weight: 700; font-size: 32px; }
+  .btn { position: absolute; height: 58px; border-radius: 10px; font: 700 24px var(--ui); display: grid; place-items: center; overflow: hidden; }
+  .btn.primary { background: var(--box); color: #fff; }
+  .btn.ghost { background: #fff; color: var(--ink); border: 1.5px solid #cfd3da; }
+  .btn.off { background: #f4f4f2; color: #a2a5ab; border: 1.5px solid #e4e2dc; }
+  .ripple { position: absolute; left: 0; top: 0; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: rgb(255 255 255 / .55); }
+  .thead { position: absolute; left: 50px; right: 50px; top: 200px; height: 50px; border-bottom: 1px solid var(--line);
+    font: 700 21px var(--ui); color: #6b7280; }
+  .thead span, .row span.c { position: absolute; top: 0; }
+  .row { position: absolute; left: 50px; right: 50px; height: 86px; border-bottom: 1px solid #eeece6; font: 400 22px var(--ui); color: #6b7280; }
+  .row .fill { position: absolute; inset: 0; border-radius: 8px; }
+  .row svg { position: absolute; left: 14px; top: 20px; width: 46px; height: 46px; }
+  .row .nm { position: absolute; left: 82px; top: 26px; font: 700 28px var(--ui); color: var(--ink); display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+  .row .up { left: 820px; top: 30px; height: 30px; overflow: hidden; white-space: nowrap; width: 420px; }
+  .row .ver { left: 1250px; top: 22px; width: 70px; height: 42px; perspective: 400px; }
+  .face { position: absolute; left: 0; top: 0; font: 700 26px var(--ui); color: var(--ink); padding: 6px 0; backface-visibility: hidden; transform-origin: 50% 50% -10px; }
+  .roll { position: absolute; left: 0; top: 0; }
+  .row .sz { left: 1380px; top: 30px; }
+  #menu { left: 1300px; top: 172px; width: 270px; padding: 10px 0; border-radius: 14px; background: #fff; border: 1px solid #e5e7eb;
+    box-shadow: 0 24px 50px -16px rgb(23 25 28 / .35); transform-origin: 85% 0; }
+  #menu div { height: 56px; padding: 15px 22px; font: 400 23px var(--ui); color: var(--ink); white-space: nowrap; position: relative; }
+  #menu .hi { position: absolute; inset: 0 8px; border-radius: 8px; background: var(--blue-bg); }
+  #scan { left: 200px; width: 1520px; height: 120px; background: linear-gradient(180deg, transparent, rgb(0 97 213 / .12) 70%, rgb(0 97 213 / .6) 98%, transparent);
+    border-radius: 4px; }
+  .dock { position: absolute; width: 136px; height: 136px; border-radius: 50%; background: #fff; box-shadow: 0 20px 50px -14px rgb(23 25 28 / .45), 0 0 0 1px rgb(23 25 28 / .06); }
+  .dock svg { position: absolute; left: 14px; top: 12px; width: 108px; height: 108px; overflow: visible; }
+  .badge { position: absolute; right: -4px; top: -6px; width: 46px; height: 46px; border-radius: 50%; background: #f59e0b; color: #fff; font: 700 26px var(--ui);
+    display: grid; place-items: center; border: 3px solid #fff; }
+  .bubble { position: absolute; right: 168px; bottom: 32px; transform-origin: 100% 80%; white-space: nowrap; padding: 18px 26px; border-radius: 18px;
+    background: var(--navy); color: #fff; font: 700 27px var(--ui); box-shadow: 0 20px 40px -16px rgb(23 25 28 / .5); }
+  .bubble::after { content: ""; position: absolute; right: -10px; bottom: 22px; border: 12px solid transparent; border-left-color: var(--navy); border-right: 0; }
+  .cursor { position: absolute; left: 0; top: 0; width: 44px; height: 56px; filter: drop-shadow(0 6px 8px rgb(0 0 0 / .3)); transform-origin: 4px 4px; z-index: 50; }
+
+  /* scene 5: diff */
+  .ctl { position: absolute; left: 200px; top: 96px; display: flex; align-items: center; gap: 22px; white-space: nowrap; }
+  .ctl .id { font: 600 26px var(--mono); color: #8fa0c9; letter-spacing: .02em; }
+  .ctl .t { font: 700 44px var(--display); color: #fff; letter-spacing: -0.02em; }
+  .tagc { font: 700 22px var(--ui); padding: 7px 14px; border-radius: 9px; }
+  .blk { position: absolute; left: 200px; width: 1520px; padding-left: 40px; }
+  .blk .bar2 { position: absolute; left: 0; top: 48px; bottom: 6px; width: 7px; border-radius: 4px; transform-origin: 50% 0; }
+  .blk .lab2 { font: 700 22px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+  .sent { margin-top: 18px; font: 400 54px/1.36 var(--ui); color: #eef2fb; letter-spacing: -0.005em; }
+  .cl { position: relative; border-radius: 8px; }
+  .cl .hlb { position: absolute; left: -6px; right: -6px; top: 6px; bottom: 2px; border-radius: 8px; transform-origin: 0 50%; z-index: -1; }
+  .cl .strike { position: absolute; left: -4px; right: -4px; top: 52%; height: 5px; border-radius: 3px; background: var(--red); transform-origin: 0 50%; }
+  .chw { position: relative; }
+  .chw .ul { position: absolute; left: 0; right: 0; bottom: 4px; height: 4px; border-radius: 2px; background: var(--beak); transform-origin: 0 50%; }
+  .meta { margin-top: 16px; font: 400 26px var(--ui); color: #8792ad; }
+  .fall { position: absolute; left: 0; top: 0; font: 700 28px var(--mono); color: #fff; background: var(--red); border-radius: 12px; padding: 10px 18px;
+    white-space: nowrap; box-shadow: 0 20px 30px -12px rgb(0 0 0 / .6); }
+  #verdict { position: absolute; left: 0; right: 0; top: 330px; text-align: center; }
+  #verdict .big { font: 800 260px/1 var(--display); letter-spacing: -0.05em; color: #fff; white-space: nowrap; }
+  #verdict .big em { font-style: normal; color: #ffb547; display: inline-block; min-width: 0.6em; }
+  #verdict .sub { margin-top: 26px; font: 600 46px var(--display); color: #e6ebf7; letter-spacing: -0.02em; }
+  #verdict .sub2 { margin-top: 18px; font: 500 28px var(--mono); color: #8792ad; }
+
+  .stripe { position: absolute; inset: 0; }
+
+  /* scene 6 */
+  #rev { left: 150px; top: 300px; width: 520px; }
+  #rev .avatar { position: relative; width: 120px; height: 120px; font-size: 52px; box-shadow: 0 20px 40px -14px rgb(0 97 213 / .6); }
+  #rev .nmx { margin-top: 26px; font: 700 48px var(--display); color: var(--ink); letter-spacing: -0.02em; }
+  #rev .role { margin-top: 6px; font: 400 26px var(--ui); color: var(--muted); }
+  #panel { left: 760px; top: 250px; width: 1010px; height: 360px; padding: 40px 46px; }
+  #panel .tt { font: 700 36px var(--ui); color: var(--ink); }
+  #panel .vl { margin-top: 18px; font: 400 27px/1.4 var(--ui); color: #3a3e44; }
+  #tip { left: 1300px; top: 420px; white-space: nowrap; font: 700 21px var(--ui); color: #fff; background: #2b2f36; padding: 10px 16px; border-radius: 10px; transform-origin: 50% 100%; }
+  #receipt { left: 820px; top: 545px; width: 900px; padding: 30px 40px; border-radius: 18px; background: #fff; border: 2px solid var(--box);
+    box-shadow: 0 40px 70px -30px rgb(0 76 168 / .55); transform-origin: 30% 50%; }
+  #receipt .r1 { font: 700 34px var(--ui); color: var(--blue-ink); display: flex; align-items: center; gap: 16px; }
+  #receipt .r2 { margin-top: 10px; font: 400 25px var(--ui); color: var(--muted); }
+  #receipt .r3 { margin-top: 4px; font: 500 22px var(--mono); color: #8b8f96; }
+  .lg { position: absolute; top: 850px; width: 300px; height: 118px; border-radius: 16px; background: #fff; border: 1px solid var(--line); padding: 20px 24px;
+    box-shadow: 0 24px 40px -26px rgb(23 25 28 / .4); }
+  .lg .a { font: 700 25px var(--ui); color: var(--ink); white-space: nowrap; }
+  .lg .b { margin-top: 12px; font: 500 22px var(--mono); color: #6f4bc0; white-space: nowrap; }
+  .lnk { position: absolute; top: 905px; height: 5px; border-radius: 3px; background: #b7a6e3; transform-origin: 0 50%; }
+  #intact { left: 150px; top: 990px; font: 600 22px var(--mono); color: #0f6634; letter-spacing: .06em; white-space: nowrap; }
+  #freeze { position: absolute; inset: 0; background: rgb(9 13 24 / .9); }
+  #ftext { position: absolute; left: 0; right: 0; top: 380px; text-align: center; font: 800 120px/1.08 var(--display); letter-spacing: -0.045em; color: #fff; white-space: nowrap; }
+  #ftext .g { color: var(--green); }
+  .ch { display: inline-block; white-space: pre; }
+
+  /* scene 7: board */
+  #tl { left: 300px; top: 222px; width: 1320px; height: 140px; }
+  #tl .ln { position: absolute; left: 0; right: 0; top: 18px; height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, #8a93a6, #3b6fe0 35%, #12b38a 70%, #e07a22); transform-origin: 0 50%; }
+  .nd { position: absolute; top: 0; width: 42px; height: 42px; margin-left: -21px; border-radius: 50%; background: var(--navy-deep); border: 6px solid; }
+  .ndl { position: absolute; top: 60px; width: 360px; margin-left: -180px; text-align: center; white-space: nowrap; }
+  .ndl .d { font: 700 28px var(--ui); color: #fff; }
+  .ndl .s { margin-top: 4px; font: 400 23px var(--ui); color: #8792ad; }
+  .colh { position: absolute; top: 400px; width: 520px; display: flex; align-items: baseline; gap: 16px; white-space: nowrap; }
+  .colh .n { font: 800 92px/1 var(--display); letter-spacing: -0.04em; display: inline-block; transform-origin: 30% 80%; min-width: 60px; }
+  .colh .l { font: 700 36px var(--ui); }
+  .colb { position: absolute; top: 508px; width: 520px; height: 7px; border-radius: 4px; transform-origin: 0 50%; }
+  .brow { position: absolute; left: 0; top: 0; width: 520px; height: 56px; border-radius: 12px; background: #fff; display: flex; align-items: center;
+    padding: 0 20px; gap: 14px; box-shadow: 0 16px 30px -18px rgb(0 0 0 / .7); white-space: nowrap; transform-origin: 50% 50%; }
+  .brow .t { font: 700 23px var(--ui); color: var(--ink); flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .brow .st { font: 400 19px var(--ui); color: #6b7280; }
+  .brow .dt { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+
+  #vig { pointer-events: none; background: radial-gradient(1300px 800px at 50% 50%, transparent 55%, rgb(0 0 0 / .45) 100%); }
+  #flash { pointer-events: none; background: #fff8e8; opacity: 0; }
+  #grain { mix-blend-mode: overlay; opacity: .09; pointer-events: none; }
+  #hud { position: fixed; left: 12px; bottom: 10px; font: 12px var(--mono); color: #777; z-index: 9; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" class="full" width="1920" height="1080"></canvas>
+  <div id="world">
+    <!-- 1 · files have versions -->
+    <div class="scene" id="s1">
+      <div id="docs"></div>
+      <div class="head" id="h1" style="top:640px;font-size:132px"></div>
+    </div>
+    <!-- 2 · compliance evidence should too -->
+    <div class="scene" id="s2">
+      <div id="orbit"></div>
+      <div class="head" id="h2a" style="top:380px;font-size:150px"></div>
+      <div class="head" id="h2b" style="top:560px;font-size:150px;color:var(--cream)"></div>
+      <div class="abs" id="seed"></div>
+    </div>
+    <!-- 3 · lockup (drop and outro) -->
+    <div class="scene" id="s3">
+      <svg class="abs" id="owlA" viewBox="0 0 64 64"></svg>
+      <div class="abs" id="wm"></div>
+      <div class="abs" id="tag"></div>
+      <div class="abs" id="built"><span class="lbl">Built on</span>
+        <span class="pill" id="p1"><b style="background:#0061d5"></b>Box</span>
+        <span class="pill" id="p2"><b style="background:#ff9900"></b>Amazon Bedrock</span>
+        <span class="pill" id="p3"><b style="background:#7a6f8e"></b>Strands Agents</span>
+      </div>
+    </div>
+    <div class="scene full" id="blue" style="background:var(--box)"></div>
+    <!-- 4 · a new version lands in Box -->
+    <div class="scene" id="s4">
+      <div class="paper"></div>
+      <div class="cap" id="cap4"><div class="kicker">Project Lantern · Security Review Package</div><div class="h"></div></div>
+      <div class="card" id="folder">
+        <div class="bar">
+          <div class="wordmark"><svg viewBox="0 0 64 64" width="48" height="48" id="owlM"></svg>Keel</div>
+          <div class="search">Search files and folders</div>
+          <div class="avatar" style="left:1530px;top:20px;width:52px;height:52px">D</div>
+        </div>
+        <div class="crumbs">All Projects &nbsp;›&nbsp; Project Lantern &nbsp;›&nbsp; <b>Security Review Package</b></div>
+        <div class="btn primary" style="left:1200px;top:112px;width:170px">New ⌄</div>
+        <div class="btn ghost" id="upBtn" style="left:1390px;top:112px;width:180px">Upload ⌄</div>
+        <div class="thead"><span style="left:82px">Name</span><span style="left:820px">Updated</span><span style="left:1250px">Version</span><span style="left:1380px">Size</span></div>
+        <div id="rows"></div>
+        <div class="abs" id="menu"><div><span class="hi" id="mhi"></span><span style="position:relative">Upload files</span></div><div id="mi2"><span class="hi" id="mhi2"></span><span style="position:relative">Upload new version</span></div></div>
+      </div>
+      <div class="abs" id="scan"></div>
+      <div class="dock" id="dock" style="left:1700px;top:880px"><svg viewBox="0 0 64 64" id="owlB"></svg><div class="badge" id="badge">2</div>
+        <div class="bubble" id="bub1">Re-checking 8 controls on Bedrock…</div>
+        <div class="bubble" id="bub2">1 Critical needs your decision.</div>
+      </div>
+      <svg class="cursor" id="cur4" viewBox="0 0 22 28"><path d="M1 1v21l5.5-5.2 3.6 8.4 3.6-1.5-3.5-8.2H18L1 1Z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </div>
+    <!-- 5 · what changed -->
+    <div class="scene" id="s5">
+      <div class="ctl" id="ctl"><span class="id" id="cid"></span><span class="t" id="ctt"></span>
+        <span class="tagc" id="sev" style="background:#3a1d22;color:#ff8a7d;border:1px solid #7a3a36">Critical</span>
+        <span class="tagc" id="std" style="background:#1f2a44;color:#c9d3ea;border:1px solid #33415f;font-family:var(--mono)">IS-STD-014 §5.1 · Bank standard</span></div>
+      <div class="blk" id="agreed" style="top:250px"><div class="bar2" style="background:#4d8cff"></div>
+        <div class="lab2" style="color:#7fa8ff">Agreed</div><div class="sent" id="sentA"></div>
+        <div class="meta" id="metaA">Verified by Priya Natarajan · v2 §4.3 · Oct 8</div></div>
+      <div class="blk" id="changed" style="top:660px"><div class="bar2" style="background:var(--beak)"></div>
+        <div class="lab2" style="color:#ffb547">Changed in architecture.md v3 §4.3</div><div class="sent" id="sentB"></div></div>
+      <div id="falls"></div>
+      <div id="verdict"><div class="big"><em id="vn">4</em> of 5</div><div class="sub">clauses unsupported in every file of this snapshot.</div>
+        <div class="sub2">Box AI found 0 citations across the other 4 files</div></div>
+    </div>
+    <div class="scene" id="stripes">
+      <div class="stripe" style="background:var(--box)"></div><div class="stripe" style="background:#ffb547"></div><div class="stripe" style="background:var(--cream)"></div>
+    </div>
+    <!-- 6 · a named reviewer decides -->
+    <div class="scene" id="s6">
+      <div id="s6in">
+        <div class="paper"></div>
+        <div class="cap" id="cap6"><div class="kicker">Box task · review</div><div class="h"></div></div>
+        <div class="abs" id="rev"><div class="avatar">D</div><div class="nmx">Dana Okafor</div><div class="role">Reviewer · Meridian Trust Bank</div></div>
+        <div class="card" id="panel"><div class="tt">Encryption at rest and key management</div>
+          <div class="vl">4 of 5 clauses unsupported in every file of this snapshot. Box AI found 0 citations across the other 4 files.</div>
+          <div class="btn primary" id="retBtn" style="left:46px;top:236px;width:450px;height:72px;font-size:28px">Return to author<span class="ripple" id="rip"></span></div>
+          <div class="btn off" id="verBtn" style="left:516px;top:236px;width:450px;height:72px;font-size:28px">Verify</div>
+        </div>
+        <div class="abs" id="tip">No document in this package supports it</div>
+        <div class="abs" id="receipt"><div class="r1"><svg width="34" height="34" viewBox="0 0 20 20"><path d="M8 5 3.5 9.5 8 14M4 9.5h8a4.5 4.5 0 0 1 0 9" fill="none" stroke="#1b3784" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Returned to author by Dana Okafor</div>
+          <div class="r2">Bound to architecture.md v3 · snapshot S4 · Oct 17</div><div class="r3">Box task sent to the author · ledger #14</div></div>
+        <div id="ledger"></div>
+        <div class="abs" id="intact">✓ APPEND-ONLY LEDGER · HASH CHAIN INTACT</div>
+        <svg class="cursor" id="cur6" viewBox="0 0 22 28"><path d="M1 1v21l5.5-5.2 3.6 8.4 3.6-1.5-3.5-8.2H18L1 1Z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      </div>
+      <div id="freeze"></div>
+    </div>
+    <!-- 7 · the board -->
+    <div class="scene" id="s7">
+      <div id="s7in">
+        <div class="cap dark" id="cap7"><div class="kicker">Control review · Project Lantern</div><div class="h"></div></div>
+        <div class="abs" id="tl"><div class="ln"></div></div>
+        <div id="cols"></div>
+        <div id="brows"></div>
+      </div>
+    </div>
+    <div class="scene" id="s8"><div id="ftext"></div></div>
+  </div>
+  <canvas id="fx" class="full" width="1920" height="1080"></canvas>
+  <div id="flash" class="full"></div>
+  <div id="vig" class="full"></div>
+  <canvas id="grain" class="full" width="480" height="270"></canvas>
+</div>
+<div id="hud"></div>
+<script src="cues.js"></script>
+<script>
+(() => {
+const C = window.CUES, BT = C.beat, DURATION = 30;
+const T = (bar, beat = 0, six = 0) => (bar * 4 + beat + six / 4) * BT;
+window.DURATION = DURATION;
+
+// ------------------------------------------------------------------ math
+const cl = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
+const P = (t, t0, d) => cl((t - t0) / d);
+const lerp = (a, b, p) => a + (b - a) * p;
+const E = {
+  outExpo: p => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p)),
+  inExpo: p => (p <= 0 ? 0 : Math.pow(2, 10 * p - 10)),
+  inOutExpo: p => (p <= 0 ? 0 : p >= 1 ? 1 : p < 0.5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2),
+  outCubic: p => 1 - Math.pow(1 - p, 3),
+  inCubic: p => p * p * p,
+  inOutCubic: p => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
+  outQuint: p => 1 - Math.pow(1 - p, 5),
+  outBack: (p, s = 1.9) => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2),
+  inBack: (p, s = 1.7) => (s + 1) * p * p * p - s * p * p,
+};
+/** Damped spring from 0 to 1, x seconds after release. f is the natural frequency in Hz, z the damping ratio. */
+function spring(x, f = 2.6, z = 0.5) {
+  if (x <= 0) return 0;
+  const w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * x) * (Math.cos(wd * x) + ((z * w) / wd) * Math.sin(wd * x));
+}
+/** Spring velocity in units per second; drives squash and stretch. */
+const springV = (x, f, z) => (x <= 0 ? 0 : (spring(x + 0.004, f, z) - spring(x, f, z)) / 0.004);
+const bump = (x, d = 0.25) => (x < 0 || x > d ? 0 : Math.sin((x / d) * Math.PI));
+const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+function lastIdx(arr, t) { let lo = 0, hi = arr.length - 1, r = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (arr[m] <= t) { r = m; lo = m + 1; } else hi = m - 1; } return r; }
+const envOf = (arr, t, tau) => { const i = lastIdx(arr, t); return i < 0 ? 0 : Math.exp(-(t - arr[i]) / tau); };
+const kick = t => envOf(C.kick, t, 0.12);
+const clapE = t => envOf(C.clap, t, 0.1);
+
+// ------------------------------------------------------------------ dom
+const $ = id => document.getElementById(id);
+function tf(el, o) {
+  let s = `translate3d(${(o.x || 0).toFixed(2)}px,${(o.y || 0).toFixed(2)}px,0)`;
+  if (o.r) s += ` rotate(${o.r.toFixed(3)}deg)`;
+  if (o.rx) s += ` rotateX(${o.rx.toFixed(3)}deg)`;
+  if (o.ry) s += ` rotateY(${o.ry.toFixed(3)}deg)`;
+  if (o.kx) s += ` skewX(${o.kx.toFixed(3)}deg)`;
+  const sc = o.s ?? 1;
+  s += ` scale(${(sc * (o.sx ?? 1)).toFixed(4)},${(sc * (o.sy ?? 1)).toFixed(4)})`;
+  el.style.transform = s;
+  if (o.o !== undefined) el.style.opacity = cl(o.o).toFixed(3);
+  const f = o.blur > 0.15 ? `blur(${o.blur.toFixed(2)}px)` : "";
+  if (el._f !== f) { el.style.filter = f; el._f = f; }
+}
+const show = (el, on) => { const d = on ? "" : "none"; if (el._d !== d) { el.style.display = on ? "block" : "none"; el._d = d; } };
+function words(el, text, cls = "", prefix = "") {
+  el.innerHTML = (prefix ? `<span class="w"><span class="wi">${prefix}</span></span>` : "") + text.split(" ").map(w => `<span class="w"><span class="wi ${cls}">${w}</span></span>`).join('<span class="sp"></span>');
+  return [...el.querySelectorAll(".wi")];
+}
+function chars(el, text) {
+  el.innerHTML = [...text].map(c => `<span class="wl">${c}</span>`).join("");
+  return [...el.querySelectorAll(".wl")];
+}
+/** Word rise: masked slide up with spring overshoot and a little blur, and an optional exit. */
+function rise(ws, t, t0, stagger, { tout = 1e9, dy = 1.15, f = 2.4, z = 0.55, rot = 7 } = {}) {
+  ws.forEach((w, i) => {
+    const x = t - t0 - i * stagger, p = spring(x, f, z);
+    const q = E.inExpo(P(t, tout + i * 0.025, 0.28));
+    tf(w, { y: (1 - p) * dy * 100 - q * 140, r: (1 - p) * rot, o: cl(x * 8) * (1 - q), blur: (1 - cl(p)) * 6 + q * 8 });
+  });
+}
+
+// ------------------------------------------------------------------ owl, drawn as parts
+const NAVY = "#1F2A44", NAVY_DARK = "#172036", CREAM = "#FFF4D6", BLUE = "#0061D5", BLUE_DARK = "#004CA8", BEAK = "#E9A23B";
+const fb = 'style="transform-box:fill-box;transform-origin:50% 50%"';
+function owlSVG(p) {
+  const eye = (cx, k) => `<g id="${p}e${k}" ${fb}>
+      <circle cx="${cx}" cy="31" r="6.2" fill="#fff" stroke="#E9DDBA" stroke-width=".8"/>
+      <g id="${p}pp${k}"><circle cx="${cx}" cy="31" r="3" fill="${NAVY}"/><circle cx="${cx + 1}" cy="29.9" r=".9" fill="#fff"/></g>
+      <ellipse id="${p}lid${k}" cx="${cx}" cy="31" rx="6.9" ry="6.9" fill="${NAVY}" style="transform-box:fill-box;transform-origin:50% 0%;transform:scaleY(0)"/></g>`;
+  return `<g id="${p}all" ${fb}>
+    <ellipse id="${p}wl" cx="14.5" cy="42" rx="4.5" ry="11" fill="${NAVY_DARK}" style="transform-box:fill-box;transform-origin:70% 20%"/>
+    <ellipse id="${p}wr" cx="49.5" cy="42" rx="4.5" ry="11" fill="${NAVY_DARK}" style="transform-box:fill-box;transform-origin:30% 20%"/>
+    <g id="${p}body" style="transform-box:fill-box;transform-origin:50% 100%">
+      <path d="M14 27C14 15.5 22 10 32 10s18 5.5 18 17v16.5C50 53.5 42 59 32 59s-18-5.5-18-15.5V27Z" fill="${NAVY}"/>
+      <g id="${p}belly" ${fb}><ellipse cx="32" cy="48.5" rx="9.5" ry="8" fill="#2A3A5F"/>
+      <path d="M27.5 46.5l2 1.6 2-1.6M32.5 46.5l2 1.6 2-1.6M30 50.5l2 1.6 2-1.6" stroke="${CREAM}" stroke-opacity=".45" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+    </g>
+    <path id="${p}feet" d="M27 58.5h3.5M33.5 58.5H37" stroke="${BEAK}" stroke-width="2" stroke-linecap="round" ${fb}/>
+    <g id="${p}head" ${fb}>
+      <path id="${p}face" d="M32 24.5c-2-2.6-5-4-8-4a10.5 10.5 0 1 0 8 17.4 10.5 10.5 0 1 0 8-17.4c-3 0-6 1.4-8 4Z" fill="${CREAM}" ${fb}/>
+      ${eye(24.5, 0)}${eye(39.5, 1)}
+      <path id="${p}beak" d="M29.6 36.2h4.8L32 40.6Z" fill="${BEAK}" style="transform-box:fill-box;transform-origin:50% 0%"/>
+    </g>
+    <g id="${p}cap" style="transform-box:fill-box;transform-origin:0% 100%">
+      <path d="M19 18.5c0-7.5 5.8-11 13-11s13 3.5 13 11Z" fill="${BLUE}"/>
+      <rect x="17" y="16.4" width="30" height="4.2" rx="2.1" fill="${BLUE_DARK}"/>
+      <path d="M21 20.4c3.6 2.4 7.3 3.2 11 3.2s7.4-.8 11-3.2Z" fill="${BLUE_DARK}"/>
+      <circle id="${p}btn" cx="32" cy="12.6" r="1.8" fill="${CREAM}" ${fb}/>
+    </g></g>`;
+}
+function owlParts(svg, p) {
+  svg.innerHTML = owlSVG(p);
+  const g = k => svg.querySelector("#" + p + k);
+  return { all: g("all"), wl: g("wl"), wr: g("wr"), body: g("body"), belly: g("belly"), feet: g("feet"), head: g("head"), face: g("face"),
+    e: [g("e0"), g("e1")], pp: [g("pp0"), g("pp1")], lid: [g("lid0"), g("lid1")], beak: g("beak"), cap: g("cap"), btn: g("btn") };
+}
+function owlLook(o, t, { blinks = [], px = 0, py = 0, eyeS = 1 }) {
+  let lid = 0;
+  for (const b of blinks) lid = Math.max(lid, bump(t - b, 0.16));
+  o.lid.forEach(l => (l.style.transform = `scaleY(${lid.toFixed(3)})`));
+  o.pp.forEach(pp => (pp.style.transform = `translate(${px.toFixed(3)}px,${py.toFixed(3)}px)`));
+  o.e.forEach(e => (e.style.transform = `scale(${eyeS.toFixed(3)})`));
+}
+
+// ------------------------------------------------------------------ build
+const docData = [["v1", ""], ["v2", "blue"], ["v3", "amber"]];
+const FILE_ICON = `<svg viewBox="0 0 32 32"><path d="M8 3h11l7 7v17a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="#FFFFFF" stroke="#C7CDD6" stroke-width=".6"/>
+  <path d="M19 3v5a2 2 0 0 0 2 2h5" fill="#EEF1F5" stroke="#C7CDD6" stroke-width=".6" stroke-linejoin="round"/>
+  <rect x="10" y="14" width="12" height="1.6" rx=".8" fill="#4B6A9B"/><rect x="10" y="18" width="12" height="1.6" rx=".8" fill="#9AABC4"/><rect x="10" y="22" width="8" height="1.6" rx=".8" fill="#9AABC4"/></svg>`;
+$("docs").innerHTML = docData.map(([v, c], i) => `<div class="doc" id="doc${i}">${FILE_ICON}<div class="lab">architecture.md <span class="vpill ${c}">${v}</span></div></div>`).join("");
+const docs = [0, 1, 2].map(i => $("doc" + i));
+const h1w = words($("h1"), "Files have versions.");
+h1w[2].style.color = "var(--cream)";
+const h2w = [...words($("h2a"), "Compliance evidence"), ...words($("h2b"), "should too.")];
+
+const CHIPS = [["IS-STD-014 §5.1", "#4d8cff"], ["v2 §4.3", "#4d8cff"], ["SHA-256 9f2c…41ab", "#b7a6e3"], ["Verified by Priya", "#3ecf7a"],
+  ["ISO 27001:2022", "#4d8cff"], ["NIST CSF 2.0", "#4d8cff"], ["PCI DSS 4.0.1", "#4d8cff"], ["snapshot S4", "#b7a6e3"],
+  ["AES-256", "#ffb547"], ["Oct 7 · 8 verified", "#3ecf7a"], ["FFIEC IS", "#4d8cff"], ["GLBA/OCC", "#4d8cff"]];
+$("orbit").innerHTML = CHIPS.map(([t, c], i) => `<div class="chip" id="ch${i}"><i style="background:${c}"></i>${t}</div>`).join("");
+const chips = CHIPS.map((_, i) => $("ch" + i));
+
+const owlA = owlParts($("owlA"), "a");
+const owlB = owlParts($("owlB"), "b");
+owlParts($("owlM"), "m");
+const wmc = chars($("wm"), "Keel");
+$("tag").innerHTML = '<div id="tag1"></div><div id="tag2"></div>';
+const tag1 = words($("tag1"), "Know what changed,");
+// Rebuild line 2 by hand so "exact evidence." can carry the underline.
+$("tag2").innerHTML = ["and", "who", "reviewed", "that"].map(w => `<span class="w"><span class="wi">${w}</span></span>`).join('<span class="sp"></span>') +
+  '<span class="sp"></span><span class="hl" style="display:inline-block"><span class="w"><span class="wi">exact</span></span><span class="sp"></span><span class="w"><span class="wi">evidence.</span></span><span id="tagLine"></span></span>';
+const tag2w = [...$("tag2").querySelectorAll(".wi")];
+const pills = [$("p1"), $("p2"), $("p3")];
+
+// scene 4
+const ROWS = [
+  ["architecture.md", "Oct 7 by Kevin Lindqvist", "v2", "10 KB"],
+  ["data-flow-and-classification.md", "Oct 3 by Kevin Lindqvist", "v1", "5 KB"],
+  ["runbook.md", "Oct 12 by Kevin Lindqvist", "v2", "6 KB"],
+  ["vendor-contract-summary.md", "Oct 3 by Owen Pryce", "v1", "3 KB"],
+  ["approved-services-and-exceptions.md", "Oct 3 by Kevin Lindqvist", "v1", "3 KB"],
+];
+const ROW_ICON = FILE_ICON.replace(/stroke-width=".6"/g, 'stroke-width="1"');
+$("rows").innerHTML = ROWS.map(([n, u, v, s], i) => `<div class="row" id="r${i}" style="top:${252 + i * 86}px"><div class="fill" id="rf${i}"></div>${ROW_ICON}
+  <div class="nm">${n}${i === 0 ? '<span class="dot" id="adot" style="background:#f59e0b"></span>' : i === 2 ? '<span class="dot" id="bdot" style="background:#1f3f99"></span>' : ""}</div>
+  <span class="c up">${i === 0 ? `<span class="roll" id="u0a">${u}</span><span class="roll" id="u0b">Oct 17 by svc-confluence-export</span>` : u}</span>
+  <span class="c ver">${i === 0 ? '<span class="face" id="v0a">v2</span><span class="face" id="v0b">v3</span>' : `<span class="face">${v}</span>`}</span>
+  <span class="c sz">${s}</span></div>`).join("");
+const rows = ROWS.map((_, i) => $("r" + i));
+const cap4 = words($("cap4").querySelector(".h"), "A new version lands in Box.", "", '<span class="num">01</span>');
+
+// scene 5
+const SENT_A = [["All customer data at rest is"], ["encrypted", "AES-256"], ["using"], ["AWS KMS customer-managed keys,", "key model"],
+  ["rotated annually;", "rotation period"], ["key custodians", "key custodians"], ["are the Card Servicing Platform leads."]];
+let ha = "", cli = 0;
+for (const [txt, clause] of SENT_A) {
+  const ws = txt.split(" ").map(w => `<span class="w"><span class="wi">${w}</span></span>`).join('<span class="sp"></span>');
+  ha += clause ? `<span class="cl" id="cl${cli++}" data-c="${clause}"><span class="hlb"></span>${ws}<span class="strike"></span></span><span class="sp"></span>` : ws + '<span class="sp"></span>';
+}
+$("sentA").innerHTML = ha;
+const sentAw = [...$("sentA").querySelectorAll(".wi")];
+const clauses = [0, 1, 2, 3].map(i => $("cl" + i));
+const SENT_B = "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.".split(" ");
+$("sentB").innerHTML = SENT_B.map((w, i) => `<span class="w chw"><span class="wi">${w}</span>${i >= 3 ? '<span class="ul"></span>' : ""}</span>`).join('<span class="sp"></span>');
+const sentBw = [...$("sentB").querySelectorAll(".wi")];
+const uls = [...$("sentB").querySelectorAll(".ul")];
+$("falls").innerHTML = clauses.map((c, i) => `<div class="fall" id="fa${i}">✕ ${c.dataset.c}</div>`).join("");
+const falls = [0, 1, 2, 3].map(i => $("fa" + i));
+const cidc = chars($("cid"), "SEC-ARCH-07");
+const cttw = words($("ctt"), "Encryption at rest and key management");
+
+// scene 6
+const cap6 = words($("cap6").querySelector(".h"), "A named reviewer decides.", "", '<span class="num">02</span>');
+const LEDGER = [["snapshot S4", "sha256 9f2c…41ab"], ["evaluation", "sha256 e71d…0c93"], ["disposition", "sha256 4ab0…d218"], ["Box task", "sha256 c55e…7f04"]];
+$("ledger").innerHTML = LEDGER.map(([a, b], i) => `<div class="lg" id="lg${i}" style="left:${150 + i * 410}px"><div class="a">${a}</div><div class="b" id="lgh${i}">${b}</div></div>` +
+  (i ? `<div class="lnk" id="lk${i}" style="left:${150 + i * 410 - 110}px;width:110px"></div>` : "")).join("");
+const fl = $("ftext");
+fl.innerHTML = '<div id="fl1"></div><div id="fl2"></div>';
+const fch1 = chars($("fl1"), "The machine never");
+const fch2 = chars($("fl2"), "turns anything green.");
+fch2.slice(14, 19).forEach(c => c.classList.add("g"));
+const fchs = [...fch1, ...fch2];
+fchs.forEach(c => { if (c.textContent === " ") c.classList.add("ch"); });
+
+// scene 7
+const cap7 = words($("cap7").querySelector(".h"), "Every decision, bound to the version it saw.", "", '<span class="num">03</span>');
+const TL = [["Oct 3", "baseline", "#8a93a6"], ["Oct 7", "8 verified", "#3b6fe0"], ["Oct 12", "runbook v2 · holds", "#12b38a"], ["Oct 17", "architecture v3 · 2 need you", "#e07a22"]];
+$("tl").innerHTML += TL.map(([d, s, c], i) => `<div class="nd" id="nd${i}" style="left:${(i * 1320) / 3}px;border-color:${c}"></div><div class="ndl" id="ndl${i}" style="left:${(i * 1320) / 3}px"><div class="d">${d}</div><div class="s">${s}</div></div>`).join("");
+const COLS = [["Need you", "#f08a24"], ["Recorded", "#5b8cff"], ["Hold", "#22b07d"]];
+const COLX = [150, 710, 1270];
+$("cols").innerHTML = COLS.map(([l, c], i) => `<div class="colh" id="ch_${i}" style="left:${COLX[i]}px"><span class="n" id="cn${i}" style="color:${c}">0</span><span class="l" style="color:${c}">${l}</span></div>
+  <div class="colb" id="cb${i}" style="left:${COLX[i]}px;background:${c}"></div>`).join("");
+const BROWS = ["Encryption and key management", "Least privilege and break-glass", "Recovery targets and rollback", "Approved services only",
+  "Data classification per store", "MFA via enterprise IdP", "Security events to SIEM", "Third-party risk assessment"];
+$("brows").innerHTML = BROWS.map((n, i) => `<div class="brow" id="br${i}"><span class="dt" id="bd${i}"></span><span class="t">${n}</span><span class="st" id="bs${i}">Verified, holds</span></div>`).join("");
+const brows = BROWS.map((_, i) => $("br" + i));
+
+// ------------------------------------------------------------------ measurements (taken once, unscaled)
+const M = {};
+function measure() {
+  document.querySelectorAll(".scene").forEach(s => (s.style.display = "block"));
+  const st = $("stage").getBoundingClientRect();
+  const rc = el => { const r = el.getBoundingClientRect(); return { x: r.left - st.left + r.width / 2, y: r.top - st.top + r.height / 2, w: r.width, h: r.height }; };
+  M.h2 = h2w.map(w => rc(w));
+  M.clauses = clauses.map(c => rc(c.getClientRects ? c : c));
+  M.clauseFirst = clauses.map(c => { const r = c.getClientRects()[0]; return { x: r.left - st.left, y: r.top - st.top }; });
+  M.adot = rc($("adot"));
+  M.up = rc($("upBtn"));
+  M.mi2 = rc($("mi2"));
+  M.row0 = rc(rows[0]);
+  M.ret = rc($("retBtn"));
+  M.ver = rc($("verBtn"));
+  M.receipt = rc($("receipt"));
+  M.fch = fchs.map(c => rc(c));
+  M.vn = rc($("vn"));
+  document.querySelectorAll(".scene").forEach(s => (s.style.display = "none"));
+  document.querySelectorAll(".scene").forEach(s => (s._d = "none"));
+}
+
+// ------------------------------------------------------------------ canvases
+const bg = $("bg").getContext("2d"), fx = $("fx").getContext("2d");
+const grainC = $("grain").getContext("2d");
+const grains = [];
+for (let k = 0; k < 8; k++) {
+  const id = grainC.createImageData(480, 270);
+  for (let i = 0; i < id.data.length; i += 4) { const v = hash(i * 0.37 + k * 911.3) * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+  grains.push(id);
+}
+const IMPACTS = C.impact;
+const ringsAt = [];
+const bursts = [];
+
+const DOTS = [];
+for (let y = 24; y < 1080; y += 46) for (let x = 24; x < 1920; x += 46) DOTS.push([x, y]);
+
+function drawBg(t) {
+  const g = bg.createRadialGradient(960, 480, 80, 960, 540, 1250);
+  const k = kick(t);
+  const lift = (t > T(4) && t < T(6)) || t > T(12) ? 0.06 * k : 0.02 * k;
+  g.addColorStop(0, `rgb(${36 + lift * 200},${50 + lift * 220},${84 + lift * 300})`);
+  g.addColorStop(0.55, "#121b30");
+  g.addColorStop(1, "#070b15");
+  bg.fillStyle = g;
+  bg.fillRect(0, 0, 1920, 1080);
+
+  // lighthouse beams, from the owl
+  const beam = (t > T(4) - 0.02 && t < T(6) + 0.1) ? cl((t - T(4)) * 3) : t > T(15) - 0.02 ? cl((t - T(15)) * 3) * (1 - P(t, 29.6, 0.4)) : (t > T(14) && t < T(14, 3.5)) ? P(t, T(14), BT * 3.5) : 0;
+  if (beam > 0) {
+    const ox = t > T(14) && t < T(15) ? 960 : 960 + lerp(0, -390, spring(t - (t > T(15) ? T(15) - 1 : T(4, 2)), 2.2, 0.6)), oy = t > T(14) && t < T(15) ? 540 : 450;
+    const spin = t * 0.55 + (t > T(14) && t < T(15) ? Math.pow(P(t, T(14), BAR()), 3) * 9 : 0);
+    const cg = bg.createConicGradient(spin, ox, oy);
+    const a = (0.1 + 0.12 * k) * beam;
+    for (let i = 0; i < 3; i++) {
+      const b = i / 3;
+      cg.addColorStop(b, "rgba(255,244,214,0)");
+      cg.addColorStop(b + 0.03, `rgba(255,236,190,${a})`);
+      cg.addColorStop(b + 0.06, "rgba(255,244,214,0)");
+    }
+    cg.addColorStop(1, "rgba(255,244,214,0)");
+    bg.fillStyle = cg;
+    bg.fillRect(0, 0, 1920, 1080);
+    const hg = bg.createRadialGradient(ox, oy, 0, ox, oy, 520);
+    hg.addColorStop(0, `rgba(0,97,213,${0.35 * beam})`);
+    hg.addColorStop(1, "rgba(0,97,213,0)");
+    bg.fillStyle = hg;
+    bg.fillRect(0, 0, 1920, 1080);
+  }
+
+  // dot field: ripples from every impact and kick; warp streaks into the final build
+  const warp = t > T(14) && t < T(14, 3.5) ? Math.pow(P(t, T(14), BT * 3.5), 2.2) : 0;
+  const fadeIn = cl(t / 1.2);
+  const ripples = [];
+  for (const ti of IMPACTS) if (t > ti && t < ti + 1.6) ripples.push([ti, 2200, 1]);
+  const ki = lastIdx(C.kick, t);
+  if (ki >= 0 && t - C.kick[ki] < 0.6) ripples.push([C.kick[ki], 1500, 0.35]);
+  for (const ti of C.tick) if (t > ti && t < ti + 0.5 && t < T(2)) ripples.push([ti, 900, 0.25]);
+  bg.lineCap = "round";
+  for (const [x, y] of DOTS) {
+    const dx = x - 960, dy = y - 540, d = Math.hypot(dx, dy);
+    let b = 0.11 + 0.12 * Math.max(0, 1 - d / 1100);
+    let push = 0;
+    for (const [ti, speed, amp] of ripples) {
+      const r = (t - ti) * speed, w = Math.exp(-Math.pow((d - r) / 60, 2)) * amp * Math.exp(-(t - ti) * 2.2);
+      b += w * 0.9; push += w * 14;
+    }
+    b *= fadeIn;
+    const ux = dx / (d || 1), uy = dy / (d || 1);
+    const px = x + ux * push, py = y + uy * push;
+    if (warp > 0) {
+      const z = 1 + warp * 3.2, len = 6 + warp * 160 * (d / 900);
+      const wx = 960 + dx * z, wy = 540 + dy * z;
+      bg.strokeStyle = `rgba(200,215,255,${cl(b * (1 + warp * 2))})`;
+      bg.lineWidth = 2.4;
+      bg.beginPath(); bg.moveTo(wx, wy); bg.lineTo(wx - ux * len, wy - uy * len); bg.stroke();
+    } else {
+      bg.fillStyle = `rgba(190,205,240,${cl(b)})`;
+      bg.beginPath(); bg.arc(px, py, 1.9 + b * 1.6, 0, 6.283); bg.fill();
+    }
+  }
+}
+const BAR = () => BT * 4;
+
+function drawFx(t) {
+  fx.clearRect(0, 0, 1920, 1080);
+  for (const r of ringsAt) {
+    const x = t - r.t;
+    if (x < 0 || x > r.d) continue;
+    const p = E.outExpo(x / r.d);
+    fx.strokeStyle = r.c.replace("A", (1 - x / r.d).toFixed(3));
+    fx.lineWidth = r.w * (1 - p) + 1;
+    fx.beginPath(); fx.arc(r.x, r.y, r.r * p, 0, 6.283); fx.stroke();
+  }
+  for (const b of bursts) {
+    const x = t - b.t;
+    if (x < 0 || x > b.life) continue;
+    for (let i = 0; i < b.n; i++) {
+      const a = hash(i + b.seed) * 6.283, sp = b.speed * (0.35 + hash(i * 3.1 + b.seed) * 0.9), life = b.life * (0.45 + 0.55 * hash(i * 7.7 + b.seed));
+      if (x > life) continue;
+      const k = 5.5, dist = (sp * (1 - Math.exp(-k * x))) / k, dist0 = (sp * (1 - Math.exp(-k * Math.max(0, x - 0.035)))) / k;
+      const gy = b.g * x * x, gy0 = b.g * Math.max(0, x - 0.035) ** 2;
+      const px = b.x + Math.cos(a) * dist, py = b.y + Math.sin(a) * dist + gy;
+      const qx = b.x + Math.cos(a) * dist0, qy = b.y + Math.sin(a) * dist0 + gy0;
+      const fade = 1 - x / life;
+      fx.strokeStyle = b.cols[i % b.cols.length].replace("A", fade.toFixed(3));
+      fx.lineWidth = b.w * (0.5 + hash(i * 1.3 + b.seed)) * fade + 0.5;
+      fx.lineCap = "round";
+      fx.beginPath(); fx.moveTo(qx, qy); fx.lineTo(px, py); fx.stroke();
+    }
+  }
+}
+
+// ------------------------------------------------------------------ scenes
+function scene1(t) {
+  const on = t < T(2) + 0.4;
+  show($("s1"), on);
+  if (!on) return;
+  const X = [-330, 0, 330], Y = [30, -10, 30], R = [-9, 0, 9], R0 = [-40, 18, 40];
+  const wordT = [T(1, 0), T(1, 1), T(1, 2)];
+  docs.forEach((d, i) => {
+    const x = t - T(0, i), p = spring(x, 2.3, 0.48), v = springV(x, 2.3, 0.48);
+    let hop = 0;
+    for (const wt of wordT) hop += -30 * bump(t - wt - i * 0.04, 0.3);
+    hop += -50 * bump(t - T(1, 3) - i * 0.05, 0.36);
+    const q = E.inExpo(P(t, T(2) - 0.16, 0.3));
+    const st = cl(v / 9, -0.25, 0.25);
+    tf(d, { x: lerp(X[i] * 0.2, X[i], p) + (X[i] * 3.5 + (i - 1) * 300) * q, y: lerp(560, Y[i], p) + hop - (i === 1 ? 500 : 120) * q,
+      r: lerp(R0[i], R[i], p) + R[i] * 4 * q, s: lerp(0.5, 1, p) * (1 + 0.4 * q), sx: 1 - st * 0.4, sy: 1 + st, o: cl(x * 6) * (1 - q), blur: q * 24 });
+  });
+  rise(h1w, t, T(1) - 0.06, BT, { tout: T(2) - 0.18, f: 2.6, z: 0.5 });
+}
+
+function scene2(t) {
+  const on = t > T(2) - 0.12 && t < T(4) + 0.02;
+  show($("s2"), on);
+  if (!on) return;
+  const k = kick(t);
+  const coll = E.inBack(P(t, T(3, 2.4), BT * 0.6), 2.2);
+  h2w.forEach((w, i) => {
+    const t0 = T(2, i) - 0.03, p = E.outExpo(P(t, t0, 0.38));
+    const m = M.h2[i];
+    const c = E.inExpo(P(t, T(3, 2.3) + i * 0.035, BT * 0.6));
+    tf(w, { s: lerp(2.4, 1, p) * (1 + 0.045 * k) * (1 - c), x: (960 - m.x) * c, y: (540 - m.y) * c, r: (1 - p) * -6 + c * 30 * (i % 2 ? 1 : -1),
+      o: cl((t - t0) * 14) * (1 - cl(c * 1.4 - 0.4)), blur: (1 - p) * 16 + c * 10 });
+  });
+  const tt = t - T(2);
+  const roll = P(t, T(3), BT * 3);
+  const theta0 = tt * 0.55 + Math.pow(roll, 2.2) * 7;
+  chips.forEach((ch, i) => {
+    const tin = T(2) + i * BT * 0.33, p = spring(t - tin, 2.2, 0.55);
+    const a = theta0 + (i / chips.length) * 6.283;
+    const rr = (1 - E.inExpo(P(t, T(3, 2), BT))) * lerp(0.4, 1, p);
+    const z = Math.sin(a);
+    const x = 960 + Math.cos(a) * 780 * rr, y = 520 + z * 330 * rr + (i % 2 ? -60 : 60) * rr;
+    const sc = (0.72 + 0.32 * (z + 1) / 2) * lerp(0.2, 1, p);
+    const speed = 0.55 + 15 * Math.pow(roll, 1.2);
+    tf(ch, { x: x - 150, y: y - 28, s: sc, o: cl((t - tin) * 5) * (0.35 + 0.65 * (z + 1) / 2) * (1 - P(t, T(3, 2.85), 0.1)), blur: (1 - (z + 1) / 2) * 3 + Math.min(10, speed * 0.4) * roll });
+    ch.style.zIndex = z > 0 ? 3 : 1;
+  });
+  const sp = spring(t - T(3, 3), 3, 0.35);
+  const sd = $("seed");
+  show(sd, t > T(3, 3) - 0.02 && t < T(4));
+  tf(sd, { s: sp * (1 + 0.25 * Math.sin(t * 40)) * (1 + P(t, T(3, 3), BT) * 0.6), x: Math.sin(t * 97) * 2 * P(t, T(3, 3), BT), y: Math.cos(t * 83) * 2 * P(t, T(3, 3), BT) });
+  void coll;
+}
+
+function lockup(t) {
+  const A = t > T(4) - 0.02 && t < T(6) + 0.08, B = t > T(15) - 0.02;
+  show($("s3"), A || B);
+  if (!(A || B)) return;
+  const k = kick(t);
+  const t0 = A ? T(4) : T(15);
+  const o = owlA;
+  // owl moves left as the wordmark lands
+  const mv = A ? spring(t - T(4, 2), 2.0, 0.62) : 1;
+  const pop = B ? spring(t - T(15), 1.8, 0.42) : 1, popV = B ? springV(t - T(15), 1.8, 0.42) : 0;
+  const stv = cl(popV / 14, -0.2, 0.2);
+  const exitA = A ? E.inExpo(P(t, T(6) - 0.32, 0.32)) : 0;
+  const float = Math.sin(t * 2.2) * 6;
+  tf($("owlA"), { x: lerp(0, -390, mv), y: float - 40 * mv + 40, s: lerp(1, 0.8, mv) * (B ? lerp(0.15, 1, pop) : 1) * (1 + 0.03 * k) * (1 + 0.25 * exitA),
+    sx: 1 - stv * 0.5, sy: 1 + stv });
+  // part assembly on the drop: each part flies in on a 16th, lands with squash
+  const parts = A ? [
+    [o.body, 0, { y: 60, sx: 0.4, sy: 1.7 }], [o.wl, 1, { x: -40, r: -80 }], [o.wr, 1, { x: 40, r: 80 }], [o.feet, 1, { y: 20 }],
+    [o.belly, 2, { s: 0 }], [o.face, 2, { s: 0, r: -30 }], [o.e[0], 3, { s: 0 }], [o.e[1], 3.5, { s: 0 }], [o.beak, 4, { y: -14, s: 0 }],
+    [o.cap, 6, { y: -70, r: -50, x: -20 }],
+  ] : [[o.body, 0, {}], [o.wl, 0, {}], [o.wr, 0, {}], [o.feet, 0, {}], [o.belly, 0, {}], [o.face, 0, {}], [o.e[0], 0, {}], [o.e[1], 0, {}], [o.beak, 0, {}], [o.cap, 1.5, { y: -40, r: -30 }]];
+  for (const [el, six, from] of parts) {
+    const x = t - t0 - six * BT / 4, p = spring(x, 3.1, 0.42), v = springV(x, 3.1, 0.42);
+    const st = cl(v / 16, -0.3, 0.3);
+    const s = from.s !== undefined ? lerp(from.s, 1, p) : 1;
+    const sx = from.sx !== undefined ? lerp(from.sx, 1, cl(p * 1.2)) : 1 - st * 0.5, sy = from.sy !== undefined ? lerp(from.sy, 1, cl(p * 1.2)) : 1 + st;
+    el.style.transform = `translate(${((from.x || 0) * (1 - p)).toFixed(3)}px,${((from.y || 0) * (1 - p)).toFixed(3)}px) rotate(${((from.r || 0) * (1 - p)).toFixed(3)}deg) scale(${(s * sx).toFixed(4)},${(s * sy).toFixed(4)})`;
+    el.style.opacity = cl(x * 30);
+  }
+  // wings flap on kicks, cap tips on the claps
+  const flap = 14 * k;
+  o.wl.style.transform += ` rotate(${-flap}deg)`;
+  o.wr.style.transform += ` rotate(${flap}deg)`;
+  const tip = -16 * bump(t - (A ? T(5, 1) : T(15, 2)), 0.35);
+  o.cap.style.transform += ` rotate(${tip}deg)`;
+  // eyes: look toward the wordmark as it lands, blink after
+  const look = A ? lerp(0, 2.2, spring(t - T(4, 2.2), 2, 0.6)) - 2.2 * spring(t - T(5, 3), 2, 0.6) : lerp(0, 2, spring(t - T(15, 0.5), 2, 0.6)) - 2 * spring(t - T(15, 3), 2, 0.6);
+  const eyeS = 1 + 0.18 * bump(t - (A ? T(4, 1.5) : T(15, 1)), 0.3);
+  owlLook(o, t, { blinks: A ? [T(4, 3.5), T(5, 2.6)] : [T(15, 2.5)], px: look, eyeS });
+  o.btn.style.transform = `scale(${1 + 0.8 * envOf(C.clap, t, 0.12)})`;
+  if (A || B) {
+    const st = A ? T(4, 2) : T(15) + 0.05;
+    wmc.forEach((c, i) => {
+      const x = t - st - i * (A ? BT / 4 : 0.05), p = spring(x, 2.6, 0.5), v = springV(x, 2.6, 0.5);
+      const stretch = cl(v / 14, -0.25, 0.25);
+      tf(c, { x: (1 - p) * 320 + exitA * 400, kx: (1 - p) * -22, s: lerp(1.3, 1, cl(p)), sx: 1 + stretch, sy: 1 - stretch * 0.5, o: cl(x * 8) * (1 - exitA), blur: (1 - cl(p)) * 10 + exitA * 20 });
+    });
+    const tt1 = A ? T(5) : T(15, 0.6), tt2 = A ? T(5, 2) : T(15, 0.6) + 0.12;
+    rise(tag1, t, tt1, A ? BT / 2 : 0.04, { tout: A ? T(6) - 0.3 : 1e9 });
+    rise(tag2w, t, tt2, A ? BT / 4 : 0.04, { tout: A ? T(6) - 0.3 : 1e9 });
+    const ul = E.outExpo(P(t, A ? T(5, 3.25) : T(15, 1.6), 0.5)) * (1 - exitA);
+    $("tagLine").style.transform = `scaleX(${ul})`;
+  }
+  show($("built"), B);
+  if (B) pills.forEach((p, i) => {
+    const x = t - T(15, 1 + i * 0.5), q = spring(x, 2.6, 0.5);
+    tf(p, { y: (1 - q) * 60, s: lerp(0.6, 1, q), o: cl(x * 8) });
+  });
+  if (B) tf($("built").querySelector(".lbl"), { o: cl((t - T(15, 1)) * 5) });
+  const fade = B ? 1 - E.inCubic(P(t, 29.55, 0.45)) : 1;
+  $("s3").style.opacity = fade;
+}
+
+const CX = 570, CY = 437;
+function blueWipe(t) {
+  const on = t > T(6) - 0.34 && t < T(6) + 0.7;
+  show($("blue"), on);
+  if (!on) return;
+  const r = 2300 * E.inExpo(P(t, T(6) - 0.33, 0.33));
+  $("blue").style.clipPath = `circle(${r.toFixed(1)}px at ${CX}px ${CY}px)`;
+}
+
+function cursorAt(el, t, keys) {
+  // keys: [time, x, y, pressed?]
+  let x = keys[0][1], y = keys[0][2];
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, x1, y1] = keys[i], [t0, x0, y0] = keys[i - 1];
+    if (t >= t0) { const p = E.inOutCubic(P(t, t0, t1 - t0)); x = lerp(x0, x1, p); y = lerp(y0, y1, p); }
+  }
+  return { x, y };
+}
+
+function scene4(t) {
+  const on = t > T(6) - 0.02 && t < T(8) + 0.12;
+  show($("s4"), on);
+  if (!on) return;
+  const r = 2400 * E.outExpo(P(t, T(6) + 0.0, 0.62));
+  const zoom = E.inExpo(P(t, T(8) - 0.3, 0.32));
+  const s4 = $("s4");
+  s4.style.clipPath = r < 2390 ? `circle(${r.toFixed(1)}px at ${CX}px ${CY}px)` : "none";
+  s4.style.transformOrigin = `${M.row0.x - 300}px ${M.row0.y}px`;
+  tf(s4, { s: 1 + zoom * 5, o: 1 - P(t, T(8) - 0.08, 0.16), blur: zoom * 14 });
+  const k = kick(t);
+
+  const cp = spring(t - T(6) - 0.05, 2.0, 0.62), cv = springV(t - T(6) - 0.05, 2.0, 0.62);
+  tf($("folder"), { y: (1 - cp) * 160, s: lerp(0.84, 1, cp) * (1 + 0.004 * k), rx: (1 - cp) * 14, o: cl((t - T(6)) * 6) });
+  rise(cap4, t, T(6, 0.5), 0.06);
+  tf($("cap4").querySelector(".kicker"), { o: cl((t - T(6, 0.4)) * 5), x: (1 - E.outExpo(P(t, T(6, 0.4), 0.5))) * -40 });
+  rows.forEach((rw, i) => {
+    const x = t - T(6, 1) - i * BT / 4, p = spring(x, 2.5, 0.58), v = springV(x, 2.5, 0.58);
+    tf(rw, { x: (1 - p) * 560, kx: cl(-v * 1.2, -18, 18), o: cl(x * 6), blur: (1 - cl(p)) * 8 });
+  });
+  // the upload menu
+  const mOpen = spring(t - T(6, 3), 3, 0.55) * (1 - E.inExpo(P(t, T(7) + 0.08, 0.14)));
+  tf($("menu"), { s: lerp(0.7, 1, mOpen), sy: lerp(0.4, 1, mOpen), o: cl(mOpen * 3), y: (1 - mOpen) * -20 });
+  $("mhi2").style.opacity = P(t, T(6, 3.5), 0.15);
+  $("mhi").style.opacity = 0;
+  const press = (tt) => 1 - 0.08 * bump(t - tt, 0.18);
+  tf($("upBtn"), { s: press(T(6, 3)) });
+  // the new version lands
+  const vf = P(t, T(7), 0.32);
+  tf($("v0a"), { rx: -100 * E.inCubic(cl(vf * 2)), o: vf < 0.5 ? 1 : 0 });
+  tf($("v0b"), { rx: 100 * (1 - E.outBack(cl(vf * 2 - 1), 2.4)), o: vf >= 0.5 ? 1 : 0 });
+  const ur = E.outBack(P(t, T(7) + 0.05, 0.36), 2);
+  tf($("u0a"), { y: -36 * ur, o: 1 - ur });
+  tf($("u0b"), { y: 36 * (1 - ur), o: ur });
+  const dp = spring(t - T(7) - 0.06, 3.2, 0.35);
+  tf($("adot"), { s: dp * (1 + 0.3 * bump(t - T(7, 2), 0.2)) });
+  tf($("bdot"), { s: spring(t - T(6, 1.6), 3, 0.4) });
+  $("rf0").style.background = `rgba(252,241,216,${(0.9 * Math.exp(-Math.max(0, t - T(7)) * 1.4) * (t > T(7) ? 1 : 0)).toFixed(3)})`;
+  // scanner while the agent re-checks
+  const sc = P(t, T(7, 1), BT * 2);
+  show($("scan"), sc > 0 && sc < 1);
+  tf($("scan"), { y: 215 + 252 + lerp(-80, 5 * 86 - 40, E.inOutCubic(sc)), o: bump(sc, 1) * 1.4 });
+  for (let i = 1; i < 5; i++) {
+    const rowY = lerp(-80, 5 * 86 - 40, E.inOutCubic(sc)) + 100 - i * 86;
+    $("rf" + i).style.background = `rgba(234,238,250,${(sc > 0 && sc < 1 ? Math.exp(-Math.pow(rowY / 70, 2)) : 0).toFixed(3)})`;
+  }
+  // dock owl
+  const dk = spring(t - T(6, 2), 2.6, 0.45), dkv = springV(t - T(6, 2), 2.6, 0.45);
+  const dst = cl(dkv / 16, -0.25, 0.25);
+  const att = bump(t - T(7, 3), 0.4);
+  tf($("dock"), { s: dk * (1 + 0.04 * k), sx: 1 - dst * 0.5, sy: 1 + dst, y: -20 * att });
+  const working = t > T(7, 1) && t < T(7, 3);
+  const sweep = working ? 2.4 * Math.sin(((t - T(7, 1)) / BT) * Math.PI) : 0;
+  owlLook(owlB, t, { blinks: [T(6, 3.4), T(7, 3.6)], px: sweep, eyeS: 1 + 0.16 * att });
+  owlB.cap.style.transform = `rotate(${-16 * att}deg)`;
+  const b1 = spring(t - T(7, 1), 2.8, 0.5) * (1 - E.inBack(P(t, T(7, 3) - 0.1, 0.12)));
+  tf($("bub1"), { s: b1, o: cl(b1 * 4) });
+  const b2 = spring(t - T(7, 3), 2.8, 0.45);
+  tf($("bub2"), { s: b2, o: cl(b2 * 4) });
+  tf($("badge"), { s: spring(t - T(7, 3) - 0.05, 3.2, 0.35) });
+  // cursor: to Upload, click, to "Upload new version", click, away
+  const c = cursorAt(null, t, [[T(6, 1.5), 1500, 1160], [T(6, 2.85), M.up.x - 10, M.up.y + 8], [T(6, 3.4), M.up.x - 10, M.up.y + 8], [T(7) - 0.06, M.mi2.x - 20, M.mi2.y + 4], [T(7, 0.3), M.mi2.x - 20, M.mi2.y + 4], [T(7, 1.6), 1240, 1180]]);
+  const pr = 1 - 0.18 * (bump(t - T(6, 3), 0.16) + bump(t - T(7), 0.16));
+  tf($("cur4"), { x: c.x, y: c.y, s: pr, o: cl((t - T(6, 1.5)) * 6) });
+}
+
+function scene5(t) {
+  const on = t > T(8) - 0.1 && t < T(10) + 0.45;
+  show($("s5"), on);
+  if (!on) return;
+  const ent = E.outExpo(P(t, T(8) - 0.04, 0.55));
+  tf($("s5"), { s: lerp(1.7, 1, ent), o: cl((t - T(8) + 0.06) * 8), blur: (1 - ent) * 14 });
+  cidc.forEach((c, i) => tf(c, { o: cl((t - T(8) - i * 0.022) * 12), y: (1 - E.outBack(P(t, T(8) + i * 0.022, 0.3))) * 20 }));
+  rise(cttw, t, T(8) + 0.1, 0.035);
+  tf($("sev"), { s: spring(t - T(8, 0.8), 3, 0.4) });
+  tf($("std"), { s: spring(t - T(8, 1), 3, 0.45), o: cl((t - T(8, 1)) * 6) });
+
+  const dim = E.outExpo(P(t, T(9, 3), 0.25));
+  const blkA = $("agreed"), blkB = $("changed");
+  tf(blkA, { o: 1 - dim * 0.82, blur: dim * 4, s: 1 - dim * 0.04 });
+  tf(blkB, { o: (1 - dim * 0.82) * cl((t - T(9)) * 6), blur: dim * 4, s: 1 - dim * 0.04, y: (1 - E.outExpo(P(t, T(9) - 0.02, 0.5))) * 120 });
+  tf($("ctl"), { o: 1 - dim * 0.7 });
+  tf(blkA.querySelector(".bar2"), { sy: spring(t - T(8, 0.25), 2.4, 0.6) });
+  tf(blkA.querySelector(".lab2"), { o: cl((t - T(8, 0.25)) * 5), x: (1 - E.outExpo(P(t, T(8, 0.25), 0.4))) * -30 });
+  rise(sentAw, t, T(8, 0.5), 0.018);
+  tf($("metaA"), { o: cl((t - T(8, 1.6)) * 4), y: (1 - E.outExpo(P(t, T(8, 1.6), 0.4))) * 16 });
+  clauses.forEach((c, i) => {
+    const th = T(8, 2 + i * 0.5), tfail = T(9, 1 + i * 0.5);
+    const hl = c.firstElementChild;
+    const on2 = E.outExpo(P(t, th, 0.3));
+    const failed = t >= tfail;
+    hl.style.background = failed ? "rgba(224,87,75,.30)" : "rgba(77,140,255,.32)";
+    hl.style.transform = `scaleX(${on2}) scaleY(${1 + 0.25 * bump(t - th, 0.2) + 0.3 * bump(t - tfail, 0.2)})`;
+    c.querySelector(".strike").style.transform = `scaleX(${E.outExpo(P(t, tfail, 0.22))})`;
+    c.querySelectorAll(".wi").forEach(w => (w.style.color = failed ? "#ffb4ab" : ""));
+    const fa = falls[i], x = t - tfail;
+    const m = M.clauseFirst[i];
+    if (x < 0 || x > 1.4) { fa.style.display = "none"; return; }
+    fa.style.display = "block";
+    const vx = (i % 2 ? 1 : -1) * (120 + 60 * i), vy = -650;
+    const pp = E.outBack(P(x, 0, 0.18), 3);
+    tf(fa, { x: m.x + vx * x, y: m.y - 30 + vy * x + 0.5 * 3600 * x * x, r: (i % 2 ? 1 : -1) * 160 * x * x + (i % 2 ? 8 : -8) * pp, s: lerp(0.4, 1.1, pp), o: 1 });
+  });
+  tf(blkB.querySelector(".bar2"), { sy: spring(t - T(9) - 0.05, 2.4, 0.6) });
+  tf(blkB.querySelector(".lab2"), { o: cl((t - T(9)) * 5), x: (1 - E.outExpo(P(t, T(9), 0.4))) * -30 });
+  rise(sentBw, t, T(9) + 0.05, 0.016);
+  uls.forEach((u, i) => (u.style.transform = `scaleX(${E.outExpo(P(t, T(9, 0.75) + i * 0.028, 0.25))})`));
+  // verdict: the count ticks up on the snare fill, then the whole line slams
+  const v = $("verdict");
+  show(v, t > T(9, 3) - 0.02);
+  const vp = E.outExpo(P(t, T(9, 3), 0.4));
+  const n = t < T(9, 3) ? 1 : Math.min(4, 1 + lastIdx(C.snare.filter(s => s >= T(9, 3) - 1e-3 && s < T(10)), t) + 1);
+  $("vn").textContent = String(Math.max(1, n));
+  const vexit = E.inExpo(P(t, T(10) - 0.2, 0.3));
+  tf(v.querySelector(".big"), { s: lerp(1.8, 1, vp) * (1 + 0.06 * envOf(C.snare, t, 0.08)), o: cl((t - T(9, 3)) * 10), blur: (1 - vp) * 12 });
+  tf($("vn"), { s: 1 + 0.35 * envOf(C.snare, t, 0.08), y: -20 * envOf(C.snare, t, 0.08) });
+  tf(v.querySelector(".sub"), { o: cl((t - T(9, 3.4)) * 6), y: (1 - E.outExpo(P(t, T(9, 3.4), 0.4))) * 30 });
+  tf(v.querySelector(".sub2"), { o: cl((t - T(9, 3.7)) * 6) });
+  tf(v, { x: -vexit * 300, o: 1 });
+}
+
+function stripes(t) {
+  const on = t > T(10) - 0.42 && t < T(10) + 0.5;
+  show($("stripes"), on);
+  const p = E.inOutCubic(P(t, T(10) - 0.4, 0.78));
+  const xf = lerp(-700, 2700, p);
+  const sl = 360;
+  [...$("stripes").children].forEach((s, i) => {
+    const a = xf + (3 - i) * 130, b = a - 130;
+    s.style.clipPath = `polygon(${b + sl}px 0, ${a + sl}px 0, ${a}px 1080px, ${b}px 1080px)`;
+  });
+  window._xf = xf;
+}
+
+function scene6(t) {
+  const on = t > T(10) - 0.42 && t < T(12);
+  show($("s6"), on);
+  if (!on) return;
+  const xf = window._xf ?? 9999, sl = 360;
+  $("s6").style.clipPath = t < T(10) + 0.5 ? `polygon(-400px 0, ${xf + sl}px 0, ${xf}px 1080px, -400px 1080px)` : "none";
+  const k = kick(t);
+  rise(cap6, t, T(10) + 0.05, 0.06);
+  tf($("cap6").querySelector(".kicker"), { o: cl((t - T(10)) * 5) });
+  const av = spring(t - T(10, 0.5), 2.6, 0.42), avv = springV(t - T(10, 0.5), 2.6, 0.42);
+  tf($("rev").querySelector(".avatar"), { s: av * (1 + 0.03 * k), sy: 1 + cl(avv / 20, -0.2, 0.2) });
+  tf($("rev").querySelector(".nmx"), { o: cl((t - T(10, 0.8)) * 5), x: (1 - E.outExpo(P(t, T(10, 0.8), 0.5))) * -50 });
+  tf($("rev").querySelector(".role"), { o: cl((t - T(10, 1)) * 5), x: (1 - E.outExpo(P(t, T(10, 1), 0.5))) * -50 });
+  const pp = spring(t - T(10, 0.25), 2.1, 0.62);
+  tf($("panel"), { y: (1 - pp) * 140, s: lerp(0.9, 1, pp), o: cl((t - T(10, 0.25)) * 6) });
+  // verify refuses: wiggle and a tooltip
+  const wig = Math.sin((t - T(10, 1.5)) * 60) * 10 * Math.exp(-Math.max(0, t - T(10, 1.5)) * 6) * (t > T(10, 1.5) ? 1 : 0);
+  tf($("verBtn"), { x: wig });
+  const tp = spring(t - T(10, 1.55), 3, 0.5) * (1 - P(t, T(10, 2.6), 0.15));
+  tf($("tip"), { s: tp, o: cl(tp * 3), y: (1 - tp) * 10 });
+  // return to author: press, ripple, burst
+  const pr = t - T(10, 3);
+  tf($("retBtn"), { s: pr < 0 ? 1 : 1 - 0.07 * bump(pr, 0.14) + 0.03 * bump(pr - 0.12, 0.2) });
+  const rp = P(t, T(10, 3), 0.5);
+  tf($("rip"), { x: M.ret.x - 760 - 46 - 0 - (M.ret.x - 760 - 46) + 300, y: 36, s: E.outExpo(rp) * 50, o: (1 - rp) * (rp > 0 ? 1 : 0) });
+  const c = cursorAt(null, t, [[T(10, 0.6), 1950, 1150], [T(10, 1.45), M.ver.x + 20, M.ver.y + 6], [T(10, 2.2), M.ver.x + 20, M.ver.y + 6], [T(10, 2.9), M.ret.x + 60, M.ret.y + 8], [T(11, 0.2), M.ret.x + 60, M.ret.y + 8], [T(11, 1.4), 1900, 1200]]);
+  tf($("cur6"), { x: c.x, y: c.y, s: 1 - 0.2 * bump(t - T(10, 3), 0.16), o: cl((t - T(10, 0.6)) * 6) });
+  // receipt stamps down on the downbeat
+  const sp = E.outExpo(P(t, T(11), 0.28));
+  const sqz = bump(t - T(11) - 0.06, 0.2);
+  tf($("receipt"), { s: lerp(2, 1, sp) * (1 - 0.04 * sqz), sx: 1 + 0.05 * sqz, r: lerp(-10, -2.5, sp), o: cl((t - T(11)) * 12), blur: (1 - sp) * 10, y: lerp(-60, 0, sp) });
+  LEDGER.forEach((_, i) => {
+    const t0 = T(11, 0.5 + i * 0.5), q = spring(t - t0, 2.8, 0.45), qv = springV(t - t0, 2.8, 0.45);
+    tf($("lg" + i), { y: (1 - q) * 90, s: lerp(0.5, 1, q), sy: 1 + cl(qv / 22, -0.2, 0.2), o: cl((t - t0) * 7) });
+    const h = $("lgh" + i), age = t - t0;
+    if (age > 0 && age < 0.3) {
+      const seed = Math.floor(t * 40);
+      h.textContent = "sha256 " + [...Array(9)].map((_, j) => (j === 4 ? "…" : "0123456789abcdef"[Math.floor(hash(seed + j * 13 + i * 7) * 16)])).join("");
+    } else h.textContent = LEDGER[i][1];
+    if (i) $("lk" + i).style.transform = `scaleX(${E.outExpo(P(t, t0 - 0.06, 0.2))})`;
+  });
+  tf($("intact"), { o: cl((t - T(11, 2.5)) * 5), x: (1 - E.outExpo(P(t, T(11, 2.5), 0.4))) * -40 });
+  // freeze on the stop
+  const fz = t >= T(11, 3);
+  $("freeze").style.opacity = fz ? 0.92 : 0;
+  $("s6in").style.filter = fz ? "grayscale(1) blur(3px)" : "";
+}
+
+function freezeText(t) {
+  const on = t > T(11, 3) - 0.01 && t < T(12) + 0.9;
+  show($("s8"), on);
+  if (!on) return;
+  const grow = 1 + 0.07 * P(t, T(11, 3), BT);
+  fchs.forEach((c, i) => {
+    const line2 = i >= fch1.length;
+    const t0 = T(11, 3) + (line2 ? 0.13 : 0);
+    const p = E.outExpo(P(t, t0, 0.3));
+    const m = M.fch[i];
+    const x = t - T(12);
+    if (x < 0) {
+      tf(c, { s: lerp(1.9, 1, p) * grow, x: (m.x - 960) * (grow - 1), y: (m.y - 540) * (grow - 1), o: cl((t - t0) * 14), blur: (1 - p) * 10 });
+    } else {
+      const a = Math.atan2(m.y - 540, m.x - 960) + (hash(i) - 0.5) * 1.2, sp = 900 + hash(i * 3.3) * 1600;
+      tf(c, { x: Math.cos(a) * sp * x + (m.x - 960) * 0.07, y: Math.sin(a) * sp * x + 1400 * x * x, r: (hash(i * 9.1) - 0.5) * 900 * x, s: grow * (1 + x * 0.8), o: 1 - x / 0.7, blur: x * 18 });
+    }
+  });
+}
+
+function scene7(t) {
+  const on = t >= T(12) && t < T(15);
+  show($("s7"), on);
+  if (!on) return;
+  const k = kick(t);
+  // outro build: the board spirals into the centre
+  const suck = E.inExpo(P(t, T(14), BT * 3.4));
+  tf($("s7in"), { s: 1 - suck * 0.98, r: suck * 70, o: 1 - P(t, T(14, 3.1), 0.3), blur: suck * 10 });
+  $("s7in").style.transformOrigin = "960px 600px";
+  rise(cap7, t, T(12, 0.5), 0.05);
+  tf($("cap7").querySelector(".kicker"), { o: cl((t - T(12, 0.4)) * 5) });
+  $("tl").querySelector(".ln").style.transform = `scaleX(${E.inOutCubic(P(t, T(12), BT * 3))})`;
+  TL.forEach((_, i) => {
+    const t0 = T(12, i), q = spring(t - t0, 3, 0.4);
+    const halo = i === 3 ? 1 + 0.25 * k : 1;
+    tf($("nd" + i), { s: q * halo });
+    if (i === 3) $("nd3").style.background = t > t0 ? "#e07a22" : "var(--navy-deep)";
+    tf($("ndl" + i), { o: cl((t - t0 - 0.05) * 6), y: (1 - E.outExpo(P(t, t0 + 0.05, 0.4))) * 24 });
+  });
+  // rows: rain into Hold, then the engine's decisions move them
+  const moves = BROWS.map((_, i) => [{ t: T(12, 0.5) + i * BT / 4, col: 2, slot: i, rain: true }]);
+  moves[0].push({ t: T(13, 0), col: 0, slot: 0 });
+  moves[1].push({ t: T(13, 0.5), col: 0, slot: 1 });
+  for (let i = 2; i < 8; i++) moves[i].push({ t: T(13, 0.75) + (i - 2) * 0.03, col: 2, slot: i - 2 });
+  moves[2].push({ t: T(13, 2), col: 1, slot: 0 });
+  for (let i = 3; i < 8; i++) moves[i].push({ t: T(13, 2.5) + (i - 3) * 0.03, col: 2, slot: i - 3 });
+  const slotXY = (c, s) => [COLX[c], 540 + s * 64];
+  const counts = [0, 0, 0], lastChange = [-9, -9, -9];
+  brows.forEach((el, i) => {
+    const ms = moves[i];
+    let cur = -1;
+    for (let j = 0; j < ms.length; j++) if (t >= ms[j].t) cur = j;
+    if (cur < 0) { el.style.opacity = 0; return; }
+    const m = ms[cur], [tx, ty] = slotXY(m.col, m.slot);
+    let x, y, r = 0, s = 1, sy = 1;
+    const dt = t - m.t;
+    if (m.rain) {
+      const p = spring(dt, 2.4, 0.5), v = springV(dt, 2.4, 0.5);
+      x = tx; y = lerp(-260, ty, p); r = (1 - p) * (hash(i) - 0.5) * 30; sy = 1 + cl(v / 18, -0.25, 0.3);
+    } else {
+      const prev = ms[cur - 1], [fx0, fy0] = slotXY(prev.col, prev.slot);
+      const jump = prev.col !== m.col;
+      if (jump) {
+        const e = E.inOutCubic(P(dt, 0, 0.42));
+        x = lerp(fx0, tx, e); y = lerp(fy0, ty, e) - Math.sin(Math.PI * e) * 190; r = Math.sin(Math.PI * e) * (tx < fx0 ? -8 : 8); s = 1 + 0.12 * Math.sin(Math.PI * e);
+        const land = bump(dt - 0.42, 0.22);
+        sy = 1 - 0.18 * land; s *= 1 + 0.05 * land;
+      } else {
+        const p = spring(dt, 2.6, 0.6);
+        x = lerp(fx0, tx, p); y = lerp(fy0, ty, p);
+      }
+    }
+    tf(el, { x, y, r, s, sx: 1 / Math.sqrt(sy), sy, o: 1 });
+    el.style.zIndex = m.rain ? 1 : 5;
+    const landed = m.rain ? dt > 0.15 : dt > 0.42;
+    const col = landed ? m.col : (ms[cur - 1] || m).col;
+    counts[col]++;
+    lastChange[col] = Math.max(lastChange[col], m.t + (m.rain ? 0.15 : 0.42));
+    if (!m.rain && cur > 0 && ms[cur - 1].col !== m.col) lastChange[ms[cur - 1].col] = Math.max(lastChange[ms[cur - 1].col], m.t);
+    // status follows the column the row is in
+    const dot = $("bd" + i), st = $("bs" + i);
+    const c2 = landed ? m.col : col;
+    if (c2 === 0) { dot.style.background = i === 0 ? "#f08a24" : "transparent"; dot.style.border = "3px solid #f08a24"; st.textContent = i === 0 ? "Needs review" : "Acknowledge"; }
+    else if (c2 === 1) { dot.style.background = "#5b8cff"; dot.style.border = "0"; st.textContent = "Verified by Dana Okafor"; }
+    else { dot.style.background = "#22b07d"; dot.style.border = "0"; st.textContent = "Verified, holds"; }
+  });
+  COLS.forEach((_, i) => {
+    const t0 = T(12, 0.25) + i * 0.08, q = spring(t - t0, 2.6, 0.5);
+    tf($("ch_" + i), { y: (1 - q) * 60, o: cl((t - t0) * 6) });
+    $("cb" + i).style.transform = `scaleX(${E.outExpo(P(t, t0 + 0.1, 0.6))})`;
+    const n = $("cn" + i);
+    n.textContent = counts[i];
+    tf(n, { s: 1 + 0.45 * Math.exp(-Math.max(0, t - lastChange[i]) * 9) * (t > lastChange[i] ? 1 : 0), r: -6 * Math.exp(-Math.max(0, t - lastChange[i]) * 9) * (t > lastChange[i] ? 1 : 0) });
+  });
+}
+
+function camera(t) {
+  let dx = 0, dy = 0, rr = 0;
+  for (const ti of IMPACTS) {
+    const x = t - ti;
+    if (x < 0 || x > 1) continue;
+    const a = 22 * Math.exp(-x * 7);
+    dx += a * Math.sin(x * 71); dy += a * Math.cos(x * 53 + 1); rr += a * 0.03 * Math.sin(x * 41);
+  }
+  const c = t - T(10, 3), cp = clapE(t);
+  if (c > 0 && c < 0.4) { const a = 6 * Math.exp(-c * 12); dx += a * Math.sin(c * 90); dy += a * Math.cos(c * 70); }
+  const st = T(11) ; const s2 = t - st;
+  if (s2 > 0 && s2 < 0.4) { const a = 9 * Math.exp(-s2 * 12); dy += a * Math.sin(s2 * 80); }
+  const light = (t > T(6) && t < T(8)) || (t > T(10) && t < T(11, 3));
+  const k = kick(t);
+  const sc = 1 + (light ? 0.004 : 0.012) * k + 0.006 * cp;
+  tf($("world"), { x: dx, y: dy, r: rr, s: sc });
+}
+
+function flash(t) {
+  let f = 0;
+  for (const ti of IMPACTS) if (t >= ti) f = Math.max(f, 0.9 * Math.exp(-(t - ti) * 8));
+  if (t >= T(2)) f = Math.max(f, 0.18 * Math.exp(-(t - T(2)) * 10));
+  if (t >= T(11, 3)) f = Math.max(f, (t < T(12) ? 0.3 : 0) * Math.exp(-(t - T(11, 3)) * 14));
+  $("flash").style.opacity = f.toFixed(3);
+}
+
+function setupFx() {
+  const CREAM_A = "rgba(255,244,214,A)", AMB = "rgba(255,181,71,A)", BLU = "rgba(91,140,255,A)", WHT = "rgba(255,255,255,A)";
+  ringsAt.push({ t: T(4), x: 960, y: 540, r: 1200, d: 0.9, w: 24, c: CREAM_A }, { t: T(4) + 0.08, x: 960, y: 540, r: 800, d: 0.8, w: 10, c: BLU },
+    { t: T(4, 1), x: 960, y: 300, r: 260, d: 0.5, w: 8, c: CREAM_A },
+    { t: T(6) - 0.33, x: CX, y: CY, r: 500, d: 0.4, w: 10, c: CREAM_A },
+    { t: T(7) + 0.06, x: M.adot.x, y: M.adot.y, r: 120, d: 0.6, w: 8, c: AMB }, { t: T(7) + 0.16, x: M.adot.x, y: M.adot.y, r: 220, d: 0.8, w: 4, c: AMB },
+    { t: T(10, 3), x: M.ret.x, y: M.ret.y, r: 300, d: 0.6, w: 8, c: BLU },
+    { t: T(11), x: M.receipt.x, y: M.receipt.y, r: 700, d: 0.7, w: 8, c: BLU },
+    { t: T(12), x: 960, y: 540, r: 1300, d: 0.9, w: 26, c: WHT }, { t: T(12) + 0.07, x: 960, y: 540, r: 900, d: 0.8, w: 10, c: AMB },
+    { t: T(15), x: 570, y: 500, r: 1300, d: 1.0, w: 26, c: CREAM_A }, { t: T(15) + 0.08, x: 570, y: 500, r: 800, d: 0.9, w: 12, c: BLU });
+  bursts.push({ t: T(4), x: 960, y: 540, n: 90, speed: 2600, life: 1.1, g: 300, w: 5, seed: 1, cols: [CREAM_A, AMB, BLU, WHT] },
+    { t: T(7) + 0.06, x: M.adot.x, y: M.adot.y, n: 22, speed: 900, life: 0.5, g: 600, w: 4, seed: 9, cols: [AMB] },
+    { t: T(10, 3), x: M.ret.x, y: M.ret.y, n: 26, speed: 1100, life: 0.55, g: 500, w: 4, seed: 4, cols: [BLU, AMB] },
+    { t: T(12), x: 960, y: 520, n: 110, speed: 3000, life: 1.2, g: 300, w: 5, seed: 17, cols: [WHT, AMB, BLU, "rgba(62,207,122,A)"] },
+    { t: T(15), x: 570, y: 500, n: 100, speed: 2700, life: 1.3, g: 250, w: 5, seed: 33, cols: [CREAM_A, AMB, BLU, WHT] });
+  for (const ti of C.clap) if (ti > T(4) && ti < T(6)) bursts.push({ t: ti, x: 960 + lerp(0, -390, 1), y: 300, n: 10, speed: 700, life: 0.4, g: 0, w: 3, seed: ti * 10, cols: [CREAM_A] });
+}
+
+function render(t) {
+  window.T_NOW = t;
+  camera(t);
+  drawBg(t);
+  scene1(t); scene2(t); lockup(t); blueWipe(t); scene4(t); scene5(t); stripes(t); scene6(t); freezeText(t); scene7(t);
+  drawFx(t);
+  flash(t);
+  grainC.putImageData(grains[Math.floor(t * 24) % grains.length], 0, 0);
+}
+
+// ------------------------------------------------------------------ boot
+const qs = new URLSearchParams(location.search);
+const RENDER = qs.has("render");
+document.fonts.ready.then(() => {
+  measure();
+  setupFx();
+  window.seek = t => render(Math.max(0, Math.min(DURATION - 1e-4, t)));
+  window.READY = true;
+  if (RENDER) { render(0); return; }
+  const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $("stage").style.transform = `scale(${s})`; };
+  fit(); addEventListener("resize", fit);
+  const audio = new Audio("build/music.wav");
+  let start = parseFloat(qs.get("t") || "0"), playing = false, t0 = 0;
+  render(start);
+  const hud = $("hud");
+  hud.textContent = "click to play · space pause · R restart";
+  const loop = () => {
+    if (!playing) return;
+    const t = audio.currentTime;
+    render(t);
+    hud.textContent = t.toFixed(2) + " s";
+    if (t >= DURATION - 0.02) { playing = false; return; }
+    requestAnimationFrame(loop);
+  };
+  const play = () => { audio.currentTime = start; audio.play(); playing = true; requestAnimationFrame(loop); };
+  addEventListener("click", () => (playing ? null : play()));
+  addEventListener("keydown", e => {
+    if (e.code === "Space") { if (playing) { audio.pause(); playing = false; start = audio.currentTime; } else play(); }
+    if (e.key === "r" || e.key === "R") { start = 0; audio.pause(); playing = false; play(); }
+  });
+});
+})();
+</script>
+</body>
+</html>

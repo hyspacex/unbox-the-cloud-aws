@@ -31,13 +31,13 @@ export function CountLine({ text, className = "" }: { text: string; className?: 
 function Digits({ value }: { value: string }) {
   return (
     <span className="relative inline-flex overflow-hidden align-baseline" aria-hidden>
-      <AnimatePresence mode="popLayout" initial={false}>
+      <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={value}
-          initial={{ y: "70%", opacity: 0 }}
+          initial={{ y: "45%", opacity: 0 }}
           animate={{ y: "0%", opacity: 1 }}
-          exit={{ y: "-70%", opacity: 0 }}
-          transition={T_BASE}
+          exit={{ y: "-45%", opacity: 0 }}
+          transition={{ ...T_BASE, duration: 0.16 }}
           className="inline-block font-semibold"
         >
           {value}

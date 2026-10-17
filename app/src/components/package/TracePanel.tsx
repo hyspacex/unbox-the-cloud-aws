@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { TraceSource, TraceStep } from "@/lib/types";
 import { substepsOf } from "@/lib/client";
@@ -20,11 +21,15 @@ export type TraceMeta = {
   compressed_timing?: boolean;
 };
 
-/** Source for a substep: Box AI tool calls are tagged Box AI even inside the agent loop. */
+type Step = TraceStep & { parent_seq?: number };
+
+/** Source for a step: Box AI tool calls are tagged Box AI even inside the agent loop. */
 function sourceOf(s: TraceStep): TraceSource {
   if (s.tool === "box_ai_ask" || s.tool === "box_ai_text_gen" || /^Box AI/.test(s.label)) return "boxai";
   return s.source;
 }
+
+const isSub = (s: Step) => s.kind === "model_turn" || s.kind === "tool_call" || s.parent_seq != null;
 
 function coverageText(steps: TraceStep[]): string | null {
   const s = steps.find((x) => x.kind === "texts_fetched");
@@ -39,52 +44,64 @@ function coverageText(steps: TraceStep[]): string | null {
   return null;
 }
 
-/** One-line summary shown once a run has finished; expands back into the full panel. */
+function gateText(steps: TraceStep[], gate?: { ran: boolean; label: string } | null, running?: boolean): string {
+  const g = steps.find((s) => s.kind === "input_gate");
+  if (g) return typeof g.detail === "string" ? g.detail : g.label;
+  if (gate) return gate.ran ? gate.label : /omitted/i.test(gate.label) ? gate.label.replace(/^input gate\s*/i, "") : `omitted: ${gate.label}`;
+  return running ? "pending" : "omitted: Decider not running";
+}
+
+function totalOf(steps: TraceStep[], meta: TraceMeta, elapsedMs?: number | null): number | undefined {
+  const last = steps[steps.length - 1];
+  return elapsedMs ?? meta.total_duration_ms ?? (last ? last.startMs + (last.durationMs ?? 0) : undefined);
+}
+
+const isCompressed = (meta: TraceMeta) => meta.compressed_timing ?? meta.mode_label === "Mock";
+
+/** Placeholder that keeps the trace column reserved so the table never reflows. */
+export function TraceEmpty() {
+  return (
+    <section className="rounded-[10px] border border-dashed border-line-strong px-5 py-6 text-[13px] text-muted" aria-label="Run trace">
+      <div className="font-medium text-ink-2">Run trace</div>
+      <p className="mt-1">Run trace appears here when you submit.</p>
+      <div className="mt-3">
+        <SourceLegend />
+      </div>
+    </section>
+  );
+}
+
+/** One-line summary shown when the presenter collapses the panel. */
 export function TraceSummary({
   steps,
   meta,
   gate,
   elapsedMs,
+  controls,
   onExpand,
 }: {
   steps: TraceStep[];
   meta: TraceMeta;
   gate?: { ran: boolean; label: string } | null;
   elapsedMs?: number | null;
+  controls?: number;
   onExpand: () => void;
 }) {
-  const last = steps[steps.length - 1];
-  const total = elapsedMs ?? meta.total_duration_ms ?? (last ? last.startMs + (last.durationMs ?? 0) : undefined);
+  const total = totalOf(steps, meta, elapsedMs);
   const coverage = coverageText(steps);
-  const gateStep = steps.find((s) => s.kind === "input_gate");
-  const boxAi = steps.flatMap((s) => [s, ...substepsOf(s)]).filter((s) => s.tool === "box_ai_ask" || /^Box AI ask/.test(s.label)).length;
   return (
     <button
       onClick={onExpand}
-      className="w-full text-left rounded-[10px] border hairline bg-panel px-4 py-2.5 hover:border-line-strong transition-colors flex flex-wrap items-center gap-x-5 gap-y-1 text-[12.5px] text-ink-2"
+      className="w-full text-left rounded-[10px] border hairline bg-panel px-4 py-2.5 hover:border-line-strong transition-colors text-[12.5px] text-ink-2"
       aria-label="Show run trace"
     >
-      <span className="inline-flex items-center gap-2 font-medium text-ink">
-        <Caret open={false} /> Run trace
+      <span className="flex items-center gap-2 font-medium text-ink">
+        <Caret open={false} /> Done: {controls ?? 8} controls re-checked{total != null ? ` in ${ms(total)}` : ""}
+        {isCompressed(meta) ? <span className="font-normal text-muted">(compressed timing)</span> : null}
       </span>
-      {meta.run_id ? <span className="mono text-muted">{meta.run_id}</span> : null}
-      {meta.prior_snapshot_id && meta.snapshot_id ? (
-        <span>
-          <span className="mono">{meta.prior_snapshot_id}</span> to <span className="mono">{meta.snapshot_id}</span>
-        </span>
-      ) : null}
-      {total != null ? (
-        <span>
-          elapsed <span className="mono">{ms(total)}</span>
-          {meta.compressed_timing ?? meta.mode_label === "Mock" ? <span className="text-amber-ink"> (compressed)</span> : null}
-        </span>
-      ) : null}
-      <span>{steps.length} steps</span>
-      {boxAi ? <span>{boxAi} Box AI asks</span> : null}
-      {coverage ? <span>coverage {coverage}</span> : null}
-      <span>
-        input gate{" "}
-        {gateStep ? (typeof gateStep.detail === "string" ? gateStep.detail.split(" · ").slice(0, 2).join(" · ") : "ran") : gate && !gate.ran ? "omitted: Decider not running" : gate?.label ?? "omitted: Decider not running"}
+      <span className="mt-1 block text-muted">
+        {meta.run_id ? <span className="mono">{meta.run_id}</span> : null} · {steps.length} steps
+        {coverage ? ` · coverage ${coverage}` : ""} · input gate {gateText(steps, gate)}
       </span>
     </button>
   );
@@ -96,29 +113,107 @@ export function TracePanel({
   running,
   gate,
   elapsedMs,
+  controls,
   onCollapse,
+  stacked = false,
 }: {
   steps: TraceStep[];
   meta: TraceMeta;
   running: boolean;
   gate?: { ran: boolean; label: string } | null;
   elapsedMs?: number | null;
+  controls?: number;
   onCollapse?: () => void;
+  /** Stacked above the table (narrow screens): cap the list height. */
+  stacked?: boolean;
 }) {
-  const gateStep = steps.find((s) => s.kind === "input_gate");
+  const listRef = useRef<HTMLOListElement>(null);
+  const followRef = useRef(true);
+  const lastArrival = useRef<number>(0);
+  const [clock, setClock] = useState({ now: 0, since: 0 });
+
+  useEffect(() => {
+    lastArrival.current = Date.now();
+  }, [steps.length]);
+
+  // Live clock while running (spinner line and header elapsed).
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => {
+      const n = Date.now();
+      setClock({ now: n, since: Math.max(0, (n - (lastArrival.current || n)) / 1000) });
+    }, 100);
+    return () => clearInterval(t);
+  }, [running]);
+  const now = clock.now;
+
+  // Auto-scroll to the newest step unless the presenter scrolled up.
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (el && followRef.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [steps.length, running]);
+
+  // The done header grows the panel after the last step; follow it once the run ends.
+  useEffect(() => {
+    if (running) return;
+    const t = setTimeout(() => {
+      const el = listRef.current;
+      if (el && followRef.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }, 450);
+    return () => clearTimeout(t);
+  }, [running]);
+
+  const onScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+  };
+
+  const total = totalOf(steps, meta, elapsedMs);
   const coverage = coverageText(steps);
-  const last = steps[steps.length - 1];
-  const totalShown =
-    elapsedMs ?? (running ? undefined : meta.total_duration_ms ?? (last ? last.startMs + (last.durationMs ?? 0) : undefined));
-  const compressed = meta.compressed_timing ?? meta.mode_label === "Mock";
+  const started = meta.started_at ? new Date(meta.started_at).getTime() : NaN;
+  const liveElapsed = running && now && !Number.isNaN(started) ? Math.max(0, now - started) : null;
+
+  // What is running now: the agent loop until quotes are validated, else the next application step.
+  const top = steps.filter((s) => !isSub(s as Step));
+  const lastTop = top[top.length - 1];
+  const inAgent = lastTop?.kind === "agent_evaluation" && !steps.some((s) => s.kind === "quotes_validated");
+  const sinceLast = running ? clock.since : 0;
+  const workingLabel = steps.length === 0 ? "Starting" : inAgent ? "Agent working" : "Working";
 
   return (
-    <section className="panel overflow-hidden" aria-label="Run trace">
-      <header className="px-5 pt-4 pb-3 border-b hairline bg-panel-cool">
+    <section
+      className={`panel overflow-hidden flex flex-col ${stacked ? "" : "xl:max-h-[min(560px,calc(100vh-96px))]"}`}
+      aria-label="Run trace"
+    >
+      <header className="flex-none px-5 pt-4 pb-3 border-b hairline bg-panel-cool">
+        <AnimatePresence initial={false}>
+          {!running && steps.length ? (
+            <motion.div
+              key="done"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              transition={T_BASE}
+              className="mb-2 flex items-center justify-between gap-3"
+            >
+              <span className="text-[14.5px] font-semibold text-ink" role="status">
+                Done: {controls ?? 8} controls re-checked{total != null ? ` in ${ms(total)}` : ""}
+              </span>
+              {onCollapse ? (
+                <button className="btn btn-ghost btn-sm !h-7 !px-2 text-muted" onClick={onCollapse} aria-label="Collapse trace">
+                  Collapse
+                </button>
+              ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className={`h-2 w-2 rounded-full flex-none ${running ? "bg-amber-dot pulse" : "bg-[var(--grey-dot)]"}`} style={running ? { background: "var(--amber-dot)" } : undefined} />
-            <h2 className="text-[15px] font-semibold text-ink">{running ? "Re-check running" : "Run trace"}</h2>
+            <span
+              className={`h-2 w-2 rounded-full flex-none ${running ? "pulse" : ""}`}
+              style={{ background: running ? "var(--ink-2)" : "var(--grey-dot)" }}
+            />
+            <h2 className="text-[14px] font-semibold text-ink">{running ? "Re-check running" : "Run trace"}</h2>
             {meta.snapshot_id ? (
               <span className="text-[12.5px] text-muted truncate">
                 {meta.prior_snapshot_id ? (
@@ -130,51 +225,41 @@ export function TracePanel({
               </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-2 text-[12.5px] text-muted tabular-nums whitespace-nowrap">
-            {totalShown != null ? (
-              <>
-                elapsed <span className="mono text-ink-2">{ms(totalShown)}</span>
-              </>
-            ) : (
-              <span className="pulse">streaming</span>
-            )}
-            {onCollapse && !running ? (
-              <button className="btn btn-ghost btn-sm !h-6 !px-1.5" onClick={onCollapse} aria-label="Collapse trace" title="Collapse">
-                <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
-                  <path d="M2 2l6 6M8 2 2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                </svg>
-              </button>
-            ) : null}
+          <div className="text-[12.5px] text-muted tabular-nums whitespace-nowrap">
+            elapsed <span className="mono text-ink-2">{running ? (liveElapsed != null ? ms(liveElapsed) : "") : total != null ? ms(total) : ""}</span>
           </div>
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted">
           {meta.run_id ? <span className="mono">{meta.run_id}</span> : null}
           {meta.mode_label ? <span>· {meta.mode_label}</span> : null}
           {meta.started_at ? (
             <span>
-              · started <span className="mono">{utcTime(meta.started_at)}</span> UTC
+              · started <span className="mono">{utcTime(meta.started_at)}</span>
             </span>
           ) : null}
+          {isCompressed(meta) ? <span>· compressed timing in mock</span> : null}
         </div>
-        <div className="mt-2.5">
+        <div className="mt-2">
           <SourceLegend />
         </div>
-        {compressed ? (
-          <p className="mt-2 text-[12px] text-amber-ink">Compressed timing: the mock run replays the recorded steps faster than real time.</p>
-        ) : null}
       </header>
 
-      <ol className="px-2 py-2 max-h-[560px] overflow-y-auto scroll-quiet" aria-live="polite">
+      <ol
+        ref={listRef}
+        onScroll={onScroll}
+        className={`flex-1 min-h-0 px-2 py-2 overflow-y-auto scroll-quiet ${stacked ? "max-h-[420px]" : "max-h-[560px] xl:max-h-none"}`}
+        aria-live="polite"
+      >
         <AnimatePresence initial={false}>
           {steps.map((s, i) => (
             <motion.li
-              key={(s.seq ?? i) + s.kind}
+              key={(s.seq ?? i) + s.kind + i}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={T_BASE}
               className="rounded-md"
             >
-              {s.kind === "model_turn" || s.kind === "tool_call" || (s as TraceStep & { parent_seq?: number }).parent_seq != null ? (
+              {isSub(s as Step) ? (
                 <div className="ml-[22px] border-l hairline pl-2">
                   <StepLine step={s} startedAt={meta.started_at} nested />
                 </div>
@@ -184,14 +269,9 @@ export function TracePanel({
               {substepsOf(s).length ? (
                 <ol className="ml-[22px] border-l hairline pl-2 mb-1">
                   {substepsOf(s).map((sub, j) => (
-                    <motion.li
-                      key={j}
-                      initial={{ opacity: 0, x: -4 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ ...T_BASE, delay: 0.06 * j }}
-                    >
+                    <li key={j}>
                       <StepLine step={sub} startedAt={meta.started_at} nested />
-                    </motion.li>
+                    </li>
                   ))}
                 </ol>
               ) : null}
@@ -199,32 +279,21 @@ export function TracePanel({
           ))}
         </AnimatePresence>
         {running ? (
-          <li className="flex items-center gap-2 px-3 py-2 text-[12.5px] text-faint">
-            <span className="h-1.5 w-1.5 rounded-full bg-current pulse" /> waiting for the next step
+          <li className={`flex items-center gap-2.5 px-3 py-2 text-[13px] text-ink-2 ${inAgent ? "ml-[22px] border-l hairline" : ""}`}>
+            <Spinner />
+            <span>{workingLabel}…</span>
+            <span className="mono text-[12px] text-muted tabular-nums">{sinceLast.toFixed(1)} s</span>
           </li>
         ) : null}
       </ol>
 
-      <footer className="px-5 py-3 border-t hairline text-[12.5px] text-ink-2 space-y-1">
+      <footer className="flex-none px-5 py-3 border-t hairline text-[12.5px] text-ink-2">
         <div className="flex flex-wrap gap-x-5 gap-y-1">
           <span>
             <span className="text-muted">Coverage</span> {coverage ?? (running ? "pending" : "not reported")}
           </span>
           <span>
-            <span className="text-muted">Input gate</span>{" "}
-            {gateStep ? (
-              <GateText step={gateStep} />
-            ) : gate ? (
-              gate.ran ? (
-                gate.label
-              ) : (
-                <span className="text-ink">{/omitted/i.test(gate.label) ? gate.label.replace(/^input gate\s*/i, "") : `omitted: ${gate.label}`}</span>
-              )
-            ) : running ? (
-              "pending"
-            ) : (
-              <span className="text-ink">omitted: Decider not running</span>
-            )}
+            <span className="text-muted">Input gate</span> {gateText(steps, running ? null : gate, running)}
           </span>
         </div>
       </footer>
@@ -232,17 +301,21 @@ export function TracePanel({
   );
 }
 
-function GateText({ step }: { step: TraceStep }) {
-  if (typeof step.detail === "string") return <>{step.detail}</>;
-  return <>{step.label}</>;
+function Spinner() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" className="animate-spin flex-none" aria-hidden>
+      <circle cx="6" cy="6" r="4.5" fill="none" stroke="var(--line-strong)" strokeWidth="1.6" />
+      <path d="M6 1.5a4.5 4.5 0 0 1 4.5 4.5" fill="none" stroke="var(--ink-2)" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function StepLine({ step, startedAt, nested = false }: { step: TraceStep; startedAt?: string; nested?: boolean }) {
   const src = sourceOf(step);
   const ts = step.ts ?? (startedAt ? addMs(startedAt, step.startMs) : undefined);
-  const hasDetail = step.args || step.result !== undefined || (typeof step.detail === "string" && step.kind !== "input_gate");
+  const hasDetail = step.args || step.result !== undefined;
   return (
-    <div className={`group grid grid-cols-[14px_76px_minmax(0,1fr)_auto] items-start gap-x-2 px-3 ${nested ? "py-1" : "py-1.5"} rounded-md hover:bg-paper/70`}>
+    <div className={`group grid grid-cols-[14px_70px_minmax(0,1fr)_auto] items-start gap-x-2 px-3 ${nested ? "py-1" : "py-1.5"} rounded-md hover:bg-paper/70`}>
       <span className="pt-[5px]">
         <SourceSwatch source={src} size={nested ? 6 : 8} />
       </span>
@@ -255,14 +328,13 @@ function StepLine({ step, startedAt, nested = false }: { step: TraceStep; starte
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11.5px] text-faint">
           <SourceTag source={src} />
-          <span className="mono">+{step.startMs} ms</span>
+          <span className="mono">+{ms(step.startMs)}</span>
           {step.kind === "input_gate" && typeof step.detail === "string" ? <span className="text-ink-2">{step.detail}</span> : null}
-          {step.model_id ? <span className="mono">{step.model_id}</span> : null}
         </div>
         {hasDetail ? (
           <Disclosure label="detail" className="mt-0.5" buttonClassName="!text-[11.5px] !text-faint hover:!text-ink-2">
             <pre className="mono text-[11px] leading-[1.5] whitespace-pre-wrap break-words bg-paper-2 rounded-md p-2 text-ink-2 max-h-56 overflow-auto scroll-quiet">
-              {JSON.stringify({ args: step.args, result: step.result, detail: typeof step.detail === "string" ? step.detail : undefined }, null, 2)}
+              {JSON.stringify({ args: step.args, result: step.result }, null, 2)}
             </pre>
           </Disclosure>
         ) : null}

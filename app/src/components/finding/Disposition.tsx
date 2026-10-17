@@ -5,9 +5,11 @@ import { AnimatePresence, motion } from "motion/react";
 import type { ActionResponse, FindingCard, RunMode } from "@/lib/types";
 import { api, ApiError, type DraftAuthorMessage } from "@/lib/client";
 import { Modal } from "@/components/ui/Modal";
-import { fromLocalInput, toLocalInput, utc } from "@/lib/ui/format";
+import { fromLocalInput, listJoin, toLocalInput, utc, utcDate, utcInText } from "@/lib/ui/format";
+import { compactSecondary } from "@/lib/ui/secondary";
+import { clauseNoun } from "@/lib/engine/display";
 import { T_BASE } from "@/lib/ui/motion";
-import { AuthorTaskBlock } from "./Thread";
+import { authorTaskFromThread } from "./Thread";
 import { useKeel } from "@/components/AppProvider";
 
 const PROPOSED_LABELS: Record<string, string> = {
@@ -22,19 +24,87 @@ export function DispositionBlock({
   mode,
   onResult,
   lastResult,
-  flashTask,
+  onSeeThread,
 }: {
   card: FindingCard;
   mode?: RunMode;
   onResult: (r: ActionResponse) => void;
   lastResult?: ActionResponse | null;
-  flashTask?: boolean;
+  onSeeThread?: () => void;
 }) {
   const [rta, setRta] = useState(false);
   const [verify, setVerify] = useState(false);
   const [opens, setOpens] = useState(0);
   const { actions, reviewer } = card;
-  const isMock = mode === "mock" || /fixture/i.test(reviewer.source);
+  const isMock = mode === "mock" || /simulated|fixture/i.test(reviewer.source);
+  const row = lastResult?.row ?? card.row;
+  const returned = row.current_disposition === "returned_to_author" || row.status.kind === "returned_to_author";
+  const returnedDue = lastResult?.author_task?.due_at ?? authorTaskFromThread(card.thread)?.task.due_at ?? compactSecondary(row.status.secondary)?.rest.find((p) => p.startsWith("due "))?.slice(4);
+  const verifyFirst = row.status.kind === "needs_review_binding" || row.status.kind === "acknowledge";
+
+  // A6: the clause reason always comes first; task or row state is a second, muted line.
+  const uns = card.finding.clause_support.filter((c) => c.support === "unsupported").map((c) => clauseNoun(c.clause));
+  const engineReason = actions.verify.reason?.replace(/^verify is disabled[:.,]?\s*/i, "").replace(/^./, (c) => c.toUpperCase());
+  const clauseReason = engineReason && /^no document/i.test(engineReason)
+    ? engineReason
+    : uns.length
+      ? `No document in this package supports the ${listJoin(uns)} clause${uns.length === 1 ? "" : "s"}.`
+      : card.finding.machine_assessment === "evidence_contradicted"
+        ? "A conflicting statement in this snapshot must be resolved by a new snapshot first."
+        : null;
+  const stateReason = engineReason && engineReason !== clauseReason ? engineReason : null;
+
+  const openRta = () => {
+    setOpens((n) => n + 1);
+    setRta(true);
+  };
+  const openVerify = () => {
+    setOpens((n) => n + 1);
+    setVerify(true);
+  };
+
+  const returnButton = returned ? (
+    <div className="flex items-center gap-2 rounded-lg border border-blue-line bg-blue-bg/50 px-3 py-2 text-[13px] text-blue-ink">
+      <ArrowIcon />
+      <span>
+        Returned{returnedDue ? <>, due <span className="tabular-nums">{utcDate(returnedDue)}</span></> : null}
+      </span>
+    </div>
+  ) : (
+    <div>
+      <button
+        className={`btn w-full justify-between ${verifyFirst ? "btn-secondary" : "btn-human"}`}
+        disabled={!actions.return_to_author.enabled}
+        onClick={openRta}
+      >
+        <span>Return to author</span>
+        <ArrowIcon />
+      </button>
+      {!actions.return_to_author.enabled && actions.return_to_author.reason ? (
+        <p className="mt-1 text-[12px] text-muted">{actions.return_to_author.reason}</p>
+      ) : null}
+    </div>
+  );
+  const verifyButton = (
+    <div>
+      <button
+        className={`btn w-full justify-between ${actions.verify.enabled && (verifyFirst || !actions.return_to_author.enabled) ? "btn-human" : "btn-secondary"}`}
+        disabled={!actions.verify.enabled}
+        onClick={openVerify}
+      >
+        <span>Verify</span>
+        <CheckIcon />
+      </button>
+      {!actions.verify.enabled && (clauseReason || stateReason) ? (
+        <div className="mt-1.5 text-[12.5px] leading-[1.45]">
+          <p className="text-ink-2">
+            <span className="font-medium">Verify is disabled.</span> {clauseReason ?? stateReason}
+          </p>
+          {clauseReason && stateReason ? <p className="mt-0.5 text-[12px] text-muted">{stateReason}</p> : null}
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <section aria-label="Human disposition" className="rounded-[12px] border border-blue-line bg-panel overflow-hidden">
@@ -43,15 +113,8 @@ export function DispositionBlock({
         <p className="mt-1 text-[13.5px] text-ink-2 leading-snug">
           Reviewer: <span className="font-semibold text-blue-ink">{reviewer.name}</span>, {reviewer.role}
         </p>
-        <p className="mt-0.5 text-[12px] text-muted">
-          {reviewer.source || "identity as returned by Box"}
-          {isMock && !/fixture/i.test(reviewer.source ?? "") ? " (fixture)" : ""}
-          {reviewer.box_user_id ? (
-            <>
-              {" "}
-              · Box user <span className="mono">{reviewer.box_user_id}</span>
-            </>
-          ) : null}
+        <p className="mt-0.5 text-[12px] text-muted" title={`${reviewer.source}${reviewer.box_user_id ? ` · Box user ${reviewer.box_user_id}` : ""}`}>
+          {isMock ? "Identity from the Box task · simulated in mock" : "Identity from the Box task"}
         </p>
       </div>
 
@@ -75,41 +138,17 @@ export function DispositionBlock({
         </div>
 
         <div className="space-y-2.5">
-          <div>
-            <button
-              className="btn btn-human w-full justify-between"
-              disabled={!actions.return_to_author.enabled}
-              onClick={() => {
-                setOpens((n) => n + 1);
-                setRta(true);
-              }}
-            >
-              <span>Return to author</span>
-              <ArrowIcon />
-            </button>
-            {!actions.return_to_author.enabled && actions.return_to_author.reason ? (
-              <p className="mt-1 text-[12px] text-muted">{actions.return_to_author.reason}</p>
-            ) : null}
-          </div>
-          <div>
-            <button
-              className={`btn w-full justify-between ${actions.verify.enabled ? "btn-human" : "btn-secondary"}`}
-              disabled={!actions.verify.enabled}
-              onClick={() => {
-                setOpens((n) => n + 1);
-                setVerify(true);
-              }}
-            >
-              <span>Verify</span>
-              <CheckIcon />
-            </button>
-            {!actions.verify.enabled && actions.verify.reason ? (
-              <p className="mt-1.5 text-[12.5px] leading-[1.45] text-ink-2">
-                <span className="font-medium">Verify is disabled.</span>{" "}
-                {actions.verify.reason.replace(/^verify is disabled[:.,]?\s*/i, "").replace(/^./, (c) => c.toUpperCase())}
-              </p>
-            ) : null}
-          </div>
+          {verifyFirst ? (
+            <>
+              {verifyButton}
+              {returnButton}
+            </>
+          ) : (
+            <>
+              {returnButton}
+              {verifyButton}
+            </>
+          )}
         </div>
 
         <p className="text-[12px] text-muted">Every action writes an append-only event bound to this evidence.</p>
@@ -117,21 +156,7 @@ export function DispositionBlock({
         <AnimatePresence initial={false}>
           {lastResult ? (
             <motion.div key={lastResult.events.map((e) => e.event_id).join()} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={T_BASE} style={{ overflow: "hidden" }}>
-              <ResultPanel r={lastResult} />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-        <AnimatePresence>
-          {flashTask && lastResult?.author_task ? (
-            <motion.div
-              key="flash"
-              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, height: 0, y: 30 }}
-              transition={T_BASE}
-              style={{ overflow: "hidden" }}
-            >
-              <AuthorTaskBlock task={lastResult.author_task} />
+              <ResultPanel r={lastResult} onSeeThread={onSeeThread} />
             </motion.div>
           ) : null}
         </AnimatePresence>
@@ -160,18 +185,38 @@ export function DispositionBlock({
   );
 }
 
-function ResultPanel({ r }: { r: ActionResponse }) {
+function ResultPanel({ r, onSeeThread }: { r: ActionResponse; onSeeThread?: () => void }) {
   const tone =
     r.result === "rejected"
       ? "border-amber-line bg-amber-bg text-amber-ink"
       : "border-blue-line bg-blue-bg/60 text-blue-ink";
   const title =
     r.result === "applied" ? "Recorded" : r.result === "reapplied" ? "Re-applied on the newer snapshot" : "Rejected, nothing recorded as a disposition";
+  const t = r.author_task;
+  const firstLine = t?.message ? t.message.split(/(?<=[.!?])\s+/)[0] : "";
   return (
     <div className={`rounded-lg border px-3 py-2.5 text-[12.5px] ${tone}`} role="status">
       <div className="font-semibold">{title}</div>
-      {r.explanation ? <p className="mt-0.5 text-ink-2">{r.explanation}</p> : null}
-      <div className="mt-1 text-ink-2">
+      {r.explanation ? <p className="mt-0.5 text-ink-2">{utcInText(r.explanation)}</p> : null}
+      {t ? (
+        <div className="mt-2 rounded-md border border-blue-line bg-panel px-2.5 py-2 text-ink-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+            <span className="font-medium text-blue-ink">Author task in Box</span>
+            <span className="mono text-[11.5px]">{t.task_id}</span>
+          </div>
+          <div className="mt-0.5">
+            <span className="text-blue-ink">{t.assignee}</span>
+            {t.due_at ? <> · due <span className="tabular-nums">{utc(t.due_at)}</span></> : null}
+          </div>
+          {firstLine ? <p className="mt-1 text-[12px] leading-[1.45] line-clamp-2">{firstLine}</p> : null}
+          {onSeeThread ? (
+            <button type="button" className="mt-1 link text-[12px]" onClick={onSeeThread}>
+              See it in the thread
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="mt-1.5 text-ink-2">
         Ledger events{" "}
         {r.events.map((e, i) => (
           <span key={e.event_id}>
@@ -181,12 +226,6 @@ function ResultPanel({ r }: { r: ActionResponse }) {
             </span>
           </span>
         ))}
-        {r.author_task ? (
-          <>
-            {" "}
-            · author task <span className="mono">{r.author_task.task_id}</span>
-          </>
-        ) : null}
       </div>
       <div className="mt-0.5 text-ink-2">
         Now: <span className="font-medium">{r.row.status.label}</span>
@@ -216,7 +255,7 @@ function ReturnToAuthorModal({
 }) {
   const rta = card.actions.return_to_author as FindingCard["actions"]["return_to_author"] & { suggested_reason?: string };
   const [step, setStep] = useState<"reason" | "draft">("reason");
-  const [reason, setReason] = useState(rta.suggested_reason ?? "");
+  const [reason, setReason] = useState("");
   const [due, setDue] = useState(toLocalInput(rta.default_due_at));
   const [draft, setDraft] = useState<DraftAuthorMessage | null>(null);
   const [message, setMessage] = useState("");
@@ -328,6 +367,17 @@ function ReturnToAuthorModal({
                 autoFocus
               />
             </label>
+            {rta.suggested_reason ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-panel px-3 py-1 text-[12px] text-ink-2 hover:border-ink-2 transition-colors"
+                onClick={() => setReason(rta.suggested_reason ?? "")}
+                title={rta.suggested_reason}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--grey-dot)]" aria-hidden />
+                Use suggested reason (drafted by Keel)
+              </button>
+            ) : null}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-[13px] font-medium text-ink">Author</span>
@@ -366,7 +416,7 @@ function ReturnToAuthorModal({
               onChange={(e) => setMessage(e.target.value)}
             />
             <div className="text-[12.5px] text-muted">
-              To <span className="text-blue-ink">{rta.author}</span> · due <span className="mono">{fromLocalInput(due) || utc(rta.default_due_at)}</span> · reason{" "}
+              To <span className="text-blue-ink">{rta.author}</span> · due <span className="mono">{utc(fromLocalInput(due) || rta.default_due_at)}</span> · reason{" "}
               <q className="text-ink-2">{reason}</q>
             </div>
             {err ? <p className="text-[13px] text-red-ink">{err}</p> : null}
@@ -389,7 +439,7 @@ function VerifyModal({
   onResult: (r: ActionResponse) => void;
 }) {
   const phrase = card.actions.verify.attestation_phrase;
-  const [message, setMessage] = useState(phrase);
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -486,11 +536,22 @@ function VerifyModal({
             rows={3}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            placeholder="Your words. Verification is recorded only if the attestation phrase is present."
           />
-          <span className="mt-1 block text-[11.5px] text-muted">
-            Attestation phrase: <q>{phrase}</q>
-          </span>
         </label>
+        <div className="flex flex-wrap items-center gap-2 -mt-2">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={hasPhrase}
+            onClick={() => setMessage((m) => (m.trim() ? `${m.trim()} ${phrase}` : phrase))}
+          >
+            Insert attestation phrase
+          </button>
+          <span className="text-[11.5px] text-muted">
+            <q>{phrase}</q>
+          </span>
+        </div>
         {err ? <p className="text-[13px] text-red-ink">{err}</p> : null}
       </div>
     </Modal>

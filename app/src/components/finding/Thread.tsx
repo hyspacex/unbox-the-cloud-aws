@@ -23,9 +23,10 @@ function summary(e: LedgerEvent): string {
   switch (e.event_type) {
     case "human_disposition_recorded": {
       const hd = e.human_disposition as unknown;
-      if (typeof hd === "string") return `${hd.replace(/_/g, " ")} recorded`;
-      const o = e.human_disposition;
-      return `${o?.disposition?.replace(/_/g, " ") ?? "disposition"} recorded${o?.reason ? `: "${o.reason}"` : ""}`;
+      const o = typeof hd === "object" && hd ? e.human_disposition : null;
+      const d = (typeof hd === "string" ? hd : o?.disposition ?? "disposition").replace(/_/g, " ");
+      const verb = d === "verified" ? "verified" : d === "returned to author" ? "returned to author" : `recorded ${d}`;
+      return `${e.actor.name} ${verb}${e.snapshot_id ? ` on ${e.snapshot_id}` : ""}${o?.reason ? `: "${o.reason}"` : ""}`;
     }
     case "box_task_response_ingested":
       return `Box task response ${e.response?.resolution_state ?? ""}${e.response?.message ? `: "${e.response.message}"` : ""}`;

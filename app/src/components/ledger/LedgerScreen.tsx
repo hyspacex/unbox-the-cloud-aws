@@ -18,6 +18,23 @@ type Phase = "all" | "seed" | "live";
 
 const isLive = (e: LedgerEvent) => e.phase !== "seed";
 
+/** Evaluations that changed nothing: holds, and evaluations whose outcomes were all unchanged. */
+function changedNothing(e: LedgerEvent): boolean {
+  if (e.event_type === "verification_holds") return true;
+  if (e.event_type === "control_evaluated") return e.change_classification === "unchanged";
+  if (e.event_type === "evaluation_completed") return Array.isArray(e.outcomes) && e.outcomes.length > 0 && e.outcomes.every((o) => o.change_classification === "unchanged");
+  return false;
+}
+
+/** Human events project through the next folder metadata write; show that result instead of "pending". */
+function projectionText(e: LedgerEvent, all: LedgerEvent[]): string {
+  const v: string = e.projection?.box_metadata ?? "";
+  if (v !== "pending") return v;
+  const i = all.indexOf(e);
+  const next = all.slice(i + 1).find((x) => x.event_type === "box_metadata_written" || x.event_type === "box_metadata_write_failed");
+  return next ? `${next.projection?.box_metadata ?? "ok"} (${next.event_id})` : "n/a";
+}
+
 export function LedgerScreen() {
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -27,6 +44,7 @@ export function LedgerScreen() {
   const [type, setType] = useState("all");
   const [phase, setPhase] = useState<Phase>("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [unchangedOnly, setUnchangedOnly] = useState(false);
 
   const load = useCallback(() => {
     api
@@ -61,9 +79,10 @@ export function LedgerScreen() {
         .filter((e) => control === "all" || e.control_id === control || (control === "package" && !e.control_id))
         .filter((e) => type === "all" || e.event_type === type)
         .filter((e) => phase === "all" || (phase === "live" ? isLive(e) : !isLive(e)))
+        .filter((e) => !unchangedOnly || changedNothing(e))
         .slice()
         .reverse(),
-    [events, control, type, phase],
+    [events, control, type, phase, unchangedOnly],
   );
 
   const toggle = (id: string) =>
@@ -81,11 +100,24 @@ export function LedgerScreen() {
           <div className="eyebrow mb-2">Ledger</div>
           <h1 className="text-[28px] font-semibold tracking-[-0.025em] text-ink">Every evaluation, including the ones that changed nothing</h1>
           {ledger ? (
-            <p className="mt-2 text-[14px] text-ink-2 max-w-[75ch]">
-              {ledger.scope ?? "Append-only."} Hash chain:{" "}
-              <span className="text-muted">{ledger.chain.algorithm}</span>, head <Hash value={ledger.chain.head} />.
-            </p>
-          ) : null}
+            <>
+              <p className="mt-2 text-[14px] text-ink-2 max-w-[75ch]">
+                {ledger.scope ?? "Append-only."} Hash chain:{" "}
+                <span className="text-muted">{ledger.chain.algorithm}</span>, head <Hash value={ledger.chain.head} />.
+              </p>
+              <Population events={events} />
+              <button
+                className={`mt-4 btn btn-sm ${unchangedOnly ? "btn-primary" : "btn-secondary"}`}
+                onClick={() => setUnchangedOnly((u) => !u)}
+                aria-pressed={unchangedOnly}
+              >
+                {unchangedOnly ? "Showing evaluations that changed nothing" : "Show evaluations that changed nothing"}
+                <span className={`tabular-nums ${unchangedOnly ? "text-white/70" : "text-faint"}`}>{events.filter(changedNothing).length}</span>
+              </button>
+            </>
+          ) : (
+            <LoadingBlock lines={3} className="mt-4 max-w-xl" />
+          )}
         </div>
         <ExportPanel manifest={manifest} error={manifestErr} />
       </div>
@@ -102,7 +134,7 @@ export function LedgerScreen() {
             >
               {phase === p ? <motion.span layoutId="phase-pill" className="absolute inset-0 rounded-md bg-paper-2" transition={T_BASE} /> : null}
               <span className="relative">
-                {p === "all" ? "All" : p === "seed" ? "Seed" : "Live"} <span className="text-faint tabular-nums">{phaseCounts[p]}</span>
+                {p === "all" ? "All" : p === "seed" ? "Seed" : "This run"} {ledger ? <span className="text-faint tabular-nums">{phaseCounts[p]}</span> : null}
               </span>
             </button>
           ))}
@@ -110,15 +142,23 @@ export function LedgerScreen() {
         <Select label="Control" value={control} onChange={setControl} options={[["all", "All controls"], ["package", "Package-level"], ...controls.map((c) => [c, c] as [string, string])]} />
         <Select label="Event type" value={type} onChange={setType} options={[["all", "All types"], ...types.map((t) => [t, t] as [string, string])]} />
         <span className="ml-auto text-[12.5px] text-muted tabular-nums">
-          {filtered.length} of {events.length} events, newest first
+          {ledger ? `${filtered.length} of ${events.length} events, newest first` : "loading"}
         </span>
       </div>
 
       <div className="mt-3">
         {err ? <ErrorBlock title="Could not load /api/ledger" message={err} onRetry={load} /> : null}
         {!ledger && !err ? (
-          <div className="panel p-5">
-            <LoadingBlock lines={10} />
+          <div className="panel divide-y divide-[var(--line)]" aria-busy="true">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="flex gap-4 px-4 py-3">
+                <div className="shimmer h-3.5 w-36 rounded" />
+                <div className="shimmer h-3.5 w-20 rounded" />
+                <div className="shimmer h-3.5 w-48 rounded" />
+                <div className="shimmer h-3.5 w-24 rounded" />
+                <div className="shimmer h-3.5 flex-1 rounded" />
+              </div>
+            ))}
           </div>
         ) : null}
         {ledger ? (
@@ -148,7 +188,7 @@ export function LedgerScreen() {
                       <td className="px-2.5 py-2 mono whitespace-nowrap text-ink">{e.event_id}</td>
                       <td className="px-2.5 py-2 mono whitespace-nowrap">
                         {e.event_type}
-                        {isLive(e) ? <span className="ml-1.5 rounded border border-line-strong px-1 py-px text-[10px] font-sans font-semibold uppercase tracking-wide text-ink-2">live</span> : null}
+                        {isLive(e) ? <span className="ml-1.5 rounded border border-line-strong px-1 py-px text-[10px] font-sans font-semibold uppercase tracking-wide text-ink-2">this run</span> : null}
                       </td>
                       <td className="px-2.5 py-2 mono whitespace-nowrap">{e.control_id ?? <span className="text-faint">package</span>}</td>
                       <td className="px-2.5 py-2 mono">{e.snapshot_id ?? ""}</td>
@@ -161,7 +201,7 @@ export function LedgerScreen() {
                       </td>
                       <td className="px-2.5 py-2 mono text-grey-ink">{e.machine_assessment ?? ""}</td>
                       <td className="px-2.5 py-2 mono text-grey-ink">{e.change_classification ?? ""}</td>
-                      <td className={`px-2.5 py-2 mono ${e.projection?.box_metadata === "failed" ? "text-red-ink" : "text-muted"}`}>{e.projection?.box_metadata ?? ""}</td>
+                      <td className={`px-2.5 py-2 mono ${e.projection?.box_metadata === "failed" ? "text-red-ink" : "text-muted"}`}>{projectionText(e, events)}</td>
                     </tr>
                     <AnimatePresence initial={false}>
                       {open.has(e.event_id) ? (
@@ -185,6 +225,28 @@ export function LedgerScreen() {
   );
 }
 
+function Population({ events }: { events: LedgerEvent[] }) {
+  const n = (f: (e: LedgerEvent) => boolean) => events.filter(f).length;
+  const items: [string, number][] = [
+    ["controls evaluated", n((e) => e.event_type === "control_evaluated")],
+    ["verifications held", n((e) => e.event_type === "verification_holds")],
+    ["acknowledgments required", n((e) => e.event_type === "verification_requires_acknowledgment")],
+    ["human dispositions", n((e) => e.event_type === "human_disposition_recorded")],
+    ["Box metadata writes", n((e) => e.event_type === "box_metadata_written" || e.event_type === "box_metadata_write_failed")],
+    ["failed or rejected", n((e) => e.event_type === "evaluation_error" || e.event_type === "box_metadata_write_failed" || e.event_type === "action_rejected_stale")],
+  ];
+  return (
+    <dl className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 max-w-[640px]">
+      {items.map(([k, v]) => (
+        <div key={k}>
+          <dt className="text-[12px] text-muted">{k}</dt>
+          <dd className="text-[20px] font-semibold text-ink tabular-nums leading-tight">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function EventRecord({ e }: { e: LedgerEvent }) {
   const model = e.model_id ?? e.actor.model_id;
   return (
@@ -195,7 +257,7 @@ function EventRecord({ e }: { e: LedgerEvent }) {
         <dt className="text-muted">Model</dt>
         <dd className="mono break-all">{model ?? "none"}</dd>
         <dt className="text-muted">MRM model id</dt>
-        <dd className="mono">{e.mrm_model_id}</dd>
+        <dd className="mono">{e.actor.type === "agent" ? e.mrm_model_id : <span className="text-faint">not a model event</span>}</dd>
         <dt className="text-muted">Prompt hash</dt>
         <dd>
           <Hash value={e.prompt_hash} />
@@ -260,7 +322,7 @@ export function ExportPanel({ manifest, error }: { manifest: ExportManifest | nu
     <section className="panel p-4" aria-label="Export">
       <div className="flex items-baseline justify-between">
         <h2 className="text-[14px] font-semibold text-ink">Export</h2>
-        {manifest ? <span className="text-[12px] text-muted">exported {utc(manifest.exported_at)}</span> : null}
+        {manifest ? <span className="text-[12px] text-muted">generated {utc(manifest.exported_at)}</span> : null}
       </div>
       <p className="mt-1.5 text-[12.5px] leading-[1.5] text-ink-2">{LIMITATION}</p>
       {manifest && manifest.limitation && manifest.limitation !== LIMITATION ? (
@@ -275,6 +337,7 @@ export function ExportPanel({ manifest, error }: { manifest: ExportManifest | nu
         </a>
       </div>
       {error ? <p className="mt-3 text-[12px] text-red-ink">Manifest unavailable: {error}</p> : null}
+      {!manifest && !error ? <LoadingBlock lines={4} className="mt-3 border-t hairline pt-3" /> : null}
       {manifest ? (
         <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px] border-t hairline pt-3">
           <dt className="text-muted">Events</dt>

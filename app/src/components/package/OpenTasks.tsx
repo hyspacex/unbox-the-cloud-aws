@@ -10,12 +10,19 @@ export function OpenTasks({ tasks, loading, error }: { tasks: TaskItem[]; loadin
     (t.status ?? "").toLowerCase() === "open" || (!t.status && (!t.resolution_state || t.resolution_state === "incomplete") && !t.response);
   const open = tasks.filter(isOpen);
   const done = tasks.filter((t) => !isOpen(t));
+  const outcome = (t: TaskItem) => t.response?.resolution_state ?? t.resolution_state ?? t.status ?? "completed";
+  const counts = done.reduce<Record<string, number>>((acc, t) => {
+    const k = outcome(t);
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
+  const summary = [...Object.entries(counts).map(([k, n]) => `${n} ${k}`), `${open.length} open`].join(" · ");
   return (
     <section aria-label="Tasks in Box">
       <div className="flex items-baseline justify-between mb-2">
         <h3 className="text-[14px] font-semibold text-ink">Tasks in Box</h3>
         <span className="text-[12.5px] text-muted">
-          {error ? <span className="text-red-ink">unavailable: {error}</span> : loading ? "loading" : `${open.length} open · ${done.length} completed`}
+          {error ? <span className="text-red-ink">unavailable: {error}</span> : loading ? "loading" : summary}
         </span>
       </div>
       {tasks.length === 0 && !loading && !error ? (
@@ -36,7 +43,7 @@ export function OpenTasks({ tasks, loading, error }: { tasks: TaskItem[]; loadin
               <div className="flex items-center justify-between gap-2">
                 <span className="mono text-ink">{t.task_id}</span>
                 <span className={`text-[11.5px] font-medium ${isOpen(t) ? "text-amber-ink" : "text-muted"}`}>
-                  {isOpen(t) ? "open" : t.response?.resolution_state ?? t.resolution_state ?? t.status ?? "completed"}
+                  {isOpen(t) ? "open" : outcome(t)}
                 </span>
               </div>
               <div className="mt-0.5 text-muted">

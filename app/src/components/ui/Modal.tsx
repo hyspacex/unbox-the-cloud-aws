@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/lib/ui/useFocusTrap";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { T_BASE, T_FAST } from "@/lib/ui/motion";
@@ -22,9 +23,16 @@ export function Modal({
   footer?: React.ReactNode;
   width?: number;
 }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(boxRef, open, "textarea, input");
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
@@ -43,9 +51,12 @@ export function Modal({
         >
           <div className="absolute inset-0 bg-[rgb(23_25_28/0.32)] backdrop-blur-[2px]" onClick={onClose} />
           <motion.div
+            ref={boxRef}
+            tabIndex={-1}
+            data-keel-modal="true"
             role="dialog"
             aria-modal="true"
-            className="relative bg-panel rounded-[14px] max-h-[88vh] flex flex-col"
+            className="relative bg-panel rounded-[14px] max-h-[88vh] flex flex-col outline-none"
             style={{ width, maxWidth: "100%", boxShadow: "var(--shadow-modal)" }}
             initial={{ opacity: 0, scale: 0.98, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

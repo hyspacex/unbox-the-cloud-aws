@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ActionResponse, BoxTask, ControlRow, FindingCard as Card, RunMode } from "@/lib/types";
 import { StatusChip, SeverityTag } from "@/components/ui/StatusChip";
 import { SecondaryLine } from "@/components/package/ControlRows";
 import { utc } from "@/lib/ui/format";
 import { T_BASE } from "@/lib/ui/motion";
-import { ControlBlock } from "./Clauses";
+import { ClauseSummary, ControlBlock } from "./Clauses";
+import { EvidencePair } from "./EvidencePair";
+import { utcInText } from "@/lib/ui/format";
 import { VersionColumns } from "./Versions";
 import { MachineBlock } from "./MachineBlock";
 import { DispositionBlock } from "./Disposition";
@@ -38,23 +40,17 @@ export function FindingCardView({
   layout?: "drawer" | "page";
 }) {
   const [lastResult, setLastResult] = useState<ActionResponse | null>(null);
-  const [flash, setFlash] = useState(false);
-
-  useEffect(() => {
-    if (!flash) return;
-    const t = setTimeout(() => setFlash(false), 3000);
-    return () => clearTimeout(t);
-  }, [flash]);
+  const threadId = `thread-${card.finding.finding_id}`;
+  const seeThread = () => document.getElementById(threadId)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const handleResult = (r: ActionResponse) => {
     setLastResult(r);
-    if (r.author_task) setFlash(true);
     onResult?.(r);
   };
 
   const status = lastResult?.row.status ?? card.row.status;
   const fromThread = authorTaskFromThread(card.thread)?.task ?? null;
-  const authorTask: BoxTask | null = flash ? null : lastResult?.author_task ?? fromThread;
+  const authorTask: BoxTask | null = lastResult?.author_task ?? fromThread;
   const opened = openedAt(card);
 
   return (
@@ -70,7 +66,7 @@ export function FindingCardView({
             </div>
             {status.secondary ? (
               <p className="mt-1.5 text-[12.5px] text-muted">
-                <SecondaryLine text={status.secondary} />
+                <SecondaryLine text={utcInText(status.secondary)} />
               </p>
             ) : null}
           </div>
@@ -94,13 +90,17 @@ export function FindingCardView({
 
       <div className={`${layout === "drawer" ? "px-7 py-6" : "py-6"} grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]`}>
         <div className="min-w-0 space-y-7">
-          <ControlBlock control={card.control} clauses={card.finding.clause_support} profileVersion={card.profile_version} />
+          <EvidencePair card={card} />
+          <ClauseSummary clauses={card.finding.clause_support} />
+          <ControlBlock control={card.control} profileVersion={card.profile_version} />
           <VersionColumns prior={card.prior_version} next={card.new_version} />
           <MachineBlock finding={card.finding} traceSteps={card.trace_steps} />
-          <Thread events={card.thread} authorTask={authorTask} />
+          <div id={threadId} className="scroll-mt-[150px]">
+            <Thread events={card.thread} authorTask={authorTask} />
+          </div>
         </div>
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-[132px] lg:self-start">
-          <DispositionBlock card={card} mode={mode} onResult={handleResult} lastResult={lastResult} flashTask={flash} />
+          <DispositionBlock card={card} mode={mode} onResult={handleResult} lastResult={lastResult} onSeeThread={seeThread} />
           <Related rows={card.related} current={card.finding.control_id} onSelect={onSelectRelated} />
         </aside>
       </div>
@@ -128,6 +128,8 @@ export function Related({
   onSelect?: (row: ControlRow) => void;
 }) {
   const others = rows.filter((r) => r.control_id !== current);
+  const attention = others.filter((r) => r.status.kind !== "verified_holds");
+  const holds = others.filter((r) => r.status.kind === "verified_holds");
   return (
     <section aria-label="Related controls">
       <div className="flex items-baseline justify-between mb-2">
@@ -136,7 +138,7 @@ export function Related({
       </div>
       <ul className="rounded-[10px] border hairline bg-panel divide-y divide-[var(--line)]">
         <AnimatePresence initial={false}>
-          {others.map((r) => (
+          {attention.map((r) => (
             <motion.li key={r.control_id} layout="position" transition={T_BASE}>
               <button
                 className="w-full text-left px-3 py-2 hover:bg-paper/80 transition-colors disabled:cursor-default"
@@ -147,7 +149,6 @@ export function Related({
                   <span className="mono text-[12px] text-ink">{r.control_id}</span>
                   <span className="text-[11px] text-faint">{r.tier}</span>
                 </div>
-                <div className="mt-0.5 text-[12px] text-ink-2 truncate">{r.title}</div>
                 <div className="mt-1">
                   <StatusChip status={r.status} size="sm" showSeverity={false} />
                 </div>
@@ -155,6 +156,11 @@ export function Related({
             </motion.li>
           ))}
         </AnimatePresence>
+        {holds.length ? (
+          <li className="px-3 py-2 text-[12.5px] text-muted" title={holds.map((h) => h.control_id).join(", ")}>
+            <span className="text-teal-ink font-medium">{holds.length} hold</span> · {holds.map((h) => h.control_id.replace("SEC-ARCH-", "")).join(", ")}
+          </li>
+        ) : null}
       </ul>
     </section>
   );

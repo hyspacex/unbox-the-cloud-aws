@@ -137,13 +137,87 @@ const SCRIPT: [string, string, string][] = [
   ["2:50", "Know what changed, and who reviewed that exact evidence.", "Title, tagline, final evidence pair"],
 ];
 
+type Node = { title: string; sub: string; color: string; proposed?: string };
+const FLOW: Node[] = [
+  { title: "Box files and versions", sub: "five files, pinned by version id and SHA-256", color: "var(--src-box)", proposed: "Box webhook to Lambda URL, EventBridge, SQS FIFO; Box Automate trigger" },
+  { title: "Decider, local gate", sub: "Strands Decider 2B: injection and materiality, never a status", color: "var(--src-decider)" },
+  { title: "Strands agent on Bedrock", sub: "Claude Sonnet 4.6, one call per snapshot, no write tools", color: "var(--src-agent)", proposed: "AgentCore Runtime, Identity, Observability" },
+  { title: "Code: validation, rules, ledger", sub: "quotes checked against pinned text; 16 display rules; hash-chained ledger", color: "var(--src-app)", proposed: "DynamoDB ledger, Streams to S3 Object Lock" },
+  { title: "Box metadata and tasks", sub: "folder status fields; review and author tasks", color: "var(--src-box)", proposed: "Jira, ServiceNow IRM" },
+];
+
+function FlowStrip() {
+  return (
+    <section aria-label="Architecture flow" className="mt-6 panel px-6 pt-6 pb-5 overflow-x-auto">
+      <div className="flex items-start gap-0 min-w-[1080px]">
+        {FLOW.map((n, i) => (
+          <div key={n.title} className="flex items-start">
+            <div className="flex flex-col w-[166px]">
+              <div className="rounded-[10px] border border-line-strong bg-white px-3.5 py-3 min-h-[118px]" style={{ boxShadow: `inset 0 3px 0 ${n.color}` }}>
+                <div className="text-[14px] font-semibold text-ink leading-snug">{n.title}</div>
+                <div className="mt-1 text-[12px] leading-[1.4] text-muted">{n.sub}</div>
+              </div>
+              {i === 2 ? (
+                <div className="mt-2 flex flex-col items-center">
+                  <svg width="14" height="22" viewBox="0 0 14 22" aria-hidden>
+                    <path d="M4 2v18M10 20V2M1 5l3-3 3 3M7 17l3 3 3-3" fill="none" stroke="var(--src-boxai)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <div className="mt-1 w-full rounded-[10px] border px-3 py-2 text-center" style={{ borderColor: "var(--src-boxai)" }}>
+                    <div className="text-[13px] font-semibold" style={{ color: "var(--src-boxai)" }}>Box AI ask</div>
+                    <div className="text-[11.5px] text-muted">multi-file, with citations</div>
+                  </div>
+                </div>
+              ) : null}
+              {n.proposed ? (
+                <div className="mt-2 rounded-[8px] border border-dashed border-line-strong px-2.5 py-1.5 text-[11px] leading-[1.35] text-faint">
+                  <span className="font-semibold uppercase tracking-[0.06em]">proposed</span> {n.proposed}
+                </div>
+              ) : null}
+            </div>
+            {i < FLOW.length - 1 ? <Arrow /> : null}
+          </div>
+        ))}
+        <Arrow label="asks" />
+        <div className="flex items-start">
+          <div className="w-[22px] h-[118px] rounded-[4px] mr-3 relative" style={{ background: "repeating-linear-gradient(135deg, var(--ink-2) 0 4px, transparent 4px 8px)" }} aria-hidden />
+          <div className="w-[170px] flex flex-col">
+            <div className="rounded-[10px] border border-blue-line bg-blue-bg px-3.5 py-3 min-h-[118px]" style={{ boxShadow: "inset 0 3px 0 var(--src-human)" }}>
+              <div className="text-[14px] font-semibold text-blue-ink">Person</div>
+              <div className="mt-1 text-[12px] leading-[1.4] text-ink-2">the reviewer records the disposition through the Box task</div>
+            </div>
+            <div className="mt-3 -ml-[34px] flex items-start gap-2 text-[12.5px] font-semibold text-ink leading-snug">
+              <svg width="12" height="12" viewBox="0 0 12 12" className="mt-[3px] flex-none" aria-hidden>
+                <path d="M6 1v10M1 6h10" stroke="var(--ink)" strokeWidth="1.6" strokeLinecap="round" transform="rotate(45 6 6)" />
+              </svg>
+              The machine cannot write here: only the person records a disposition.
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-[12px] text-muted">Solid: built in this build. Dashed: proposed, not built. The ledger is local in this build.</p>
+    </section>
+  );
+}
+
+function Arrow({ label }: { label?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-start pt-9 w-[34px] flex-none" aria-hidden>
+      <svg width="26" height="10" viewBox="0 0 26 10">
+        <path d="M1 5h22M19 1l4 4-4 4" fill="none" stroke="var(--faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {label ? <span className="mt-0.5 text-[10.5px] text-faint">{label}</span> : null}
+    </div>
+  );
+}
+
 export function ArchitecturePage() {
   return (
     <div className="mx-auto max-w-[1360px] px-6 lg:px-10 pt-8 pb-16">
       <div className="eyebrow mb-2">Architecture</div>
       <h1 className="text-[28px] font-semibold tracking-[-0.025em] text-ink">Box answers, Bedrock judges, Decider gates, code owns state, a person decides</h1>
+      <FlowStrip />
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {COLUMNS.map((c) => (
           <section key={c.title} className="panel p-4">
             <h2 className="flex items-center gap-2 text-[15px] font-semibold text-ink">

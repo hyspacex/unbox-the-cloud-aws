@@ -2,6 +2,7 @@ import type { FindingCard } from "@/lib/types";
 import { Hash } from "@/components/ui/Mono";
 import { utc } from "@/lib/ui/format";
 import { QuoteInText, WordDiff } from "./WordDiff";
+import { Disclosure } from "@/components/ui/Disclosure";
 
 type Prior = NonNullable<FindingCard["prior_version"]>;
 type Next = NonNullable<FindingCard["new_version"]>;
@@ -9,7 +10,7 @@ type Next = NonNullable<FindingCard["new_version"]>;
 export function VersionColumns({ prior, next }: { prior: FindingCard["prior_version"]; next: FindingCard["new_version"] }) {
   const sameFile = prior && next && prior.file.fileId === next.file.fileId;
   return (
-    <section aria-label="Reviewed and submitted versions" className="grid gap-4 md:grid-cols-2">
+    <section aria-label="Reviewed and submitted versions" className="grid gap-4 md:grid-cols-2 items-start">
       <Column title="Reviewed version" sub={prior ? "the evidence a person verified" : undefined}>
         {prior ? <PriorBody v={prior} /> : <p className="text-[13px] text-muted">No prior verified evidence for this control.</p>}
       </Column>
@@ -93,10 +94,11 @@ function PriorBody({ v }: { v: Prior }) {
           ["Box link", v.deep_link ? <DeepLink key="l" href={v.deep_link} /> : <span className="text-faint">none</span>],
         ]}
       />
-      <div className="rounded-md bg-paper/80 border hairline px-3 py-2.5">
-        <div className="eyebrow mb-1">Verified quote, in its section</div>
-        <QuoteInText text={v.text} quote={v.quote} />
-      </div>
+      <Disclosure label="Section text" hint="verified quote highlighted">
+        <div className="rounded-md bg-paper/80 border hairline px-3 py-2.5">
+          <QuoteInText text={v.text} quote={v.quote} />
+        </div>
+      </Disclosure>
     </>
   );
 }
@@ -113,24 +115,20 @@ function NextBody({ v, prior, sameFile }: { v: Next; prior: FindingCard["prior_v
           ["Box link", v.deep_link ? <DeepLink key="l" href={v.deep_link} /> : <span className="text-faint">none</span>],
         ]}
       />
-      <div className="rounded-md bg-paper/80 border hairline px-3 py-2.5">
-        {sameFile && prior?.text && v.text ? (
-          <>
-            <div className="eyebrow mb-1">Section text, word diff against the reviewed version</div>
+      {sameFile && prior?.text && v.text ? (
+        <Disclosure label="Full section diff" hint="against the reviewed version">
+          <div className="rounded-md bg-paper/80 border hairline px-3 py-2.5">
             <WordDiff before={prior.text} after={v.text} />
-          </>
-        ) : (
-          <>
-            <div className="eyebrow mb-1">{v.quote ? "Supporting quote, in its section" : "Section text"}</div>
+          </div>
+        </Disclosure>
+      ) : v.text ? (
+        <Disclosure label="Section text">
+          <div className="rounded-md bg-paper/80 border hairline px-3 py-2.5">
             <QuoteInText text={v.text} quote={v.quote} />
-            {!sameFile && prior ? (
-              <p className="mt-2 text-[11.5px] text-faint">
-                Different file from the reviewed version, so no word diff is shown.
-              </p>
-            ) : null}
-          </>
-        )}
-      </div>
+            {!sameFile && prior ? <p className="mt-2 text-[11.5px] text-faint">Different file from the reviewed version, so no word diff is shown.</p> : null}
+          </div>
+        </Disclosure>
+      ) : null}
     </>
   );
 }

@@ -6,41 +6,107 @@ import type { ControlRow } from "@/lib/types";
 import { StatusChip, TierTag } from "@/components/ui/StatusChip";
 import { Caret } from "@/components/ui/Disclosure";
 import { T_BASE, T_LAYOUT } from "@/lib/ui/motion";
-import { words } from "@/lib/ui/format";
+import { midTruncate, words } from "@/lib/ui/format";
+import { compactSecondary } from "@/lib/ui/secondary";
+import { isHold, orderByAttention, orderById } from "@/lib/ui/order";
+
+const GRID =
+  "grid grid-cols-[minmax(0,1fr)_36px] md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.8fr)_minmax(0,0.85fr)_36px] gap-x-4 gap-y-2";
 
 export function ControlRows({
   rows,
   onOpen,
   selectedId,
+  ordering = "attention",
+  holdsDefaultOpen,
+  preserveOrder = false,
 }: {
   rows: ControlRow[];
   onOpen?: (row: ControlRow) => void;
   selectedId?: string | null;
+  /** "id" keeps the profile order (baseline and pending); "attention" puts what needs a person first. */
+  ordering?: "id" | "attention";
+  /** Defaults to open when every row holds (baseline), closed otherwise. */
+  holdsDefaultOpen?: boolean;
+  /** Rows arrive already in display order (the parent controls the reveal order). */
+  preserveOrder?: boolean;
 }) {
+  const ordered = preserveOrder ? rows : ordering === "id" ? orderById(rows) : orderByAttention(rows);
+  const holds = ordered.filter(isHold);
+  const others = ordered.filter((r) => !isHold(r));
+  const allHold = others.length === 0 && holds.length > 0;
+  const defaultOpen = holdsDefaultOpen ?? allHold;
+  // Re-key the group when the default changes so a new run starts collapsed.
+  const groupKey = `${defaultOpen}-${holds.length}`;
+  const sel = (r: ControlRow) => selectedId != null && (selectedId === r.finding_id || selectedId === r.control_id);
+
   return (
     <LayoutGroup>
       <div className="panel overflow-hidden" role="table" aria-label="Controls on this snapshot">
         <div
           role="row"
-          className="hidden md:grid grid-cols-[minmax(0,1.25fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_36px] gap-4 px-5 py-2.5 border-b hairline bg-panel-cool"
+          className={`hidden md:grid ${GRID} relative z-10 px-5 py-2.5 border-b hairline bg-panel-cool`}
         >
           <span className="eyebrow" role="columnheader">Control</span>
           <span className="eyebrow" role="columnheader">Displayed status</span>
           <span className="eyebrow" role="columnheader">Evidencing file</span>
           <span role="columnheader" className="sr-only">Machine detail</span>
         </div>
-        {rows.map((row, i) => (
-          <Row
-            key={row.control_id}
-            row={row}
-            index={i}
-            last={i === rows.length - 1}
-            onOpen={onOpen}
-            selected={selectedId != null && (selectedId === row.finding_id || selectedId === row.control_id)}
-          />
+        {others.map((row, i) => (
+          <Row key={row.control_id} row={row} last={i === others.length - 1 && holds.length === 0} onOpen={onOpen} selected={sel(row)} />
         ))}
+        {holds.length ? <HoldsGroup key={groupKey} holds={holds} defaultOpen={defaultOpen} onOpen={onOpen} sel={sel} /> : null}
       </div>
     </LayoutGroup>
+  );
+}
+
+function HoldsGroup({
+  holds,
+  defaultOpen,
+  onOpen,
+  sel,
+}: {
+  holds: ControlRow[];
+  defaultOpen: boolean;
+  onOpen?: (row: ControlRow) => void;
+  sel: (r: ControlRow) => boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <motion.div layout="position" transition={T_LAYOUT}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={`w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-paper/70 transition-colors ${open ? "border-b hairline" : ""}`}
+      >
+        <Caret open={open} />
+        <span className="chip tone-teal">
+          <span className="chip-dot" aria-hidden />
+          {holds.length} {holds.length === 1 ? "verification holds" : "verifications hold"}
+        </span>
+        <span className="text-[12.5px] text-muted truncate">
+          {open ? "Evidence unchanged; no one needs to click anything." : holds.map((h) => h.control_id).join(" · ")}
+        </span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            key="holds"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={T_BASE}
+            style={{ overflow: "hidden" }}
+          >
+            {holds.map((row, i) => (
+              <Row key={row.control_id} row={row} last={i === holds.length - 1} onOpen={onOpen} selected={sel(row)} />
+            ))}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -51,25 +117,40 @@ function Row({
   selected,
 }: {
   row: ControlRow;
-  index: number;
   last: boolean;
   onOpen?: (row: ControlRow) => void;
   selected: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const clickable = Boolean(onOpen);
+  const critical = row.status.kind.startsWith("needs_review") && (row.status.severity ?? row.severity) === "Critical";
+  const sec = compactSecondary(row.status.secondary);
+  const sevTag =
+    row.status.kind === "acknowledge" ? (
+      <span className="tag" title="Control tier">Tier {row.tier}</span>
+    ) : row.status.severity ? (
+      critical ? (
+        <span className="tag !border-[var(--amber-dot)] !text-amber-ink font-semibold" title="Severity: control tier by application tier">
+          Critical
+        </span>
+      ) : (
+        <span className="tag" title="Severity: control tier by application tier">
+          <span className="text-faint mr-1">Severity</span>
+          {row.status.severity}
+        </span>
+      )
+    ) : null;
   return (
     <motion.div
       layout="position"
       transition={T_LAYOUT}
       role="row"
       data-control={row.control_id}
-      className={`${last ? "" : "border-b hairline"} ${selected ? "bg-blue-bg/40" : ""}`}
+      className={`relative ${last ? "" : "border-b hairline"} ${selected ? "bg-blue-bg/40" : ""}`}
+      style={critical ? { boxShadow: "inset 3px 0 0 var(--amber-dot)" } : undefined}
     >
       <div
-        className={`grid grid-cols-[minmax(0,1fr)_36px] md:grid-cols-[minmax(0,1.15fr)_minmax(0,1.75fr)_minmax(0,0.85fr)_36px] gap-x-4 gap-y-2 px-5 py-3.5 items-start ${
-          clickable ? "cursor-pointer hover:bg-paper/70 transition-colors" : ""
-        }`}
+        className={`${GRID} px-5 py-3 items-start ${clickable ? "cursor-pointer hover:bg-paper/70 transition-colors" : ""}`}
         onClick={() => onOpen?.(row)}
         onKeyDown={(e) => {
           if ((e.key === "Enter" || e.key === " ") && onOpen) {
@@ -85,21 +166,37 @@ function Row({
             <span className="mono text-[13px] font-medium text-ink">{row.control_id}</span>
             <TierTag tier={row.tier} />
           </div>
-          <div className="mt-0.5 text-[14.5px] leading-snug text-ink-2">{row.title}</div>
+          <div className="mt-0.5 text-[14px] leading-snug text-ink-2">{row.title}</div>
         </div>
         <div role="cell" className="min-w-0 col-start-1 md:col-start-auto">
-          <StatusChip status={row.status} />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusChip status={row.status} showSeverity={false} />
+            {sevTag}
+          </div>
           <AnimatePresence initial={false} mode="popLayout">
-            {row.status.secondary ? (
+            {sec ? (
               <motion.div
-                key={row.status.secondary}
+                key={sec.full}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={T_BASE}
-                className="mt-1.5 text-[12.5px] leading-[1.45] text-muted"
+                className="mt-1 text-[12.5px] leading-[1.45] text-muted"
+                title={sec.full}
               >
-                <SecondaryLine text={row.status.secondary} />
+                {sec.verb ? (
+                  <>
+                    {sec.verb} <span className="text-blue-ink font-medium">{sec.name}</span>
+                    {sec.rest.map((p) => (
+                      <span key={p}>
+                        <span className="mx-1.5 text-faint">·</span>
+                        <span className={/^\d{4}/.test(p) ? "tabular-nums" : ""}>{p}</span>
+                      </span>
+                    ))}
+                  </>
+                ) : (
+                  sec.rest[0]
+                )}
               </motion.div>
             ) : null}
           </AnimatePresence>
@@ -107,8 +204,11 @@ function Row({
         <div role="cell" className="min-w-0 col-start-1 md:col-start-auto text-[13px] text-ink-2">
           {row.evidencing ? (
             <>
-              <div className="mono truncate" title={`${row.evidencing.fileName} ${row.evidencing.versionLabel ?? ""} (version id ${row.evidencing.versionId})`}>
-                {row.evidencing.fileName} <span className="text-muted">{row.evidencing.versionLabel ?? ""}</span>
+              <div
+                className="mono whitespace-nowrap"
+                title={`${row.evidencing.fileName} ${row.evidencing.versionLabel ?? ""} (version id ${row.evidencing.versionId})`}
+              >
+                {midTruncate(row.evidencing.fileName, 22)} <span className="text-muted">{row.evidencing.versionLabel ?? ""}</span>
               </div>
               {row.evidencing.section ? <div className="text-muted text-[12.5px] truncate">{row.evidencing.section}</div> : null}
             </>

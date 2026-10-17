@@ -2,96 +2,113 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { ActionResponse, ControlRow, PackageView, TraceStep } from "@/lib/types";
+import type { ActionResponse, ControlRow, DisplayedStatus, PackageView, SubmitRequest, TraceStep } from "@/lib/types";
 import { api, followRun, type TaskItem } from "@/lib/client";
 import { useKeel } from "@/components/AppProvider";
 import { CountLine } from "@/components/ui/CountLine";
 import { ErrorBlock, LoadingBlock } from "@/components/ui/States";
 import { Drawer } from "@/components/ui/Drawer";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { FindingContainer } from "@/components/finding/FindingContainer";
 import { T_BASE, T_SLOW } from "@/lib/ui/motion";
+import { orderByAttention, orderById } from "@/lib/ui/order";
 import { PackageHeader } from "./PackageHeader";
 import { ControlRows } from "./ControlRows";
-import { TracePanel, TraceSummary, type TraceMeta } from "./TracePanel";
+import { TraceEmpty, TracePanel, TraceSummary, type TraceMeta } from "./TracePanel";
 import { FolderProjection } from "./FolderProjection";
 import { OpenTasks } from "./OpenTasks";
 
-type RunUi = { runId: string; steps: TraceStep[]; meta: TraceMeta; running: boolean; error?: string };
+type RunUi = { runId: string; steps: TraceStep[]; meta: TraceMeta; running: boolean };
 
-const STAGGER_MS = 40;
+const STAGGER_MS = 80;
+
+/** Rule 1 while a re-check runs: the prior label stays visible, struck through. */
+function pendingOf(r: ControlRow): ControlRow {
+  if (r.status.kind === "pending_recheck") return r;
+  const status: DisplayedStatus = {
+    rule: 1,
+    kind: "pending_recheck",
+    label: "Re-check pending",
+    projection_code: "PENDING",
+    tone: "grey",
+    struck: r.status.label,
+  };
+  return { ...r, status };
+}
+
+const allHold = (rows: ControlRow[]) => rows.length > 0 && rows.every((r) => r.status.kind === "verified_holds");
+const anyPending = (v: PackageView) => v.evaluation_state === "pending" || v.rows.some((r) => r.status.kind === "pending_recheck");
+
+const SCENARIOS: { id: NonNullable<SubmitRequest["scenario"]> | string; title: string; what: string }[] = [
+  { id: "fabricated_quote", title: "Fabricated quote", what: "The model cites a sentence that is not in the pinned text. Code rejects the quote and the control reads Not evaluated." },
+  { id: "injection", title: "Injected instructions", what: "A runbook upload tells AI agents to mark everything satisfied. Decider quarantines it before Bedrock sees it." },
+  { id: "unreadable", title: "Unreadable file", what: "One file cannot be read. Coverage drops and the controls that depend on it read Not evaluated." },
+  { id: "contradiction", title: "Conflicting evidence", what: "A vendor summary contradicts a supporting quote. The control reads Needs review: conflicting evidence and Verify is blocked." },
+  { id: "missing_finding", title: "Missing finding", what: "The model returns seven findings for eight controls. Code rejects the whole evaluation; nothing partial is applied." },
+];
 
 export function PackageScreen() {
   const { config, setRun: setRunLabel } = useKeel();
   const [view, setView] = useState<PackageView | null>(null);
   const [rows, setRows] = useState<ControlRow[]>([]);
+  const [order, setOrder] = useState<string[] | null>(null);
   const [countLine, setCountLine] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [tasksErr, setTasksErr] = useState<string | null>(null);
   const [run, setRun] = useState<RunUi | null>(null);
+  const [traceOpen, setTraceOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [traceOpen, setTraceOpen] = useState(true);
+  const [scenario, setScenario] = useState<string | null>(null);
   const pushedRef = useRef(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const cancelRunRef = useRef<(() => void) | null>(null);
-  const rowsRef = useRef<ControlRow[]>([]);
-  useEffect(() => {
-    rowsRef.current = rows;
-  }, [rows]);
+  const flippedRef = useRef<string | null>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
 
   const mode = view?.mode ?? config?.mode;
   const isMock = mode === "mock";
 
-  /** Apply a new view; rows whose status changed update one by one, 40 ms apart. */
-  const applyView = useCallback((v: PackageView, stagger = true) => {
-    setView(v);
+  const clearTimers = () => {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
-    const prev = rowsRef.current;
-    const sameShape = prev.length === v.rows.length && prev.every((r, i) => r.control_id === v.rows[i].control_id);
-    if (!stagger || !sameShape) {
-      setRows(v.rows);
-      setCountLine(v.count_line);
-      return;
-    }
-    const changed = v.rows
-      .map((r, i) => ({ r, i }))
-      .filter(({ r, i }) => JSON.stringify(r) !== JSON.stringify(prev[i]));
-    if (changed.length === 0) {
-      setRows(v.rows);
-      setCountLine(v.count_line);
-      return;
-    }
-    changed.forEach(({ r, i }, k) => {
-      timersRef.current.push(
-        setTimeout(() => {
-          setRows((cur) => {
-            const next = cur.slice();
-            next[i] = r;
-            return next;
-          });
-        }, k * STAGGER_MS),
-      );
-    });
-    timersRef.current.push(setTimeout(() => setCountLine(v.count_line), changed.length * STAGGER_MS));
+  };
+
+  /** Show a view immediately (load, reset, after an action). */
+  const showView = useCallback((v: PackageView) => {
+    clearTimers();
+    setView(v);
+    setRows(v.rows);
+    setCountLine(v.count_line);
+    setOrder(allHold(v.rows) ? orderById(v.rows).map((r) => r.control_id) : orderByAttention(v.rows).map((r) => r.control_id));
   }, []);
 
-  const loadPackage = useCallback(
-    async (stagger = true) => {
-      try {
-        const v = await api.package();
-        applyView(v, stagger);
-        setErr(null);
-        return v;
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : String(e));
-        return null;
-      }
-    },
-    [applyView],
-  );
+  /** The end-of-run reveal: header and count flip together, rows flip one by one in attention order. */
+  const revealView = useCallback((v: PackageView) => {
+    clearTimers();
+    const target = allHold(v.rows) ? orderById(v.rows) : orderByAttention(v.rows);
+    setView(v);
+    setCountLine(v.count_line);
+    setOrder(target.map((r) => r.control_id));
+    target.forEach((r, k) => {
+      timersRef.current.push(
+        setTimeout(() => setRows((cur) => cur.map((x) => (x.control_id === r.control_id ? r : x))), k * STAGGER_MS),
+      );
+    });
+  }, []);
+
+  const loadPackage = useCallback(async () => {
+    try {
+      const v = await api.package();
+      setErr(null);
+      return v;
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+      return null;
+    }
+  }, []);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -102,29 +119,60 @@ export function PackageScreen() {
     }
   }, []);
 
+  /** Fetch the package once findings are applied; retry briefly if the engine is still pending. */
+  const flip = useCallback(
+    async (runId: string) => {
+      if (flippedRef.current === runId) return;
+      flippedRef.current = runId;
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const v = await loadPackage();
+        if (v && !anyPending(v)) {
+          revealView(v);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const v = await loadPackage();
+      if (v) revealView(v);
+    },
+    [loadPackage, revealView],
+  );
+
   const startFollowing = useCallback(
     (runId: string, initialMeta: TraceMeta) => {
       cancelRunRef.current?.();
+      flippedRef.current = null;
       setRun({ runId, steps: [], meta: initialMeta, running: true });
       setTraceOpen(true);
+      // Hold every row at "Re-check pending" with its prior label struck through.
+      setRows((cur) => cur.map(pendingOf));
       api
         .run(runId)
-        .then((m) =>
+        .then((m) => {
           setRun((r) =>
             r && r.runId === runId
-              ? { ...r, meta: { ...r.meta, run_id: m.run_id, mode_label: m.mode_label, started_at: m.started_at, snapshot_id: m.snapshot_id, prior_snapshot_id: m.prior_snapshot_id, compressed_timing: m.compressed_timing } }
+              ? {
+                  ...r,
+                  meta: {
+                    ...r.meta,
+                    run_id: m.run_id,
+                    mode_label: m.mode_label,
+                    started_at: m.started_at,
+                    snapshot_id: m.snapshot_id,
+                    prior_snapshot_id: m.prior_snapshot_id,
+                    compressed_timing: m.compressed_timing,
+                  },
+                }
               : r,
-          ),
-        )
+          );
+          setRunLabel({ run_id: m.run_id, mode_label: m.mode_label });
+        })
         .catch(() => {});
-      let pollTimer: ReturnType<typeof setTimeout> | null = null;
-      const pollPackage = async () => {
-        await loadPackage(true);
-        pollTimer = setTimeout(pollPackage, 700);
-      };
-      pollTimer = setTimeout(pollPackage, 250);
       const cancel = followRun(runId, {
-        onStep: (step) => setRun((r) => (r && r.runId === runId ? { ...r, steps: [...r.steps, step] } : r)),
+        onStep: (step) => {
+          setRun((r) => (r && r.runId === runId ? { ...r, steps: [...r.steps, step] } : r));
+          if (step.kind === "findings_applied") flip(runId);
+        },
         onMeta: (m) => {
           setRun((r) =>
             r && r.runId === runId
@@ -144,65 +192,63 @@ export function PackageScreen() {
                 }
               : r,
           );
-          setRunLabel({ run_id: m.run_id, mode_label: m.mode_label });
         },
         onDone: async (final) => {
-          if (pollTimer) clearTimeout(pollTimer);
-          // The final run carries durations (agent_evaluation) that were not known while streaming.
           setRun((r) => (r && r.runId === runId ? { ...r, running: false, steps: final?.steps?.length ? final.steps : r.steps } : r));
-          await loadPackage(true);
+          await flip(runId);
           loadTasks();
-          // Give the rows the full width once the run is done; the summary stays one click away.
-          timersRef.current.push(setTimeout(() => setTraceOpen(false), 2600));
+          // Pick up the projection and tasks written after findings were applied, without re-animating rows.
+          const v = await loadPackage();
+          if (v && !anyPending(v)) {
+            setView(v);
+            setCountLine(v.count_line);
+          }
         },
-        onError: () => {},
       });
-      cancelRunRef.current = () => {
-        cancel();
-        if (pollTimer) clearTimeout(pollTimer);
-      };
+      cancelRunRef.current = cancel;
     },
-    [loadPackage, loadTasks, setRunLabel],
+    [flip, loadPackage, loadTasks, setRunLabel],
   );
 
   // Initial load; resume a run in progress or show the last run's trace.
   useEffect(() => {
     let alive = true;
     (async () => {
-      const v = await loadPackage(false);
+      const v = await loadPackage();
+      if (!alive || !v) return;
+      showView(v);
       loadTasks();
-      if (!alive || !v?.trace_run_id) return;
-      if (v.evaluation_state === "pending") {
+      if (!v.trace_run_id) return;
+      if (anyPending(v)) {
         startFollowing(v.trace_run_id, { run_id: v.trace_run_id });
-      } else {
-        try {
-          const t = await api.run(v.trace_run_id);
-          if (!alive) return;
-          setRun({
-            runId: t.run_id,
-            steps: t.steps,
-            running: !t.done,
-            meta: {
-              run_id: t.run_id,
-              mode_label: t.mode_label,
-              started_at: t.started_at,
-              total_duration_ms: t.total_duration_ms,
-              snapshot_id: t.snapshot_id,
-              prior_snapshot_id: t.prior_snapshot_id,
-              compressed_timing: t.compressed_timing,
-            },
-          });
-          setRunLabel({ run_id: t.run_id, mode_label: t.mode_label });
-          if (t.done) setTraceOpen(false);
-        } catch {
-          /* no trace available */
-        }
+        return;
+      }
+      try {
+        const t = await api.run(v.trace_run_id);
+        if (!alive) return;
+        setRun({
+          runId: t.run_id,
+          steps: t.steps,
+          running: !t.done,
+          meta: {
+            run_id: t.run_id,
+            mode_label: t.mode_label,
+            started_at: t.started_at,
+            total_duration_ms: t.total_duration_ms,
+            snapshot_id: t.snapshot_id,
+            prior_snapshot_id: t.prior_snapshot_id,
+            compressed_timing: t.compressed_timing,
+          },
+        });
+        setRunLabel({ run_id: t.run_id, mode_label: t.mode_label });
+      } catch {
+        /* no trace available */
       }
     })();
     return () => {
       alive = false;
       cancelRunRef.current?.();
-      timersRef.current.forEach(clearTimeout);
+      clearTimers();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -221,7 +267,11 @@ export function PackageScreen() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  const openFinding = (id: string, replace = false) => {
+  const openFinding = (id: string, replace = false, controlId?: string) => {
+    if (!replace) {
+      const rowEl = controlId ? document.querySelector<HTMLElement>(`[data-control="${controlId}"] [tabindex="0"]`) : null;
+      returnFocusRef.current = rowEl ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    }
     setOpenId(id);
     const url = `/finding/${encodeURIComponent(id)}`;
     if (replace || pushedRef.current) window.history.replaceState(null, "", url);
@@ -235,13 +285,22 @@ export function PackageScreen() {
       pushedRef.current = false;
       window.history.replaceState(null, "", "/");
     }
+    const el = returnFocusRef.current;
+    setTimeout(() => el?.focus?.({ preventScroll: false }), 460);
   };
 
-  const submit = async () => {
+  const submit = async (sc?: string) => {
     setSubmitting(true);
     setSubmitErr(null);
     try {
-      const res = await api.submit(isMock ? { scenario: "architecture_v3" } : {});
+      if (sc && sc !== "architecture_v3") {
+        // Alternate scenarios start from the baseline so each one shows only its own effect.
+        await api.reset();
+        const base = await loadPackage();
+        if (base) showView(base);
+      }
+      setScenario(sc ?? null);
+      const res = await api.submit(isMock ? { scenario: (sc ?? "architecture_v3") as SubmitRequest["scenario"] } : {});
       startFollowing(res.run_id, { run_id: res.run_id, snapshot_id: res.snapshot_id });
     } catch (e) {
       setSubmitErr(e instanceof Error ? e.message : String(e));
@@ -258,17 +317,19 @@ export function PackageScreen() {
       setSubmitErr(e instanceof Error ? e.message : String(e));
     }
     setRun(null);
+    setScenario(null);
     setRunLabel(null);
-    await loadPackage(true);
+    const v = await loadPackage();
+    if (v) showView(v);
     loadTasks();
   };
 
   const onChanged = (r: ActionResponse) => {
-    // Show the server's row and count line at once, then reconcile with the package.
     setRows((cur) => cur.map((row) => (row.control_id === r.row.control_id ? r.row : row)));
     if (r.count_line) setCountLine(r.count_line);
-    setTimeout(() => {
-      loadPackage(true);
+    setTimeout(async () => {
+      const v = await loadPackage();
+      if (v) showView(v);
       loadTasks();
     }, 300);
   };
@@ -276,7 +337,7 @@ export function PackageScreen() {
   if (err && !view) {
     return (
       <Shell>
-        <ErrorBlock title="Could not load the package view from /api/package" message={err} onRetry={() => loadPackage(false)} />
+        <ErrorBlock title="Could not load the package view from /api/package" message={err} onRetry={() => loadPackage().then((v) => v && showView(v))} />
       </Shell>
     );
   }
@@ -291,83 +352,103 @@ export function PackageScreen() {
     );
   }
 
-  const running = Boolean(run?.running) || view.evaluation_state === "pending";
-  const showTrace = Boolean(run) && (traceOpen || Boolean(run?.running));
+  const running = Boolean(run?.running);
+  const pendingView = running || rows.some((r) => r.status.kind === "pending_recheck");
+  const orderedRows = order ? order.map((id) => rows.find((r) => r.control_id === id)).filter((r): r is ControlRow => Boolean(r)) : rows;
+  const extra = rows.filter((r) => !orderedRows.includes(r));
+  const displayRows = [...orderedRows, ...extra];
+
+  const trace =
+    run && (traceOpen || running) ? (
+      <TracePanel
+        steps={run.steps}
+        meta={run.meta}
+        running={run.running}
+        gate={run.running ? null : view.gate}
+        elapsedMs={run.running ? null : view.elapsed_ms ?? null}
+        controls={view.rows.length}
+        onCollapse={() => setTraceOpen(false)}
+      />
+    ) : run ? (
+      <TraceSummary steps={run.steps} meta={run.meta} gate={view.gate} elapsedMs={view.elapsed_ms ?? null} controls={view.rows.length} onExpand={() => setTraceOpen(true)} />
+    ) : null;
 
   return (
     <Shell>
       <PackageHeader view={view} />
 
-      <SubmitBar
-        isMock={isMock}
-        running={running}
-        submitting={submitting}
-        error={submitErr}
-        onSubmit={submit}
-        onReset={reset}
-      />
+      <SubmitBar isMock={isMock} running={running} submitting={submitting} error={submitErr} onSubmit={() => submit()} onReset={reset} />
+      {isMock ? (
+        <Disclosure className="mt-2 ml-1" label="Other scenarios" hint="what if the model fabricates a quote, someone injects instructions, or a file cannot be read">
+          <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            {SCENARIOS.map((s) => (
+              <li key={s.id} className={`rounded-[10px] border bg-panel p-3 ${scenario === s.id ? "border-ink-2" : "hairline"}`}>
+                <button className="btn btn-secondary btn-sm w-full" disabled={running || submitting} onClick={() => submit(s.id)}>
+                  {s.title}
+                </button>
+                <p className="mt-2 text-[12px] leading-[1.45] text-muted">{s.what}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11.5px] text-faint">Each scenario resets to the baseline first, then submits its upload through the same pipeline.</p>
+        </Disclosure>
+      ) : null}
 
-      <div className={`mt-6 grid gap-6 ${showTrace ? "xl:grid-cols-[minmax(0,1fr)_460px]" : ""}`}>
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 order-2 xl:order-1">
-          {run && !showTrace ? (
-            <div className="mb-4">
-              <TraceSummary steps={run.steps} meta={run.meta} gate={view.gate} elapsedMs={view.elapsed_ms ?? null} onExpand={() => setTraceOpen(true)} />
-            </div>
+          {scenario && scenario !== "architecture_v3" ? (
+            <p className="mb-2 text-[12.5px] text-muted">
+              Scenario: <span className="text-ink-2 font-medium">{SCENARIOS.find((s) => s.id === scenario)?.title ?? scenario}</span>
+            </p>
           ) : null}
-          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+          <div className="mb-3">
             <CountLine text={countLine} className="text-[18px] leading-snug text-ink tracking-[-0.01em]" />
-            <span className="text-[12.5px] text-muted">
-              Search tool: {view.search_tool.label}
-              {view.search_tool.fallback ? " (fallback)" : ""}
-            </span>
           </div>
-          <ControlRows rows={rows} onOpen={(r) => openFinding(r.finding_id ?? r.control_id)} selectedId={openId} />
+          <ControlRows
+            rows={displayRows}
+            ordering={order ? "attention" : "id"}
+            onOpen={(r) => openFinding(r.finding_id ?? r.control_id, false, r.control_id)}
+            selectedId={openId}
+            holdsDefaultOpen={pendingView ? undefined : allHold(rows) ? true : false}
+            preserveOrder={Boolean(order)}
+          />
           <p className="mt-2 text-[12px] text-muted">
-            Select a row to open its finding card. Statuses are computed by the published display rules; the page renders them.
+            Select a row to open its finding card. Statuses come from the published display rules; this page renders them.
           </p>
 
-          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <div className="mt-8 grid gap-8 2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div>
               <h3 className="text-[14px] font-semibold text-ink mb-2">Projection into Box</h3>
-              <FolderProjection projection={view.projection} currentSnapshotId={view.snapshot.snapshot_id} />
+              <FolderProjection
+                key={`${view.snapshot.snapshot_id}-${Boolean(run) && !running}`}
+                projection={view.projection}
+                currentSnapshotId={view.snapshot.snapshot_id}
+                defaultOpen={Boolean(run) && !running}
+                folderName={view.header.folderName}
+              />
             </div>
             <OpenTasks tasks={tasks} error={tasksErr} />
           </div>
         </div>
 
-        <AnimatePresence initial={false}>
-          {showTrace && run ? (
-            <motion.div
-              key="trace"
-              className="min-w-0 order-1 xl:order-2 xl:sticky xl:top-[72px] xl:self-start"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={T_SLOW}
-            >
-              <TracePanel
-                steps={run.steps}
-                meta={run.meta}
-                running={run.running}
-                gate={run.running ? null : view.gate}
-                elapsedMs={run.running ? null : view.elapsed_ms ?? null}
-                onCollapse={() => setTraceOpen(false)}
-              />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+        <div className={`min-w-0 order-1 xl:order-2 xl:sticky xl:top-[72px] xl:self-start ${run ? "" : "hidden xl:block"}`}>
+          <AnimatePresence initial={false} mode="wait">
+            {trace ? (
+              <motion.div key={run && (traceOpen || running) ? "panel" : "summary"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={T_SLOW}>
+                {trace}
+              </motion.div>
+            ) : (
+              <motion.div key="empty" className="hidden xl:block" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={T_BASE}>
+                <TraceEmpty />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <Drawer open={openId != null} onClose={closeFinding}>
         {openId ? (
-          <FindingContainer
-            key="drawer-card"
-            id={openId}
-            layout="drawer"
-            onClose={closeFinding}
-            onSelect={(id) => openFinding(id, true)}
-            onChanged={onChanged}
-          />
+          <FindingContainer key="drawer-card" id={openId} layout="drawer" onClose={closeFinding} onSelect={(id) => openFinding(id, true)} onChanged={onChanged} />
         ) : null}
       </Drawer>
     </Shell>
@@ -375,7 +456,7 @@ export function PackageScreen() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-[1360px] px-6 lg:px-10 pt-8 pb-16">{children}</div>;
+  return <div className="mx-auto max-w-[1360px] px-6 lg:px-10 pt-7 pb-16">{children}</div>;
 }
 
 function SubmitBar({
@@ -394,7 +475,7 @@ function SubmitBar({
   onReset: () => void;
 }) {
   return (
-    <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-[12px] border hairline bg-panel-cool px-5 py-3.5">
+    <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[12px] border hairline bg-panel-cool px-5 py-3">
       <div className="min-w-[320px] flex-1 text-[13.5px] text-ink-2">
         {isMock ? (
           <>

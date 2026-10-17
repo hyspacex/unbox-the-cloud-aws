@@ -54,9 +54,9 @@
   /* Trace sources */
   --src-box: #0d7a8a;
   --src-boxai: #6f4bc0;
-  --src-agent: #b0532a;
-  --src-decider: #5b7a2a;
-  --src-app: #6a6e75;
+  --src-agent: #7a6f8e;
+  --src-decider: #5f6b7a;
+  --src-app: #9a9ea5;
   --src-human: #1f3f99;
 
   --shadow-drawer: -24px 0 60px -20px rgb(23 25 28 / 0.22), -1px 0 0 rgb(23 25 28 / 0.06);
@@ -120,6 +120,11 @@ body {
   outline: 2px solid var(--blue-dot);
   outline-offset: 2px;
   border-radius: 4px;
+}
+/* Dialog containers take focus programmatically to trap it; they draw no ring themselves. */
+[role="dialog"]:focus,
+[role="dialog"]:focus-visible {
+  outline: none;
 }
 
 /* ------------------------------------------------------------------ */
@@ -234,6 +239,7 @@ body {
 .btn-primary:hover:not(:disabled) { background: #2c2f34; }
 .btn-human { background: var(--blue-dot); color: #fff; }
 .btn-human:hover:not(:disabled) { background: #1a3684; }
+.btn-human:disabled { background: transparent; color: var(--faint); border-color: var(--line-strong); opacity: 1; }
 .btn-secondary { background: var(--panel); color: var(--ink); border-color: var(--line-strong); }
 .btn-secondary:hover:not(:disabled) { border-color: var(--ink-2); }
 .btn-ghost { background: transparent; color: var(--ink-2); }

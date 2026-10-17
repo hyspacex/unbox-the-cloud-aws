@@ -130,9 +130,8 @@ export function Footer() {
             Synthetic data. Meridian Trust Bank, Project Lantern and every person named here are fictional. No real customer,
             employer or personal content.
           </p>
-          <p>
-            Spec: <span className="mono text-ink-2">docs/research/30-design-v3.md</span> (v3.4). Contracts:{" "}
-            <span className="mono text-ink-2">docs/CONTRACTS.md</span>.
+          <p className="text-[11px] text-faint">
+            Spec <span className="mono">docs/research/30-design-v3.md</span> (v3.4) · contracts <span className="mono">docs/CONTRACTS.md</span>
           </p>
         </div>
         <div className="space-y-1 md:text-right">

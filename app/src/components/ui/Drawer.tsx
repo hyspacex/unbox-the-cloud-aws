@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/lib/ui/useFocusTrap";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { T_FAST, T_SLOW } from "@/lib/ui/motion";
@@ -18,10 +19,12 @@ export function Drawer({
   width?: number | string;
   label?: string;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
+  useFocusTrap(panelRef, open);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !document.querySelector('[role="dialog"][aria-modal="true"]')) onClose();
+      if (e.key === "Escape" && !document.querySelector("[data-keel-modal]")) onClose();
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -46,8 +49,12 @@ export function Drawer({
             onClick={onClose}
           />
           <motion.aside
-            role="complementary"
-            className="absolute right-0 top-0 h-full bg-paper overflow-y-auto scroll-quiet"
+            ref={panelRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label={label}
+            className="absolute right-0 top-0 h-full bg-paper overflow-y-auto scroll-quiet outline-none"
             style={{ width, maxWidth: "100vw", boxShadow: "var(--shadow-drawer)" }}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}

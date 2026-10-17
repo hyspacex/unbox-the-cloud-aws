@@ -1,5 +1,6 @@
 import type { ClauseSupport, Control } from "@/lib/types";
 import { Disclosure } from "@/components/ui/Disclosure";
+import { clauseNoun } from "@/lib/engine/display";
 
 function Mark({ supported }: { supported: boolean }) {
   return supported ? (
@@ -59,13 +60,42 @@ export function ClauseChecklist({ clauses }: { clauses: ClauseSupport[] }) {
   );
 }
 
+/** One line instead of five rows: "4 of 5 clauses unsupported in every file of this snapshot: ...". */
+export function ClauseSummary({ clauses }: { clauses: ClauseSupport[] }) {
+  const uns = clauses.filter((c) => c.support === "unsupported");
+  return (
+    <section aria-label="Clause support">
+      <p className="text-[15px] leading-[1.5] text-ink">
+        {uns.length ? (
+          <>
+            <span className="font-semibold">
+              {uns.length} of {clauses.length} clauses unsupported
+            </span>{" "}
+            in every file of this snapshot:{" "}
+            <span className="text-amber-ink">{uns.map((c) => clauseNoun(c.clause)).join(" · ")}</span>
+          </>
+        ) : (
+          <>
+            <span className="font-semibold">
+              All {clauses.length} required clauses supported
+            </span>{" "}
+            by validated quotes.
+          </>
+        )}
+      </p>
+      <Disclosure className="mt-2" label="Per-clause checklist" hint={`${clauses.length} clauses with quotes`}>
+        <ClauseChecklist clauses={clauses} />
+      </Disclosure>
+    </section>
+  );
+}
+
 export function ControlBlock({
   control,
-  clauses,
   profileVersion,
 }: {
   control: Control;
-  clauses: ClauseSupport[];
+  clauses?: ClauseSupport[];
   profileVersion: string;
 }) {
   const fm = Object.entries(control.framework_map).filter(([k]) => k !== "status");
@@ -89,9 +119,6 @@ export function ControlBlock({
         <span>
           Profile <span className="mono text-ink-2">{profileVersion}</span>
         </span>
-      </div>
-      <div className="mt-4">
-        <ClauseChecklist clauses={clauses} />
       </div>
       <Disclosure className="mt-3" label="Applicability, evidence locations and framework map" hint="(framework map illustrative)">
         <dl className="grid gap-3 text-[13px] text-ink-2">

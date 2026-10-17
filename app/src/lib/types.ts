@@ -157,6 +157,15 @@ export interface DashboardTile {
   tone: "teal" | "amber" | "blue" | "grey";
 }
 
+/** Added (UI v4.2): the folder page's at-a-glance card. Green only when every control is Verified on the current snapshot. */
+export interface StatusCard {
+  tone: "green" | "teal" | "blue" | "amber" | "grey";
+  /** <= 3 words: "Needs review", "No open decisions", "All verified", "Re-checking", "Check stopped" */
+  headline: string;
+  /** <= 12 words: "3 of 8 controls need a decision · S4" */
+  detail: string;
+}
+
 export interface ControlProfile {
   profile_id: string;
   profile_version: string;
@@ -765,6 +774,8 @@ export interface PackageView {
   dashboard?: { tiles: DashboardTile[] };
   /** Added (UI v4.1): one point per snapshot of the package. */
   timeline?: TimelinePoint[];
+  /** Added (UI v4.2): the folder page's status card. */
+  status_card?: StatusCard;
 }
 
 export interface FindingCard {

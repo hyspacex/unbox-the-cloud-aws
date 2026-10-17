@@ -961,3 +961,18 @@ describe("v4.1: file-text versions and highlight (lane A shape)", () => {
     expect(locateInText("", text)).toBeNull();
   });
 });
+
+describe("status_card (folder page)", () => {
+  it("baseline teal, after the run amber, partially recorded still amber, never green without all Verified", async () => {
+    svc.reset();
+    expect(svc.getPackageView().status_card).toEqual({ tone: "teal", headline: "No open decisions", detail: "8 hold · S3" });
+    await runV3();
+    expect(svc.getPackageView().status_card).toEqual({ tone: "amber", headline: "Needs review", detail: "3 of 8 controls need a decision · S4" });
+    await svc.act({ finding_id: "KEEL-2026-0408", control_id: "SEC-ARCH-22", decision_snapshot_id: "S4", action: "verify", reason: "Recovery targets present in runbook §3; binding updated." });
+    const pv = svc.getPackageView();
+    expect(pv.status_card!.tone).toBe("amber");
+    expect(pv.status_card!.detail).toBe("2 of 8 controls need a decision · S4");
+    clean(pv.status_card!.headline);
+    clean(pv.status_card!.detail);
+  });
+});

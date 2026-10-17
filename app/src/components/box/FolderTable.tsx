@@ -9,6 +9,7 @@ import { DetailsPane } from "./DetailsPane";
 import { BoxDropdown, UploadMenu } from "./UploadMenu";
 import { UploadChooser } from "./UploadChooser";
 import { boxDate, boxSize } from "./format";
+import { StatusCard } from "./StatusCard";
 import { Toast } from "./Toast";
 import { FileTypeIcon, IconChevronRight, IconInfo, IconMore, IconNewVersion } from "./icons";
 
@@ -19,7 +20,7 @@ const COLS = "box-grid";
 
 /** The Box folder list: breadcrumb, toolbar, and the file table driven by GET /api/package `files`. */
 export function FolderTable() {
-  const { pkg, pkgError, busy, isMock, uploadVersion, upload, uploadError, uploadWarning, dismissUploadError, replay } = useKeelState();
+  const { pkg, pkgError, busy, isMock, uploadVersion, upload, uploadError, uploadWarning, dismissUploadError, replay, openPanel } = useKeelState();
   /** The chooser is open for this target file (null closed), with the control that opened it for focus return. */
   const [chooser, setChooser] = useState<{ target: string; opener: string } | null>(null);
   const [details, setDetails] = useState(false);
@@ -61,6 +62,7 @@ export function FolderTable() {
         <Toast text={uploadError ?? uploadWarning} tone={uploadError ? "error" : "warning"} onClose={dismissUploadError} />
 
         <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-24">
+          <StatusCard card={pkg?.status_card} onOpen={() => openPanel({ kind: "level1" })} />
           <div className="box-table" role="table" aria-label="Files">
           <div role="row" className={`grid ${COLS} h-10 items-center border-b border-[#E8E8E8] text-[13px] font-bold text-[#767676]`}>
             <span role="columnheader" className="pl-14">

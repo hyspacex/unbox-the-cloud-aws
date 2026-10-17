@@ -37,7 +37,7 @@ import { withPackageLock } from "./engine/lock";
 import { withBubble } from "./engine/bubble";
 import { findQuote, locateInText } from "./engine/normalize";
 import { dashboardTiles, packageTimeline } from "./engine/history";
-import { changedFiles, hasRecordedDecision, headerLine, holdsLine, decisionFlags, decisionSummary, decisionSummaryFromRows, needsDecision, needsDecisionOnRow, openDecisionsFromRows, packageFiles, packageFilesFromRows, recordedOnRow, type FolderItemInfo } from "./engine/summary";
+import { changedFiles, hasRecordedDecision, headerLine, holdsLine, decisionFlags, decisionSummary, decisionSummaryFromRows, needsDecision, needsDecisionOnRow, openDecisionsFromRows, packageFiles, packageFilesFromRows, recordedOnRow, statusCard, type FolderItemInfo } from "./engine/summary";
 
 export class ServiceError extends Error {
   constructor(
@@ -126,6 +126,7 @@ export function getPackageView(): PackageView {
   if (!snap) throw new ServiceError("NO_SNAPSHOT", "no snapshot yet; submit the package folder to capture the baseline", 404);
   const rows = buildRows(s, p, snap.snapshot_id);
   const evalState = snapshotEvaluationState(s.events, snap.snapshot_id).state;
+  const publicRows = rows.map((r) => ({ ...publicRow(r), ...decisionFlags(s, r) }));
   if (!c.mockMode) refreshFolderItems(c.box.folderId); // live: Box sizes for the file table, refreshed in the background
   const run = latestRunFor(s, snap.snapshot_id);
   const gateEvent = [...s.events].reverse().find((e) => e.event_type === "input_gate" && e.snapshot_id === snap.snapshot_id);
@@ -137,7 +138,7 @@ export function getPackageView(): PackageView {
     prior_snapshot_id: s.previousSnapshot(snap.snapshot_id)?.snapshot_id,
     profile: { profile_id: p.profile_id, profile_version: p.profile_version, name: p.name },
     evaluation_state: snapshotEvaluationState(s.events, snap.snapshot_id).state,
-    rows: rows.map((r) => ({ ...publicRow(r), ...decisionFlags(s, r) })),
+    rows: publicRows,
     count_line: countLine(rows, snap.snapshot_id),
     counts: displayedCounts(rows),
     projection: currentProjection(s, p),
@@ -159,6 +160,7 @@ export function getPackageView(): PackageView {
     pending_status: pendingStatus(),
     dashboard: { tiles: dashboardTiles(s, rows) },
     timeline: packageTimeline(s, p),
+    status_card: statusCard(publicRows, snap.snapshot_id, evalState),
   };
 }
 

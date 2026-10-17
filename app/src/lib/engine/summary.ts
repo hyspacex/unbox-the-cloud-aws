@@ -5,7 +5,7 @@
  * nothing here decides a status. Machine text passes the wording filter.
  */
 import type { Store } from "../store";
-import type { ControlRow, DisplayKind, FindingReceipt, LedgerEvent, PackageFile, Severity, Snapshot } from "../types";
+import type { ControlRow, DisplayKind, FindingReceipt, LedgerEvent, PackageFile, Severity, Snapshot, StatusCard } from "../types";
 import { capWords } from "./display";
 import { bannedWords } from "./wording";
 import type { RowWithState } from "./state";
@@ -143,6 +143,28 @@ export function headerLine(rows: RowLike[], evaluationState: "pending" | "comple
   }
   const evaluated = n - notEval;
   return filtered(`Re-checked ${plural(evaluated, "control")}${notEval ? ` · ${notEval} not evaluated` : ""}`, "Re-checked");
+}
+
+/**
+ * The folder page's status card, from rows alone. Amber while any control needs a decision; green only when every
+ * control is Verified on the current snapshot; otherwise blue (decisions recorded) or teal (prior verifications hold).
+ */
+export function statusCard(rows: RowLike[], snapshotId: string, evaluationState: "pending" | "complete" | "error", acknowledged: (controlId: string) => boolean = () => false): StatusCard {
+  const n = rows.length;
+  const card = (tone: StatusCard["tone"], headline: string, detail: string): StatusCard => ({ tone, headline, detail: filtered(capWords(detail, SUMMARY_MAX_WORDS), `snapshot ${snapshotId}`) });
+  if (evaluationState === "pending") return card("grey", "Re-checking", `${plural(n, "control")} on ${snapshotId}…`);
+  const open = rows.filter((r) => needsDecisionOnRow(r, acknowledged(r.control_id))).length;
+  if (open) return card("amber", "Needs review", `${open} of ${plural(n, "control")} ${open === 1 ? "needs" : "need"} a decision · ${snapshotId}`);
+  if (evaluationState === "error") return card("grey", "Check stopped", `Nothing was decided on ${snapshotId}`);
+  const count = (k: DisplayKind) => rows.filter((r) => r.status.kind === k).length;
+  const verified = count("verified");
+  if (n && verified === n) return card("green", "All verified", `${n} of ${n} verified by a reviewer · ${snapshotId}`);
+  const holds = holdRows(rows, acknowledged).length;
+  const returned = count("returned_to_author");
+  const recorded = rows.filter((r) => recordedOnRow(r, acknowledged(r.control_id))).length;
+  const other = recorded - verified - returned;
+  const parts = [holds ? `${holds} hold` : "", verified ? `${verified} verified` : "", returned ? `${returned} with author` : "", other > 0 ? `${other} recorded` : ""].filter(Boolean);
+  return card(recorded ? "blue" : "teal", "No open decisions", `${[...parts, snapshotId].join(" · ")}`);
 }
 
 /** Rows in the collapsed holds list: a prior verification that holds, with no decision recorded on this snapshot. */

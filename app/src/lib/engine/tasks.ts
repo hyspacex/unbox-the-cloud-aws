@@ -176,7 +176,7 @@ export async function createReviewTasks(args: {
         store.save();
       }
       if (!intent.task_id) {
-        const finder = (box as { findTaskByMessage?: (fileId: string, message: string) => Promise<{ task_id: string } | null> }).findTaskByMessage;
+        const finder = box.findTaskByMessage;
         const found = finder ? await finder.call(box, intent.fileId, intent.message) : null;
         intent.task_id = found?.task_id ?? (await box.createTask(intent.fileId, intent.message, "review")).task_id;
         intent.updated_at = utcNow();

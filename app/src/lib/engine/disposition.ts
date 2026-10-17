@@ -492,7 +492,7 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
     : (snapFiles.find((f) => control.evidence.some((e) => e.toLowerCase().includes(f.fileName.replace(/\.[^.]+$/, "").toLowerCase()))) ?? snapFiles[0])?.fileId ?? wantFile;
   let authorTask: StoredTask | null = proc?.author_task_id ? store.data.tasks.find((t) => t.task_id === proc.author_task_id) ?? null : null;
   if (!authorTask) {
-    const finder = (box as { findTaskByMessage?: (fileId: string, message: string) => Promise<{ task_id: string } | null> }).findTaskByMessage;
+    const finder = box.findTaskByMessage;
     // Resume: the author task may already exist in Box from an interrupted attempt (Codex finding 7).
     // Outside the try: if this lookup itself fails, the response stays unfinished and is retried later,
     // rather than falling back to Confirm finding while a task may exist.

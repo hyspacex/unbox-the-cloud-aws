@@ -1,167 +1,88 @@
-# Enterprise Demo and Build Plan
+# Keel presenter runbook
 
-## Scenario: a bank's customer-support AI rollout
+Three minutes, one laptop, synthetic data. The script is spec v3.4 section 7 (`docs/research/30-design-v3.md`). The "Click" column names the control in the app.
 
-Use synthetic documents and identities. A bank approved a constrained pilot.
-A revised rollout proposal quietly changes an approved data-processing
-commitment. The on-stage story focuses on one change and one required Privacy
-reviewer. Finance and multi-role routing remain supporting test fixtures.
+## Pre-flight checklist
 
-| Dimension | Approved V1 | Candidate V2 |
-| --- | --- | --- |
-| Processing region | EU | US |
-| Log retention | 30 days | 30 days (unchanged) |
-| Annual budget | USD 60,000 | USD 60,000 (unchanged) |
+1. `app/.env.local` has `MOCK_MODE=true`, or the file is absent. Use live mode only after `docs/INTEGRATION.md` section 7 passes.
+2. Start the dev server: `cd app && npm run dev`. Open `http://localhost:3000`.
+3. Press **Reset to baseline** on the package view. Confirm the count line reads the baseline line below.
+4. Browser window 1440 pixels wide, zoom 100 percent. Check that all eight rows fit without scrolling.
+5. Close the finding drawer. No modal open.
+6. Open `/ledger` in a second tab. Leave it on the event list.
+7. The mode label in the header reads Mock or Live. Say which one out loud at 0:00.
+8. Live mode only: open the reviewer's Box task list in a third tab, logged in as the reviewer.
 
-Also introduce a harmless wording change. The system should distinguish it
-from material agreement drift.
+## Expected count lines
 
-Select an `Enterprise AI Initiative` Project Template containing Business Case,
-Architecture, Data & Privacy and Finance metadata templates. When the project
-owner uploads the project folder, **Amazon Bedrock's decision model** suggests
-the `Enterprise AI Initiative` Project Template, maps the folder's documents to
-their template roles, and flags that moving from an EU pilot to US customer-data
-processing escalates the proposal to a **Type 1 (One-Way Door) decision**.
-For a compact demo, keep the stage focus on that single region drift while
-showing the folder-level template recommendation badge.
+Baseline, after **Reset to baseline**:
 
-## Three-minute stage plan: 60-second introduction, 100-second demo
+```
+8 controls on snapshot S3: 8 Verified holds
+```
 
-Do not squeeze the full product tour into three minutes. Show one material
-change, its exact evidence, one real review and the accepted baseline.
-The target is a visible agreement-drift reveal within 15 seconds of opening
-the demo, not a claim that live AI inference finishes in 15 seconds.
+After the submit run:
 
-| Time | Action | Proof |
-| --- | --- | --- |
-| 0:00-0:15 | Introduce team name and members' actual build responsibilities in one sentence | No individual biographies or invented credentials |
-| 0:15-0:40 | Explain the bank's problem: an approved EU-only plan becomes a US rollout draft | Old approval is not consent to a new commitment |
-| 0:40-1:00 | State the promise and show one architecture strip: Box folders/AI/review, AWS Bedrock decision model/workflow/ledger | The platform roles are clear without an architecture tour |
-| 1:00-1:15 | Open the prepared folder comparison: Bedrock suggests `Enterprise AI Initiative (Type 1 One-Way Door)` and the visual history badges show `[↻ PIVOTED] EU only -> US processing` while V1 remains approved | Folder triage + visual `+ Added / ↻ Pivoted / − Removed` badges expose the hidden escalation immediately |
-| 1:15-1:35 | Expand the old/new source excerpts, version IDs and observation time | The finding has inspectable evidence, not just an AI verdict |
-| 1:35-1:55 | Confirm the review plan and create the required Privacy review task in Box | A detected change becomes a real assigned workflow |
-| 1:55-2:20 | The actual reviewer approves the synthetic region exception in a pre-opened Box tab; refresh authoritative status | Consent is a human action on a version-bound review packet |
-| 2:20-2:40 | Show V2 becoming the accepted baseline and the decision timeline; open a pre-existing unapproved V3 | V2's approval cannot authorize V3; the accepted endpoint still resolves V2 |
-| 2:40-2:50 | Deliver the closing line | Restate the business value |
-| 2:50-3:00 | Buffer | No new feature or extra click |
+```
+8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Needs review (Low), 1 Needs review (Critical)
+```
 
-The stage fixture's explicit policy requires only the Privacy reviewer for this
-synthetic exception. It is a fictional business decision, not a legal/compliance
-determination. If the actual policy requires other reviewers, satisfy those
-requirements; never silently skip them for timing.
+After the two human actions:
 
-V3 is an independently prepared unapproved draft, not a new upload or a second
-inference run on stage. Keep comparison viewing separate from submitting a
-candidate for review: open V3 only after V2 has been promoted. Viewing a prepared
-draft must not silently supersede an active review.
+```
+8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Verified, 1 Returned to author
+```
 
-### Suggested spoken lines
+The spec's 0:15 row says "eight rows Verified, snapshot S2". The app boots on S3, the no-change snapshot after the runbook edit, so the rows read "Verified, holds". The narration still holds: the verifications were made on S2 and the secondary line on each row names them.
 
-- Team: "We are [team name]. [Names] built the Box integration, AWS workflow and
-  review experience." Replace placeholders with true names and responsibilities.
-- Problem: "Your team approved a reversible EU pilot. Someone uploads a new
-  folder that changes one sentence to US processing. Did your team agree?"
-- Reveal: "Amazon Bedrock classifies the uploaded folder as an Enterprise AI
-  Type-1 One-Way Door decision and maps its files to our Box Metadata Templates.
-  Box AI then pinpoints the exact drift: EU-only became US processing."
-- Review: "AI found the escalation. It cannot approve it. The assigned Privacy
-  reviewer must make that decision."
-- Payoff: "Now we can show exactly what changed, who accepted it, and which
-  version that acceptance applies to. The next draft does not inherit consent."
+## The three-minute script
 
-All example times and business facts are synthetic. Live inference and live
-human review must be accurately described. Any replay or fixture must be
-explicitly labeled; no hidden prerecorded "live" responses.
+| Time | Narration | On screen | Click |
+| --- | --- | --- | --- |
+| 0:00 | "Approved design evidence can change. Keel shows which control needs another look, and who reviewed which version. This is a synthetic bank example." | Title, tagline, mode label | Nothing. Package view is open. |
+| 0:15 | "Lantern's package passed the review board on October 7. Eight controls across five documents, each verified by a named reviewer against these exact file versions." | Package view, eight rows Verified, snapshot S2 | Nothing. Point at the secondary review lines. |
+| 0:40 | "The project submits a rewritten architecture document. Keel pins all five files, Decider clears the text as safe and material, and the agent re-checks all eight controls, asking Box AI whether the other four files say anything about customer-managed keys." | Real upload; trace with application, Decider, Box AI, and agent events, coverage, elapsed time | **Submit rewritten architecture document**. Live mode: run `npx tsx scripts/upload-v3.ts --write` from `app/` instead. |
+| 1:05 | "Five verifications hold: the evidence is unchanged, so nobody clicks anything. One needs a glance: the sentence is still there, but the section around it was rewritten, and that control is High tier. Two need a look." | Package view on S4: five Verified holds, one Acknowledge, one Low, one Critical | Nothing. Point at the count line, then at row SEC-ARCH-05. |
+| 1:15 | "The reviewed text named customer-managed keys. The rewrite only says all data is encrypted. Encryption is still stated; the key-management commitment is gone. Box AI searched the other four files with citations: nothing." | Finding card, two quotes, word diff, clause marks, "Needs review: key-management evidence missing" | Row **SEC-ARCH-07**. The finding card opens in the drawer. |
+| 1:35 | "Recovery targets left this document too, but they are here in the runbook. That is a changed evidence binding, not lost support. A thirty-second acknowledgment, severity Low, not an investigation." | SEC-ARCH-22 row, runbook quote and version | Row **SEC-ARCH-22** (close the drawer first if it covers the rows), then **Verify**, then **Confirm verification**. The attestation phrase is prefilled. |
+| 1:45 | Reviewer, first person: "The machine told me where to look. It did not tell me what to decide. I am returning this to the author with the sentence that disappeared, the requirement it has to meet, and a due date of October 23. That is recorded against these exact file versions, under my name and role. Verify is disabled for me too, because no document in this package supports the key model. When v4 lands, Keel re-checks, and I review one paragraph. What you see on this card is what the ledger says I saw when I decided." | Box task completed in a pre-opened tab; Keel shows responding identity, reason, author task id, binding check, ledger event; row reads "Returned to author, open"; the author's task appears as the first block in the card's thread | Row **SEC-ARCH-07**, then **Return to author**. Step 1: check the prefilled reason, press **Draft author task**. Step 2: show the Box AI draft, press **Confirm and return to author**. |
+| 2:15 | "Every evaluation is recorded, including the five where nothing changed. The export covers what Keel observed. Complete audit coverage needs reconciliation, which is pilot work." | Ledger, export with counts from the run and the limitation line | Nav **Ledger** (or the pre-opened tab, refreshed), then **Download manifest**. |
+| 2:30 | "Box holds the files, the metadata, and the tasks, and Box AI is how the agent reads the package. Bedrock judges. Decider gates the input locally. Code validates quotes and records history, locally in this build. The machine has its field, the reviewer has hers, and the machine cannot write to hers." | Three-box strip with Box AI and Decider placed, built versus proposed separated, local ledger named | Nav **Architecture**. |
+| 2:45 | "Next: a shadow evaluation over fifty historical packages, measuring misses, false alerts, and review time." | One line | Nothing. |
+| 2:50 | "Know what changed, and who reviewed that exact evidence." | Title, tagline, final evidence pair | Nothing. |
 
-### Stage preparation and latency contract
+**Order note.** The spec narrates SEC-ARCH-22 at 1:35 and the hero return at 1:45. Verifying SEC-ARCH-22 at 1:35 keeps the hero as the last human beat. If time is short, skip the Verify click and narrate the row only. The final count line then shows "1 Needs review (Low)" in place of "1 Verified".
 
-- Prepare the Box Project Template bundle before the presentation. Show a
-  template badge, not template creation, OAuth, uploads or configuration screens.
-- Run real Box extraction/comparison beforehand for the exact V1/V2 snapshots.
-  Label the screen "Pre-analyzed with Box AI" and retain source/version references.
-  Say explicitly that analysis ran before the presentation.
-- Keep the live part focused on task creation, the actual review decision,
-  reconciliation and baseline promotion. Do not call those live unless they are.
-- Pre-open the real reviewer's authenticated Box session on a separate tab or
-  device, using synthetic documents. No password/MFA step belongs on stage.
-- Show one main screen with an approved-baseline badge, the visual idea
-  evolution strip (`+ Added`, `↻ Pivoted`, `− Removed`, `✓ Retained`), the
-  before/after card, review status and a compact timeline. Use one source
-  expansion and one Box tab switch, not a tour across service consoles.
-- For our own project's dogfooding trail (how EpistemicBox evolved from the V1
-  One-Pager to V3), see [docs/idea-evolution.md](idea-evolution.md).
-- Give each asynchronous live step a 10-second stage wait budget. This is a
-  presentation cutoff, not a service SLA. If a step is still pending, show its
-  actual state and switch to an explicitly labeled recorded walkthrough.
-- Prepare a short, honestly labeled recording of the same scenario for outages.
-  Never swap in canned successful approvals or falsely promote the baseline.
+In mock mode the two modals stand in for the Box task responses, and their footers say so. In live mode the reviewer resolves the task in Box, and Keel ingests the response by polling.
 
-Closing line: **Files have versions. Team agreement should have versions too.**
+## Fallbacks
 
-## Rehearsal acceptance
+**Author task unavailable at 1:45.** If author task creation fails, the engine records Confirm finding automatically. An acknowledgment event is written, no disposition is written, and the row keeps its Needs review label. Say: "The reviewer confirms the key-management gap in Box with her reason. We record it against these versions. The gap stays open; routing to the author is proposed."
 
-These are targets to measure, not achieved results:
+**Live run over its rehearsed window.** Show a labelled replay of the real run with its run id, or set `MOCK_MODE=true`, restart `npm run dev`, and press **Reset to baseline**. The mode label must read Replay or Mock. Never present mock output as live.
 
-- The complete talk, including the team introduction, ends within 180 seconds.
-- The scripted content ends by 170 seconds, leaving 10 seconds of buffer.
-- The first visible before/after reveal occurs by 1:15.
-- No live upload, template authoring, login or second AI run is required.
-- The audience can read the old value, new value and accepted version on screen.
-- A prepared unapproved V3 cannot inherit V2's approval.
-- Rehearse three complete runs; record elapsed times and exercise the pending-step
-  fallback before claiming stage readiness.
+## Questions judges may ask
 
-## Build sequence
+**Why does nothing turn green after the agent runs?**
+Green means a named person verified this control on the current snapshot and binding, and only rule 9 produces it. The agent only proposes a machine assessment, which is labelled "machine assessment, not a verdict".
 
-1. **Prove tenant prerequisites:** Box AI/Extract access, AI units, metadata
-   templates, versions, two real reviewer accounts, Tasks and webhook reachability.
-2. **Create the native template bundle:** reference documents, human-confirmed
-   fields, role mappings and a captured template revision.
-3. **Build folder intake, Bedrock template suggestion and manifest capture:**
-   folder item listing, Amazon Bedrock Project Template + Type 1/Type 2
-   suggestion, human confirmation, source versions, content hashes and an
-   explicitly initialized approved fixture.
-4. **Build extraction and comparison:** typed comparisons plus cited AI analysis,
-   clear unsupported/error states and one change-review screen.
-5. **Wire real approval:** review packet, controlled routing, Box Tasks,
-   authoritative reconciliation and conditional baseline promotion.
-6. **Build the timeline:** source links, reviewer identities, decisions and an
-   authorized approved-revision endpoint.
-7. **Exercise failure cases, then polish:** avoid expanding scope before the
-   rejection and stale-approval paths work.
+**Why can't the machine write a disposition?**
+The model's output schema has no disposition field, and the agent has no write tool. The ledger rejects a machine event that carries a human disposition, and only the human response handler writes one after identity, author and binding checks.
 
-## Acceptance fixtures
+**What if the model hallucinates a quote?**
+Every quote must string-match the pinned version text after disclosed normalization. A required quote that fails validation makes the control `not_evaluated`, which is acceptance case 7.
 
-These are planned tests, not results already achieved.
+**What if Box AI is unavailable?**
+The search tool falls back to normalized string search over the pinned texts. The trace label says "Box AI unavailable", and an uncited or unvalidated Box AI answer counts as no evidence.
 
-- Folder intake suggests the expected Project Template, maps folder files to
-  their document roles, and requires human confirmation before extraction.
-- The stage fixture detects EU-to-US processing with correct old/new evidence
-  and flags the Type 1 (One-Way Door) decision requirement.
-- A separate multi-change fixture changes retention to 365 days and annual cost
-  to USD 180,000 as well; all three material changes are detected and routed.
-- The harmless paraphrase does not trigger business approval.
-- Every displayed evidence quote belongs to the referenced snapshot.
-- Missing evidence is Unverified, never an invented citation or location.
-- Rejection or a missing required approval blocks baseline promotion.
-- A new candidate supersedes the pending candidate without erasing its history.
-- Late approval cannot promote a superseded candidate.
-- Changed source/review-packet hashes block promotion.
-- Concurrent baseline changes require re-comparison.
-- Duplicate events do not duplicate logical reviews or decisions.
-- Ambiguous task-creation timeouts are reconciled before retrying creation.
-- Missing webhooks are recovered by reconciliation.
-- Unauthorized users cannot read protected findings or approve for another user.
-- The approved endpoint never returns an unapproved draft.
-- AI, rate-limit and Box failures remain visible; they never become approval.
-- A template upgrade is identified as changed review criteria, not author drift.
+**What is Decider?**
+Strands Decider 2B is a 1.9-billion-parameter open decision model that returns a choice with probabilities and never generates text. It runs locally and gates each changed file for injection and materiality before any text reaches Bedrock, and when it is not running the step is omitted rather than shown as passed.
 
-## Not in the MVP
+**How does this scale?**
+The proposed path is a Box webhook to a Lambda URL, EventBridge, SQS FIFO per folder, and the same agent on AgentCore Runtime, with a DynamoDB ledger streamed to S3 Object Lock. None of that is built, and it is on the architecture page as proposed.
 
-- Git server integration, branching or automatic document merges.
-- General enterprise search or a new vector database.
-- Arbitrary generated workflow execution.
-- Cross-document conflict detection beyond the stable demo path.
-- Reviewer-private reasoning or guaranteed private-context non-disclosure.
-- Pixel-perfect highlighting for arbitrary scanned document layouts.
-- WORM/compliance certification or autonomous business approval.
+**What is actually built?**
+The full review transaction runs end to end on one laptop: snapshot, gate, one Bedrock evaluation, validation, staleness, hash-chained ledger, folder metadata, review and author tasks. Exceptions, not-applicable, compensating controls, Jira, IRM and cloud hosting are proposed and shown with no transition behind them.
+
+**Where does the data go?**
+In live mode, document text goes from Box to the laptop and to Bedrock under a `us.` inference profile in us-east-1, and it is stored in the local ledger. The inference profile is a routing choice, not a residency guarantee, and a bank pilot needs a data-classification decision first.

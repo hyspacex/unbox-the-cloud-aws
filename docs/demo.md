@@ -86,3 +86,9 @@ The full review transaction runs end to end on one laptop: snapshot, gate, one B
 
 **Where does the data go?**
 In live mode, document text goes from Box to the laptop and to Bedrock under a `us.` inference profile in us-east-1, and it is stored in the local ledger. The inference profile is a routing choice, not a residency guarantee, and a bank pilot needs a data-classification decision first.
+
+**Why does Dana Okafor review the encryption control when Priya Natarajan verified it on October 7?**
+The demo tenant has one configured reviewer identity, so every review task in the demo is assigned to her; the card still shows the original verifier, role and version on the secondary line. Routing by reviewer role from the directory is a bank-owned pilot gate, named as such in the spec and on the architecture page.
+
+**Why does the baseline say S3 and "Verified, holds" rather than S2 and "Verified"?**
+On October 12 the runbook changed its escalation contact, Keel re-evaluated, nothing changed, and every verification was recorded as holding. That is the most common row in the system, and showing it first is the point: a no-change evaluation is still recorded.

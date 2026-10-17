@@ -9,11 +9,11 @@
     "date": "2026-10-07",
     "chair": "R. Alvarez"
   },
-  "expected_count_line_before": "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)",
-  "expected_count_line_after": "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author",
+  "expected_count_line_before": "8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Needs review (Low), 1 Needs review (Critical)",
+  "expected_count_line_after": "8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Verified, 1 Returned to author",
   "snapshot_id": "S4",
   "prior_snapshot_id": "S3",
-  "manifest_hash": "sha256:e150c919c0259fdde5a9efdac245504c11dc2e4707765ecb3375aa452fe4e2bd",
+  "manifest_hash": "sha256:be779881a04610801b3f4410db43edcb028be479a666fb8c158608793d71c524",
   "control_profile_version": "2026.3",
   "trigger": {
     "fileId": "1650233401",
@@ -37,17 +37,20 @@
       "weakened": 1,
       "moved": 1
     },
-    "verification_holds": 6,
+    "verification_holds": 5,
+    "verification_requires_acknowledgment": 1,
     "binding_changed": 1,
-    "top_line_before_human_action": "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)",
-    "top_line_after_human_action": "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author",
+    "top_line_before_human_action": "8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Needs review (Low), 1 Needs review (Critical)",
+    "top_line_after_human_action": "8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Verified, 1 Returned to author",
     "displayed_counts_before": {
-      "Verified, holds": 6,
+      "Verified, holds": 5,
+      "Acknowledge: evidencing section changed": 1,
       "Needs review: key-management evidence missing": 1,
       "Needs review: evidence binding changed": 1
     },
     "displayed_counts_after": {
-      "Verified, holds": 6,
+      "Verified, holds": 5,
+      "Acknowledge: evidencing section changed": 1,
       "Returned to author, open": 1,
       "Verified": 1
     }
@@ -121,7 +124,8 @@
   "box_tasks": {
     "A_review_SEC_ARCH_07": "box-task-77120931",
     "B_author_remediation": "box-task-77120944",
-    "C_review_SEC_ARCH_22": "box-task-77120932"
+    "C_review_SEC_ARCH_22": "box-task-77120932",
+    "D_review_SEC_ARCH_05": "box-task-77120933"
   },
   "human_actions_expected": [
     {
@@ -150,13 +154,14 @@
       "control_id": "SEC-ARCH-01",
       "control_title": "Approved services only",
       "tier": "Medium",
-      "materiality": "hold_if_unchanged",
+      "materiality": "hold_if_quote_unchanged",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "unchanged",
       "basis": [
         "2 of 2 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier Medium holds without acknowledgment."
       ],
       "evidence": [
         {
@@ -234,6 +239,7 @@
         }
       ],
       "verification_holds": true,
+      "acknowledgment_required": false,
       "expected_display": "Verified, holds",
       "expected_projection_code": "VERIFIED_HOLDS",
       "expected_display_after_human_action": "Verified, holds",
@@ -252,13 +258,14 @@
       "control_id": "SEC-ARCH-02",
       "control_title": "Data classification and regulatory scope per data store",
       "tier": "High",
-      "materiality": "hold_if_unchanged",
+      "materiality": "acknowledge_on_evidencing_section_change",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "unchanged",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §3.2 unchanged; tier High holds without acknowledgment."
       ],
       "evidence": [
         {
@@ -352,6 +359,7 @@
         }
       ],
       "verification_holds": true,
+      "acknowledgment_required": false,
       "expected_display": "Verified, holds",
       "expected_projection_code": "VERIFIED_HOLDS",
       "expected_display_after_human_action": "Verified, holds",
@@ -370,13 +378,14 @@
       "control_id": "SEC-ARCH-04",
       "control_title": "Authentication and MFA via enterprise IdP",
       "tier": "Medium",
-      "materiality": "hold_if_unchanged",
+      "materiality": "hold_if_quote_unchanged",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "unchanged",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier Medium holds without acknowledgment."
       ],
       "evidence": [
         {
@@ -459,6 +468,7 @@
         }
       ],
       "verification_holds": true,
+      "acknowledgment_required": false,
       "expected_display": "Verified, holds",
       "expected_projection_code": "VERIFIED_HOLDS",
       "expected_display_after_human_action": "Verified, holds",
@@ -477,13 +487,14 @@
       "control_id": "SEC-ARCH-05",
       "control_title": "Least privilege, PAM, no shared admin, break-glass named",
       "tier": "High",
-      "materiality": "hold_if_unchanged",
+      "materiality": "acknowledge_on_evidencing_section_change",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "unchanged",
       "basis": [
         "4 of 4 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §4.2 text changed; tier High requires acknowledgment."
       ],
       "evidence": [
         {
@@ -592,11 +603,12 @@
           "verified_snapshot_id": "S2"
         }
       ],
-      "verification_holds": true,
-      "expected_display": "Verified, holds",
-      "expected_projection_code": "VERIFIED_HOLDS",
-      "expected_display_after_human_action": "Verified, holds",
-      "expected_projection_code_after_human_action": "VERIFIED_HOLDS",
+      "verification_holds": false,
+      "acknowledgment_required": true,
+      "expected_display": "Acknowledge: evidencing section changed",
+      "expected_projection_code": "ACKNOWLEDGE",
+      "expected_display_after_human_action": "Acknowledge: evidencing section changed",
+      "expected_projection_code_after_human_action": "ACKNOWLEDGE",
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
@@ -604,7 +616,13 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021?keel_finding=KEEL-2026-0404",
-      "suggested_action": "None. The prior verification holds."
+      "suggested_action": "Acknowledge (High): the cited quote is unchanged but the surrounding §4.2 text changed; confirm the section still supports the control.",
+      "open_review_task": {
+        "task_id": "box-task-77120933",
+        "assignee": "Dana Okafor",
+        "state": "open",
+        "response": null
+      }
     },
     {
       "finding_id": "KEEL-2026-0405",
@@ -618,7 +636,7 @@
       "basis": [
         "Verified quote from architecture.md v2 §4.3 Encryption at rest and key management ¶1 not found in v3 after normalization (whitespace, quotes, hyphens, case).",
         "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. AES-256, the key model, the rotation period and the custodians are unsupported.",
-        "Box AI ask over 4 other files for customer-managed keys, CipherTrust, rotation and key custodians: 0 cited statements.",
+        "Box AI ask over 4 other files, query 'customer-managed keys OR CipherTrust OR key rotation OR key custodians': 0 cited statements.",
         "3 other assertions changed in §4.3."
       ],
       "evidence": [
@@ -694,6 +712,7 @@
         }
       ],
       "verification_holds": false,
+      "acknowledgment_required": false,
       "expected_display": "Needs review: key-management evidence missing",
       "expected_projection_code": "NEEDS_REVIEW_WEAKENED",
       "expected_display_after_human_action": "Returned to author, open",
@@ -712,13 +731,14 @@
       "control_id": "SEC-ARCH-17",
       "control_title": "Security events to enterprise SIEM (Splunk)",
       "tier": "High",
-      "materiality": "hold_if_unchanged",
+      "materiality": "acknowledge_on_evidencing_section_change",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "unchanged",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §6 unchanged; tier High holds without acknowledgment."
       ],
       "evidence": [
         {
@@ -801,6 +821,7 @@
         }
       ],
       "verification_holds": true,
+      "acknowledgment_required": false,
       "expected_display": "Verified, holds",
       "expected_projection_code": "VERIFIED_HOLDS",
       "expected_display_after_human_action": "Verified, holds",
@@ -819,13 +840,14 @@
       "control_id": "SEC-ARCH-20",
       "control_title": "Third parties named with TPRM assessment id and inherent risk tier",
       "tier": "Medium",
-      "materiality": "hold_if_unchanged",
+      "materiality": "hold_if_quote_unchanged",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "unchanged",
       "basis": [
         "4 of 4 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier Medium holds without acknowledgment."
       ],
       "evidence": [
         {
@@ -924,6 +946,7 @@
         }
       ],
       "verification_holds": true,
+      "acknowledgment_required": false,
       "expected_display": "Verified, holds",
       "expected_projection_code": "VERIFIED_HOLDS",
       "expected_display_after_human_action": "Verified, holds",
@@ -942,13 +965,14 @@
       "control_id": "SEC-ARCH-22",
       "control_title": "Recovery targets and rollback path documented",
       "tier": "High",
-      "materiality": "hold_if_unchanged",
+      "materiality": "acknowledge_on_evidencing_section_change",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "moved",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 Resilience and recovery ¶1 not found in v3 after normalization.",
-        "Box AI ask over 4 other files for RTO, RPO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 3 of 3 required clauses supported.",
+        "Box AI ask over 4 other files, query 'RTO OR RPO OR roll back': 1 cited statement in runbook.md §3, validated against pinned text.",
+        "3 of 3 required clauses supported by validated quotes from runbook.md v2.",
         "The runbook quote already existed before v3 (runbook.md v1 and v2), so the binding moved and the support did not."
       ],
       "evidence": [
@@ -1043,6 +1067,7 @@
         }
       ],
       "verification_holds": false,
+      "acknowledgment_required": false,
       "expected_display": "Needs review: evidence binding changed",
       "expected_projection_code": "NEEDS_REVIEW_BINDING",
       "expected_display_after_human_action": "Verified",

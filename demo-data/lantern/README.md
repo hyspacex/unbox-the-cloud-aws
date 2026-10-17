@@ -6,7 +6,7 @@ Meridian Trust Bank is a fictional mid-size US bank. Project Lantern: Customer S
 - **Dana Okafor:** SEC-ARCH-05, 17 and 22.
 - **Priya Natarajan:** SEC-ARCH-07, at 2026-10-08T10:32Z.
 
-The spec is `docs/research/30-design-v3.md`. This fixture drives the explainer page and the primary demo. `live-slice/` is the fallback.
+The spec is `docs/research/30-design-v3.md` (v3.4). This fixture drives the explainer page and the primary demo. `live-slice/` is the fallback.
 
 ## Timeline
 
@@ -14,7 +14,7 @@ The spec is `docs/research/30-design-v3.md`. This fixture drives the explainer p
 | --- | --- | --- |
 | S1, Oct 3 | Baseline v1 | Attempt 1 cannot read approved-services-and-exceptions.md, so SEC-ARCH-01 is not_evaluated. Attempt 2 succeeds. 04, 05 and 17 are evidence_absent, and 07 is evidence_weakened. |
 | S2, Oct 7 | architecture.md v2 | All eight evidence_found. ARB decision, then eight verifications through Box tasks. |
-| S3, Oct 12 | runbook.md v2 (escalation contact only) | Nothing changes. The no-change evaluation is recorded, and all eight controls get verification_holds events. |
+| S3, Oct 12 | runbook.md v2 (escalation contact only) | Nothing changes. The no-change evaluation is recorded, and all eight controls get verification_holds events because no evidencing file changed. |
 | S4, demo day | architecture.md v3 from svc-confluence-export | See below. |
 
 The S4 upload carries the version comment "Section 4 rewrite for clarity", the Confluence editor J. Park (Eng), and Jira LAN-2291. It changes exactly two things that matter:
@@ -22,17 +22,19 @@ The S4 upload carries the version comment "Section 4 rewrite for clarity", the C
 - **SEC-ARCH-07, Critical.** The customer-managed key sentence and the AES-256 sentence are gone. "industry-standard encryption" still supports the encryption clause, so one of five required clauses is supported. The outcome is evidence_weakened and weakened, displayed as "Needs review: key-management evidence missing".
 - **SEC-ARCH-22, High.** The rollback, RTO and RPO sentence left the architecture document, and the runbook already had it. The outcome is evidence_found and moved, with a binding_changed event and a low-severity acknowledgment. Displayed: "Needs review: evidence binding changed".
 
-TLS is untouched: section 4.4 is identical in v2 and v3. The other six controls are evidence_found and unchanged, and each gets a verification_holds event. The top line before the human action reads "6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)".
+- **SEC-ARCH-05, High.** Its quote is unchanged, but its section §4.2 softened "are not used for operations" to "play no part in day-to-day operations". High materiality acknowledges on a section change, so code writes a verification_requires_acknowledgment event. Displayed: "Acknowledge: evidencing section changed". There is no human action on it in the demo.
+
+TLS is untouched: §4.4 is identical in v2 and v3, and so are §3.2, §6 and §7. The other five controls are evidence_found and unchanged, and each gets a verification_holds event. The top line before the human action reads "8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Needs review (Low), 1 Needs review (Critical)".
 
 Human actions, following design section 3 step 10:
 
-1. Keel creates review task A (SEC-ARCH-07) and review task C (SEC-ARCH-22), both assigned to Dana Okafor.
+1. Keel creates review tasks A (SEC-ARCH-07), C (SEC-ARCH-22) and D (SEC-ARCH-05), all assigned to Dana Okafor. Task D stays open with no response, so SEC-ARCH-05 remains "Acknowledge: evidencing section changed".
 2. Dana rejects task A with the message "Encrypted is stated; the key model and rotation are not. IS-STD-014 §5.1 requires the KMS CMK statement restored."
 3. Keel creates author task B for J. Park (Eng), due 2026-10-23T17:00Z (5 business days), quoting the lost clauses.
 4. Only after task B exists does Keel record returned_to_author.
 5. Dana approves task C with the attestation phrase in about 30 seconds. SEC-ARCH-22 is re-verified on runbook.md v2.
 
-The top line after the human actions reads "6 Verified holds, 1 Verified, 1 Returned to author". Each human event records the identity as returned by Box, both the Box completion time and Keel's ingestion time, the dedup key, and a freshness check.
+The top line after the human actions reads "8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Verified, 1 Returned to author". Machine events never carry a human disposition. They record `current_disposition` and a `prior_verification` block, and `human_disposition` appears only on human_disposition_recorded events. Each human event records the identity as returned by Box, both the Box completion time and Keel's ingestion time, the dedup key, and a freshness check.
 
 ## Which file evidences which control
 
@@ -50,7 +52,7 @@ The top line after the human actions reads "6 Verified holds, 1 Verified, 1 Retu
 
 - **Assessment from clause support.** All required clauses supported gives evidence_found, some gives evidence_weakened, and none gives evidence_absent. An unreadable evidence location gives not_evaluated. The mock judge only says which quote supports which clause. Code derives the assessment.
 - **Change classification.** It compares the prior and new evidence binding, and returns none, unchanged, moved, weakened or removed.
-- **Staleness.** Staleness is keyed to the binding, with the profile's `materiality` applied by tier.
+- **Staleness.** Staleness is keyed to the binding, with the profile's `materiality` applied by tier. Critical acknowledges on an evidencing file change, High on an evidencing section change, and Medium holds when the quote is unchanged.
 - **Projection codes.** Codes such as VERIFIED_HOLDS and NEEDS_REVIEW_WEAKENED come from the ordered display rules in design section 4.
 - **Diff hints.** Prior-quote diff hints use each required clause's `hint_terms` from the profile. They are hints, not verdicts.
 

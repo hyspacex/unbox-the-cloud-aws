@@ -18,7 +18,7 @@
   "chain": {
     "algorithm": "sha256(previous chain_hash + canonical JSON of event without chain_hash)",
     "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
-    "head": "80644ac34dd96681558936202e7b6a712894eb6f305a23c585cdacd1bbec6528",
+    "head": "616de75df975cdc9ec720fca7adc87ec758652189aa9b38e52b5af6d8c210a28",
     "note": "Events with ts LIVE are re-chained by the app when the real timestamp is known."
   },
   "population": {
@@ -29,6 +29,7 @@
     "control_evaluated": 6,
     "evaluation_error": 0,
     "verification_holds": 1,
+    "verification_requires_acknowledgment": 0,
     "binding_changed": 1,
     "box_metadata_written": 4,
     "box_task_created": 3,
@@ -46,7 +47,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Kevin Lindqvist",
@@ -66,6 +66,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
+      "human_disposition": null,
       "chain_hash": "045575d8e2ba3233406382951bc42c048b62fcb8a74c195f3c89d8957781463d"
     },
     {
@@ -78,7 +79,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Kevin Lindqvist",
@@ -98,6 +98,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": null,
       "chain_hash": "036be190f86f28654835e909dd254cf22ee1f09101d4c43cfe13b88a441fbe63"
     },
     {
@@ -110,7 +111,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -144,7 +144,7 @@
           "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
         }
       ],
-      "chain_hash": "6e1c558d69aee68a59a08b93cec8ef7924f452cc315454afeeec80fd258eed0a"
+      "chain_hash": "cf86e1d2f914b754c8702d8dd1d0fea0f3c2f50adffaf2729053c6205f79237c"
     },
     {
       "event_id": "EVT-0004",
@@ -156,7 +156,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -194,7 +193,7 @@
           "readable": true
         }
       ],
-      "chain_hash": "62c2cea0acdd7d951c8933fb20ca4eddc9184b162015c0d73532ad6f9c05c4d0"
+      "chain_hash": "ade9edca64c4eb111cb64f08bd5f439aa706880814680241627e9e9e57d2662c"
     },
     {
       "event_id": "EVT-0005",
@@ -206,7 +205,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -237,7 +235,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "261cfe58b85c53d97bff2ab3c17a8de5a9bd7105ae499eea2254c4f44543d9eb"
+      "chain_hash": "b1d394916b7ac1989b871312481b4468bdbcbe5c7539ef8f73ccb27e4b2cfc1c"
     },
     {
       "event_id": "EVT-0006",
@@ -249,7 +247,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -355,6 +352,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -388,7 +388,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "d494acfed58c2b11c51d369e10844976d4d786fb7f06e47c6705f6d91e1f7a21"
+      "chain_hash": "dcc8b98f8ded26b04ed6b05545e67d6c893b035dda6b1f93a7b13d505f306840"
     },
     {
       "event_id": "EVT-0007",
@@ -400,7 +400,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -458,6 +457,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -480,7 +482,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "41c799e796cd4f36f452b521908f8ebe3d723206307968bb8cb93f8c12c7127e"
+      "chain_hash": "16c9dbc1f18398af5c5272a8836ab2d918cecded122c3ef05f36d6ead32fcdc8"
     },
     {
       "event_id": "EVT-0008",
@@ -492,7 +494,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -566,6 +567,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -588,7 +592,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "8c36ab94bb19e2fc80b873c8be44fbafae030316a5975abd3948ab529415c567"
+      "chain_hash": "d65da3994115e96373ef896a324fffba5dc75601d49e194367153bad4dc37cf2"
     },
     {
       "event_id": "EVT-0009",
@@ -600,7 +604,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -650,7 +653,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "b3535964e939bf0bc6c6a100072d88ceb2d20a5515e4e4d5ca1519b98af3db95"
+      "chain_hash": "a3dff44cfb2587d86ac39c20fa8a84ef77e2c005fbee23d536be5bab9a4c2195"
     },
     {
       "event_id": "EVT-0010",
@@ -662,7 +665,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -701,7 +703,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
       "last_projected_snapshot": "S2",
-      "chain_hash": "37f925eb9289db3f99f4d668b73df6bbef4aa83ff0429f8af1c560ded955c447"
+      "chain_hash": "2212ccb7f1e15585c78922675b037cc30dc8c749afad14c5fb81a786c8dfa6c8"
     },
     {
       "event_id": "EVT-0011",
@@ -713,7 +715,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "R. Alvarez",
@@ -734,13 +735,14 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
+      "human_disposition": null,
       "decision": {
         "id": "ARB-2026-0338",
         "outcome": "approved with conditions",
         "date": "2026-10-07",
         "chair": "R. Alvarez"
       },
-      "chain_hash": "2d94e2909b67d45ca5eb199a7d7f0480c8897cb70e1f8095f9bffd73c39ad4d3"
+      "chain_hash": "579aa2d6ff9d0ca0e28ed5fe263419a19d3faf84812ffec9e02104464fef9387"
     },
     {
       "event_id": "EVT-0012",
@@ -752,7 +754,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -822,6 +823,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -851,7 +853,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "a7048a83687cf41f5557b920c77a5faba41c232da326f83ef75cb4fde3bcee0d"
+      "chain_hash": "42d0b25687de2a8fb325d11f44985a3d01abfa8d794f605ba26700aeb05fd6cf"
     },
     {
       "event_id": "EVT-0013",
@@ -863,7 +865,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -917,6 +918,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -946,7 +948,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "ca0d3403f98d7d881894e7d31aa4e13578b5f4b0d23129f0cd16614796215084"
+      "chain_hash": "9ef56827cc85c5d4150f315cab06f0f8b080f8683584079252e7a3ab73985738"
     },
     {
       "event_id": "EVT-0014",
@@ -958,7 +960,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Priya Natarajan",
@@ -1060,6 +1061,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -1089,7 +1091,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "ca1f984c27cdb27602bce42d60343f9ea420adcb707c524c737c8c1e9f4ad189"
+      "chain_hash": "6aee5a90462cd89aea792b178c98ad3e4e3db779b830efb5d41b2f0d91d764b7"
     },
     {
       "event_id": "EVT-0015",
@@ -1101,7 +1103,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1140,7 +1141,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
       "last_projected_snapshot": "S2",
-      "chain_hash": "1c894961072068e1a9d3f748d72283ee0f3e0022db4c30463950a79197399981"
+      "chain_hash": "a64dc1611ecfba02638c13da3f43a0b6887782cf6da3e6354d4f8051688aaf12"
     },
     {
       "event_id": "EVT-0016",
@@ -1152,7 +1153,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "service",
         "name": "svc-confluence-export",
@@ -1161,7 +1161,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": null,
       "basis": null,
       "clause_support": null,
@@ -1175,7 +1175,7 @@
       "version_comment": "Section 4 rewrite for clarity",
       "confluence_editor": "J. Park (Eng)",
       "jira": "LAN-2291",
-      "chain_hash": "225169ad9c9b642039acec43d9ffbf8a46919c8fa7c5b32f441e69f256af7d27"
+      "chain_hash": "0c76cce9b5f915219f8ac6b27dcc49e4d1db0ec0f81d7dc4b17489b4cc0270fe"
     },
     {
       "event_id": "EVT-0017",
@@ -1187,7 +1187,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1207,13 +1206,13 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
-      "manifest_hash": "sha256:c981b2255c52fecbad97e9abdc435862201e80fac8a7a3345984a75a7924a42e",
+      "manifest_hash": "sha256:194dabfda25fed46a2718cf4ce4a8605acfbe2de48ec079cb5c8fd5e79d7536c",
       "control_profile_version": "2026.3-live",
       "files": [
         {
           "fileName": "architecture.md",
           "versionId": "1801102233",
-          "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302"
+          "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067"
         },
         {
           "fileName": "runbook.md",
@@ -1221,7 +1220,7 @@
           "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
         }
       ],
-      "chain_hash": "17fff36816e57169e9acae173d4682dc34a6feda526a0dcf6bd52fb1cf2913c9"
+      "chain_hash": "3b93def5f251347ff44950188c218a4233411c9a6df68d3165a94f89a971db43"
     },
     {
       "event_id": "EVT-0018",
@@ -1233,7 +1232,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1271,7 +1269,7 @@
           "readable": true
         }
       ],
-      "chain_hash": "a9140d60b3ee0e3dbb7894697952eb618b6b95d73abbcf4eeb75bfe662c509a3"
+      "chain_hash": "a971f606b00afed48438c0df2481b11af231ea0911904ff23fe9a743a52a302c"
     },
     {
       "event_id": "EVT-0019",
@@ -1283,7 +1281,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "gate",
         "name": "Strands Decider 2B",
@@ -1293,7 +1290,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": null,
       "basis": null,
       "clause_support": null,
@@ -1321,7 +1318,7 @@
         "latency_ms": 118
       },
       "note": "gate result recorded; never writes a status",
-      "chain_hash": "1de8c4abacdf298c28d1e88f4c146125eac261bf82f561c9911ddbcc1f645e05"
+      "chain_hash": "3d1f58a55f48a87c5da3439285d190a51bcfdf133eb8bda100bb14da2c807898"
     },
     {
       "event_id": "EVT-0020",
@@ -1333,7 +1330,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1364,7 +1360,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "32ad69f24a148db2330737d2c8639fea16fdf114bf3db666e53d1d5bda096401"
+      "chain_hash": "3eed32ea5df41a72f194e1f256dd9eb7507648455cd2c9698aefa8e444117c6c"
     },
     {
       "event_id": "EVT-0021",
@@ -1376,7 +1372,6 @@
       "machine_assessment": "evidence_weakened",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "weakened",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1387,12 +1382,12 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
       "basis": [
         "Verified quote from architecture.md v2 §4.3 ¶1 not found in v3 after normalization.",
         "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. The key model and rotation clauses have no support.",
-        "Box AI ask over 2 files for customer-managed keys: 0 cited statements."
+        "Box AI ask over 2 files, query 'customer-managed keys OR CipherTrust OR key rotation OR key custodians': 0 cited statements."
       ],
       "clause_support": [
         {
@@ -1443,6 +1438,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Priya Natarajan",
+        "role": "Principal Security Architect, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T10:32:00Z",
+        "event_id": "EVT-0014"
+      },
+      "verification_holds": false,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -1466,7 +1473,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0405",
-      "chain_hash": "fd1e150284c0bac5ee9e294ff7f506091fe0eb49985d9bd180d8d6add5e1f26c"
+      "chain_hash": "fb17b8e84d40c626d4f2c466aff780eb16f43fd0f041728e5e906b2b2123ed55"
     },
     {
       "event_id": "EVT-0022",
@@ -1478,7 +1485,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "moved",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1493,7 +1499,8 @@
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 not found in v3 after normalization.",
-        "Box AI ask over 2 files for RTO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 2 of 2 required clauses supported.",
+        "Box AI ask over 2 files, query 'RTO OR RPO OR roll back': 1 cited statement in runbook.md §3, validated against pinned text.",
+        "2 of 2 required clauses supported by validated quotes from runbook.md.",
         "The runbook quote already existed at the reviewed baseline, so the binding moved from architecture.md v2 to runbook.md and the support did not."
       ],
       "clause_support": [
@@ -1537,6 +1544,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:52:08Z",
+        "event_id": "EVT-0013"
+      },
+      "verification_holds": false,
       "evidence": [
         {
           "fileId": "1650233403",
@@ -1560,7 +1579,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0408",
-      "chain_hash": "4a3a5f05dbd8fe7a7b23214c8834a95915ee5b4dae6ea1a6de0d3e913c8f2378"
+      "chain_hash": "28f993aac02125ebebb32c2ae5a9ed58f6e5caacacf78c8ab5c70db1edca00db"
     },
     {
       "event_id": "EVT-0023",
@@ -1572,7 +1591,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1583,11 +1601,12 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §6 unchanged; tier High holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -1646,6 +1665,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:46:31Z",
+        "event_id": "EVT-0012"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -1669,7 +1700,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0406",
-      "chain_hash": "4a103a0eeadfa1f386a9f5b320e47d07c9c4e021662dbc64a985f66edc56af91"
+      "chain_hash": "d65de569984410f4b97989dda0aa554e2087984da04181b6e103ed0c2bc037ad"
     },
     {
       "event_id": "EVT-0024",
@@ -1681,7 +1712,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "moved",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1701,12 +1731,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Dana Okafor",
+        "actor": "Dana Okafor",
         "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:52:08Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:52:08Z",
+        "event_id": "EVT-0013"
       },
+      "verification_holds": false,
       "previous_binding": {
         "fileId": "1650233401",
         "fileName": "architecture.md",
@@ -1723,7 +1759,7 @@
         "severity": "Low"
       },
       "note": "selected binding moved from architecture.md v2 to runbook.md v1; the quote is new in that file",
-      "chain_hash": "42b2d3db7c0c2be1e9ccd2d1b9a9c4b240c16e9c7ea4987d677e2998e104de13"
+      "chain_hash": "d6c2346158c2be3622db98808ad467d907fa56edd018e46a89d5cf2e8eba692c"
     },
     {
       "event_id": "EVT-0025",
@@ -1735,7 +1771,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1744,7 +1779,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
       "basis": null,
       "clause_support": null,
@@ -1755,15 +1790,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Dana Okafor",
+        "actor": "Dana Okafor",
         "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:46:31Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:46:31Z",
+        "event_id": "EVT-0012"
       },
-      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "be9def5e55a11892ff28518b7706fe8292bed4fd1a0902fe1399e867c58480ff"
+      "verification_holds": true,
+      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §6 unchanged; tier High holds without acknowledgment",
+      "materiality": "acknowledge_on_evidencing_section_change",
+      "chain_hash": "87f9a8b1cd3ec970528867ad52222651ca63bfff0dd6e2d1ee6ff6e29066a7e4"
     },
     {
       "event_id": "EVT-0026",
@@ -1775,7 +1816,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1826,7 +1866,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "quotes_validated": "3 of 3",
-      "chain_hash": "241f193deaa1f3c614c223cd4380e74a2d49c99ebe82f6a3024ba683e5a93f67"
+      "chain_hash": "c48ecd5f8d15a76ed7fd4dd3d3202e93097e30ea353edf423973890f395c3ae6"
     },
     {
       "event_id": "EVT-0027",
@@ -1838,7 +1878,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1877,7 +1916,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "2b0b417e40f28b3cd3cde582767af19e8fdbc965e40a2d291623628545a25fba"
+      "chain_hash": "e92c659927481b57cf341a4f36c337d444719593421e51b1b33382e28d048f1b"
     },
     {
       "event_id": "EVT-0028",
@@ -1889,7 +1928,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1930,7 +1968,7 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "47660e5ed9c3bf5e9ea22529a11d35bc573ad2f419632312271f7b36c82c8145"
+      "chain_hash": "40ae1e833744cf453bfe7301c64171733df32825e16a452e17c27db7c6d59f43"
     },
     {
       "event_id": "EVT-0029",
@@ -1942,7 +1980,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1983,7 +2020,7 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "51d7fa208bf9f27834ad1b77ffb25a5b96dd126bac539b3638aeb0bb4ab3cc9e"
+      "chain_hash": "3954d169ce7cc16ccd6db14cb1929e4a2a440521413c90524e3bd3e834532bcf"
     },
     {
       "event_id": "EVT-0030",
@@ -1995,7 +2032,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -2033,7 +2069,7 @@
         "source": "identity as returned by Box (task assignment assigned_to)"
       },
       "mapped_action": "returned_to_author",
-      "chain_hash": "e1587a8f63798298db5ba3258161d4ef31dde789d0b202f689d2cf63424c1f09"
+      "chain_hash": "bfe8ecc0010f9dddc2de1c704a79f53a3de40a38b89e5c4e9b55c128036b841d"
     },
     {
       "event_id": "EVT-0031",
@@ -2045,7 +2081,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -2080,6 +2115,9 @@
         "due_at": "2026-10-23T17:00:00Z",
         "due_rule": "5 business days (profile default remediation window)",
         "jira": "LAN-2291",
+        "message_drafted_by": "Box AI text generation from the finding and the reviewer's reason",
+        "shown_to_reviewer_before_sending": true,
+        "stored_verbatim": true,
         "message": "Returned by Dana Okafor (ARB reviewer): \"Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored.\" Lost from architecture.md §4.3 in v3: \"All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.\""
       },
       "lost_clauses": [
@@ -2096,7 +2134,7 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "7aae5323977a98725e44867ddb8458eebc8d7b9034c0ec8bdc060fa9af7bf089"
+      "chain_hash": "de23782682f53d2db17c69b74a4e9cb251a7608992eb067545a46504a08c860a"
     },
     {
       "event_id": "EVT-0032",
@@ -2108,7 +2146,6 @@
       "machine_assessment": "evidence_weakened",
       "prior_machine_assessment": null,
       "change_classification": "weakened",
-      "human_disposition": "returned_to_author",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -2118,7 +2155,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
       "basis": null,
       "clause_support": [
@@ -2170,6 +2207,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "human_disposition": "returned_to_author",
       "comment": "Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored.",
       "via": {
         "channel": "Box task",
@@ -2200,7 +2238,7 @@
       "due_at": "2026-10-23T17:00:00Z",
       "author_task_id": "box-task-77120944",
       "recorded_after": "author task created successfully",
-      "chain_hash": "87059007f4b676a92ece95445ce92571e29b39dca26a7d730bb752d39734af17"
+      "chain_hash": "f662cb4ecd33fd8a5a292edce426689e4125b2aa263b724f8f1f5887ce50dac1"
     },
     {
       "event_id": "EVT-0033",
@@ -2212,7 +2250,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -2252,7 +2289,7 @@
       },
       "mapped_action": "verified",
       "acknowledgment_duration_s": 30,
-      "chain_hash": "5f4e3b7c1bcef19ee018e92eab350438ecb9c40e12ad72aed3108b2dc0f13d14"
+      "chain_hash": "9f2df3bec5e42551470d8c7d3c0c6ebf6caa937bf5e6448f1905ffc85a026270"
     },
     {
       "event_id": "EVT-0034",
@@ -2264,7 +2301,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "moved",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -2318,6 +2354,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
+      "human_disposition": "verified",
       "comment": "Recovery targets present in runbook §3; binding updated. I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -2346,7 +2383,7 @@
       },
       "finding_id": "KEEL-2026-0408",
       "rebinding": "re-verified on runbook.md",
-      "chain_hash": "d40fed39771d17963b46249f86ac312489c446ef385aeb8be7927e60e4758252"
+      "chain_hash": "2115b4a73e2f61c11f0abdbdec9c2d0268f20a11cb94e704bb301364c3c374a5"
     },
     {
       "event_id": "EVT-0035",
@@ -2358,7 +2395,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -2397,7 +2433,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "80644ac34dd96681558936202e7b6a712894eb6f305a23c585cdacd1bbec6528"
+      "chain_hash": "616de75df975cdc9ec720fca7adc87ec758652189aa9b38e52b5af6d8c210a28"
     }
   ]
 }

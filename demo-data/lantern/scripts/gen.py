@@ -79,6 +79,17 @@ class Versions:
         heading, para, pos = found
         m = re.match(r"^(\d+(\.\d+)?)\.?\s", heading)
         return {"section": ("§" + m.group(1) + " " + heading[m.end():]) if m else heading, "paragraph": para, "page": 1 + pos // 3000}
+    def section_text(self, k, q):
+        """Normalized text of the section (heading to next heading) that contains the quote."""
+        lines = self.text(k).split("\n"); cur = []; secs = []
+        for ln in lines:
+            if ln.startswith("#"):
+                secs.append(cur); cur = [ln]
+            else: cur.append(ln)
+        secs.append(cur)
+        for sec_ in secs:
+            if norm(q) in norm("\n".join(sec_)): return norm("\n".join(sec_))
+        raise AssertionError(("section not found", k, q[:60]))
     def ev(self, k, q):
         loc = self.locate(k, q); v = self.v[k]
         return {"fileId": v["fileId"], "fileName": v["fileName"], "versionId": v["versionId"], "versionLabel": v["versionLabel"], "section": loc["section"],
@@ -121,6 +132,9 @@ assert "TLS 1.2" in a2 and "TLS 1.2" in a3
 sec44 = lambda t: t[t.index("### 4.4"):t.index("### 4.5")]
 assert sec44(a2) == sec44(a3), "TLS paragraph must be identical in v2 and v3"
 OTHERS = ["dfc-v1", "run-v2", "ven-v1", "ase-v1"]
+Q07_QUERY = "customer-managed keys OR CipherTrust OR key rotation OR key custodians"
+Q22_QUERY = "RTO OR RPO OR roll back"
+def ask_hits(vers, keys, query): return [k for k in keys if any(has_term(vers.text(k), t) for t in query.split(" OR "))]
 for k in OTHERS: assert not has_term(FULL.text(k), "customer-managed keys"), k
 assert [k for k in OTHERS if has_term(FULL.text(k), "RTO")] == ["run-v2"] and not has_term(a3, "RTO")
 assert norm("Lantern uses no third-party processors outside Meridian's AWS accounts.") in norm(a3)
@@ -129,7 +143,7 @@ assert "halcyon" not in norm(FULL.text("ven-v1"))
 
 # ============================================================ profiles
 ILL = "illustrative; not reviewed by a compliance owner"
-MATERIALITY = {"Critical": "acknowledge_on_evidencing_file_change", "High": "hold_if_unchanged", "Medium": "hold_if_unchanged"}
+MATERIALITY = {"Critical": "acknowledge_on_evidencing_file_change", "High": "acknowledge_on_evidencing_section_change", "Medium": "hold_if_quote_unchanged"}
 FIELDS = ["id", "title", "requirement", "required_clauses", "standard", "applicability", "evidence", "tier", "framework_map", "reviewer_role"]
 def RC(cid, *items): return [{"clause_id": f"{cid}.{i+1}", "clause": c, "hint_terms": t} for i, (c, t) in enumerate(items)]
 us_controls = [
@@ -253,11 +267,16 @@ class Ledger:
     def add(self, ts, phase, snap, etype, actor, **kw):
         e = {"event_id": f"EVT-{len(self.events)+1:04d}", "ts": ts, "phase": phase, "snapshot_id": snap, "control_id": kw.pop("control_id", None),
              "event_type": etype, "machine_assessment": kw.pop("machine_assessment", None), "prior_machine_assessment": kw.pop("prior_machine_assessment", None),
-             "change_classification": kw.pop("change_classification", None), "human_disposition": kw.pop("human_disposition", None), "actor": actor,
+             "change_classification": kw.pop("change_classification", None), "actor": actor,
              "fileId": kw.pop("fileId", None), "fileName": kw.pop("fileName", None), "versionId": kw.pop("versionId", None), "contentHash": kw.pop("contentHash", None),
              "quote": kw.pop("quote", None), "basis": kw.pop("basis", None), "clause_support": kw.pop("clause_support", None), "prompt_hash": kw.pop("prompt_hash", None),
              "projection": kw.pop("projection", {"box_metadata": "n/a"}), "mrm_model_id": MRM_MODEL_ID, "normalization": NORMALIZATION}
         e["box_deep_link"] = deep_link(e["fileId"], e["versionId"])
+        hd = kw.pop("human_disposition", None)
+        if actor.get("type") == "human":
+            e["human_disposition"] = hd
+        else:
+            assert hd is None, ("machine event must not carry human_disposition", etype)
         e.update(kw)
         e["chain_hash"] = hashlib.sha256((self.prev + json.dumps(e, sort_keys=True)).encode()).hexdigest()
         self.prev = e["chain_hash"]; self.events.append(e); return e
@@ -273,7 +292,7 @@ class Ledger:
     def population(self):
         t = [e["event_type"] for e in self.events]
         names = ["file_version_observed", "snapshot_captured", "evaluation_attempt", "evaluation_completed", "control_evaluated", "evaluation_error", "verification_holds",
-                 "binding_changed", "box_metadata_written", "box_task_created", "box_task_response_ingested", "human_disposition_recorded"]
+                 "verification_requires_acknowledgment", "binding_changed", "box_metadata_written", "box_task_created", "box_task_response_ingested", "human_disposition_recorded"]
         return {n: t.count(n) for n in names}
 
 class Scenario:
@@ -291,8 +310,38 @@ class Scenario:
         self.disp = {c: {"value": "unreviewed"} for c in ctl_ids}   # current disposition (bound to snapshot + binding)
         self.prior_ver = {c: None for c in ctl_ids}                  # most recent verification, historical record
         self.holds = {c: False for c in ctl_ids}
+        self.ack = {c: None for c in ctl_ids}   # None | "file" | "section"
         self.last_review = None
     def vk(self, snap, fid): return [k for k in self.keys[snap] if self.V[k]["fileId"] == fid][0]
+    def current_disposition(self, cid):
+        d = self.disp[cid]
+        return d["value"] if d.get("snapshot_id") == self.current else "unreviewed"
+    def prior_block(self, cid):
+        pv = self.prior_ver[cid]
+        if not pv: return None
+        b = pv["binding"]
+        return {"actor": pv["by"], "role": pv["role"], "snapshot_id": pv["snapshot_id"], "fileId": b["fileId"], "fileName": b["fileName"],
+                "versionId": b["versionId"], "verified_at": pv["at"], "event_id": pv["event_id"]}
+    def machine_ctx(self, cid): return {"current_disposition": self.current_disposition(cid), "prior_verification": self.prior_block(cid)}
+    def hold_status(self, cid, cc, binding):
+        """Design v3.4 section 3 step 8. Returns (holds, ack_kind, note)."""
+        pv = self.prior_ver[cid]
+        if not pv or not binding: return None, None, None
+        tier = self.ctl[cid]["tier"]; pb = pv["binding"]
+        if cc != "unchanged" or binding["fileId"] != pb["fileId"]: return False, None, f"classification {cc}"
+        file_changed = binding["versionId"] != pb["versionId"]
+        if not file_changed:
+            return True, None, f"evidencing file version unchanged; tier {tier} holds without acknowledgment"
+        if MATERIALITY[tier] == "acknowledge_on_evidencing_file_change":
+            return False, "file", f"evidencing file version changed ({pb['fileName']} {pb['versionLabel']} to {binding['versionLabel']}); tier Critical requires acknowledgment"
+        if MATERIALITY[tier] == "acknowledge_on_evidencing_section_change":
+            same = self.V.section_text(self.V.by_vid(pb["versionId"]), pb["quote"]) == self.V.section_text(self.V.by_vid(binding["versionId"]), binding["quote"])
+            if not same:
+                return False, "section", (f"evidencing file version changed ({pb['fileName']} {pb['versionLabel']} to {binding['versionLabel']}); cited quote unchanged; "
+                                          f"evidencing section {binding['section'].split(' ')[0]} text changed; tier High requires acknowledgment")
+            return True, None, (f"evidencing file version changed ({pb['fileName']} {pb['versionLabel']} to {binding['versionLabel']}); cited quote unchanged; "
+                                f"evidencing section {binding['section'].split(' ')[0]} unchanged; tier High holds without acknowledgment")
+        return True, None, (f"evidencing file version changed ({pb['fileName']} {pb['versionLabel']} to {binding['versionLabel']}); cited quote unchanged; tier {tier} holds without acknowledgment")
     def clause_support(self, snap, cid, readable):
         sup = self.judge(snap, cid); out = []
         for rc in self.ctl[cid]["required_clauses"]:
@@ -332,7 +381,8 @@ class Scenario:
         if d["value"] == "returned_to_author" and d.get("snapshot_id") == self.current: return "RETURNED_TO_AUTHOR", "Returned to author, open"
         if d["value"] == "verified" and on_current: return "VERIFIED", "Verified"
         if pv and self.holds[cid]: return "VERIFIED_HOLDS", "Verified, holds"
-        if pv and st["classification"] == "unchanged" and self.ctl[cid]["tier"] == "Critical": return "ACKNOWLEDGE", "Acknowledge: evidencing file changed"
+        if pv and st["classification"] == "unchanged" and self.ack[cid] == "file": return "ACKNOWLEDGE", "Acknowledge: evidencing file changed"
+        if pv and st["classification"] == "unchanged" and self.ack[cid] == "section": return "ACKNOWLEDGE", "Acknowledge: evidencing section changed"
         if st["assessment"] == "evidence_found" and st["classification"] == "moved": return "NEEDS_REVIEW_BINDING", "Needs review: evidence binding changed"
         if st["assessment"] == "evidence_weakened":
             label = "key-management evidence" if cid == "SEC-ARCH-07" else (unsup[0] if unsup else "clause")
@@ -370,7 +420,7 @@ class Scenario:
             if any(self.V[k]["fileName"].split(".")[0] in " ".join(self.ctl[cid]["evidence"]) for k in unreadable):
                 k = unreadable[0]; v = self.V[k]
                 self.L.add(t, phase, snap, "evaluation_error", APP, control_id=cid, machine_assessment="not_evaluated", prior_machine_assessment=self.state[cid]["assessment"],
-                           human_disposition=self.disp[cid]["value"], fileId=v["fileId"], fileName=v["fileName"], versionId=v["versionId"], contentHash=v["contentHash"],
+                           **self.machine_ctx(cid), fileId=v["fileId"], fileName=v["fileName"], versionId=v["versionId"], contentHash=v["contentHash"],
                            evaluation_id=ev_id, attempt=attempt, coverage=coverage,
                            error={"code": "TEXT_REPRESENTATION_NOT_READY", "message": "Box text representation still processing after upload (HTTP 202). File temporarily unreadable."},
                            basis=["Downgrade example: an evidence location for this control could not be read, so the finding is not_evaluated rather than a quote-less positive.", "Retry scheduled as attempt 2."],
@@ -379,15 +429,19 @@ class Scenario:
             cs = self.clause_support(snap, cid, readable)
             ma = self.assessment_from(cs); binding, evid = self.binding_from(cs)
             cc = self.classify(cid, ma, binding)
+            holds, ack, hnote = self.hold_status(cid, cc, binding)
             prior_a = self.state[cid]["assessment"]
-            basis = (basis_for or {}).get(cid) or self.default_basis(cid, cs, cc)
+            basis = list((basis_for or {}).get(cid) or self.default_basis(cid, cs, cc))
+            if hnote and holds is not None and not hnote.startswith("classification"):
+                basis.append("Staleness check: " + hnote + ".")
             self.L.add(t, phase, snap, "control_evaluated", AGENT, control_id=cid, machine_assessment=ma, prior_machine_assessment=prior_a, change_classification=cc,
-                       human_disposition=self.disp[cid]["value"], fileId=binding and binding["fileId"], fileName=binding and binding["fileName"],
+                       **self.machine_ctx(cid), verification_holds=holds, fileId=binding and binding["fileId"], fileName=binding and binding["fileName"],
                        versionId=binding and binding["versionId"], contentHash=binding and self.V[self.V.by_vid(binding["versionId"])]["contentHash"],
                        quote=binding and binding["quote"], basis=basis, clause_support=cs, evidence=evid, evaluation_id=ev_id, attempt=attempt, coverage=coverage,
                        prompt_hash=PROMPT_HASH, model_id=MODEL_ID, inference_profile=INFERENCE_PROFILE, prompt_version=PROMPT_VERSION,
                        **((extra_for or {}).get(cid, {})), projection={"box_metadata": "pending"})
-            results[cid] = {"cs": cs, "ma": ma, "binding": binding, "evidence": evid, "cc": cc, "prior_binding": self.state[cid]["binding"], "basis": basis}
+            results[cid] = {"cs": cs, "ma": ma, "binding": binding, "evidence": evid, "cc": cc, "prior_binding": self.state[cid]["binding"], "basis": basis,
+                            "holds": holds, "ack": ack, "hold_note": hnote}
             self.state[cid].update(assessment=ma, classification=cc, binding=binding, evidence=evid, clauses=cs, eval_state="complete")
         return results
     def default_basis(self, cid, cs, cc):
@@ -398,32 +452,24 @@ class Scenario:
         if n < len(cs): b.append("Unsupported: " + "; ".join(c["clause"] for c in cs if c["support"] == "unsupported") + ".")
         return b
     def staleness(self, phase, snap, ts, results):
-        """Design v3.2 section 3 step 7. Writes verification_holds / binding_changed events."""
+        """Design v3.4 section 3 step 8. Writes verification_holds / verification_requires_acknowledgment / binding_changed events."""
         for cid in self.ids:
             pv = self.prior_ver[cid]; r = results.get(cid)
+            self.ack[cid] = None
             if not pv or not r: self.holds[cid] = False; continue
-            file_changed = r["binding"] and r["binding"]["versionId"] != pv["binding"]["versionId"]
-            same_file = r["binding"] and r["binding"]["fileId"] == pv["binding"]["fileId"]
-            tier = self.ctl[cid]["tier"]
-            if r["cc"] == "unchanged" and same_file:
-                if file_changed and MATERIALITY[tier] == "acknowledge_on_evidencing_file_change":
-                    self.holds[cid] = False; continue
-                self.holds[cid] = True
-                note = (f"evidencing file version changed ({pv['binding']['fileName']} {pv['binding']['versionLabel']} to {r['binding']['versionLabel']}); cited quote unchanged; tier {tier} holds without acknowledgment"
-                        if file_changed else
-                        f"evidencing file version unchanged; another file in the package changed; tier {tier} holds without acknowledgment")
-                b = r["binding"]
-                self.L.add(ts, phase, snap, "verification_holds", APP, control_id=cid, machine_assessment=r["ma"], change_classification="unchanged", human_disposition="verified",
-                           prior_verification={k: pv[k] for k in ("by", "role", "at", "snapshot_id")}, fileId=b["fileId"], fileName=b["fileName"], versionId=b["versionId"],
-                           contentHash=self.V[self.V.by_vid(b["versionId"])]["contentHash"], quote=b["quote"], note=note, materiality=MATERIALITY[tier])
-            else:
-                self.holds[cid] = False
-                if r["cc"] == "moved":
-                    b = r["binding"]
-                    self.L.add(ts, phase, snap, "binding_changed", APP, control_id=cid, machine_assessment=r["ma"], change_classification="moved", human_disposition="verified",
-                               prior_verification={k: pv[k] for k in ("by", "role", "at", "snapshot_id")}, previous_binding=pv["binding"],
-                               fileId=b["fileId"], fileName=b["fileName"], versionId=b["versionId"], contentHash=self.V[self.V.by_vid(b["versionId"])]["contentHash"], quote=b["quote"],
-                               acknowledgment={"required": True, "severity": "Low"}, note=self.moved_note(cid, pv, b))
+            b = r["binding"]; tier = self.ctl[cid]["tier"]
+            common = dict(control_id=cid, machine_assessment=r["ma"], change_classification=r["cc"], **self.machine_ctx(cid),
+                          fileId=b["fileId"], fileName=b["fileName"], versionId=b["versionId"], contentHash=self.V[self.V.by_vid(b["versionId"])]["contentHash"], quote=b["quote"])
+            self.holds[cid] = bool(r["holds"])
+            if r["holds"]:
+                self.L.add(ts, phase, snap, "verification_holds", APP, **common, verification_holds=True, note=r["hold_note"], materiality=MATERIALITY[tier])
+            elif r["ack"]:
+                self.ack[cid] = r["ack"]
+                self.L.add(ts, phase, snap, "verification_requires_acknowledgment", APP, **common, verification_holds=False, note=r["hold_note"], materiality=MATERIALITY[tier],
+                           acknowledgment={"required": True, "severity": f"{tier} acknowledgment", "reason": "evidencing section changed" if r["ack"] == "section" else "evidencing file changed"})
+            elif r["cc"] == "moved":
+                self.L.add(ts, phase, snap, "binding_changed", APP, **common, verification_holds=False, previous_binding=pv["binding"],
+                           acknowledgment={"required": True, "severity": "Low"}, note=self.moved_note(cid, pv, b))
     def moved_note(self, cid, pv, b):
         existed = any(self.V.present(k, b["quote"]) for k in self.V.v if self.V[k]["fileId"] == b["fileId"] and k != self.V.by_vid(b["versionId"]))
         return (f"selected binding moved from {pv['binding']['fileName']} {pv['binding']['versionLabel']} to {b['fileName']} {b['versionLabel']}; "
@@ -449,10 +495,10 @@ class Scenario:
         b = st["binding"]
         self.disp[cid] = {"value": value, "snapshot_id": snap, "binding_vid": b["versionId"] if b else None, "by": who["name"], "role": who["role"], "at": ts}
         if value == "verified":
-            self.prior_ver[cid] = {"by": who["name"], "role": who["role"], "at": ts, "snapshot_id": snap, "binding": b}
+            self.prior_ver[cid] = {"by": who["name"], "role": who["role"], "at": ts, "snapshot_id": snap, "binding": b, "event_id": f"EVT-{len(self.L.events)+1:04d}"}
         if ts != "LIVE": self.last_review = f"{who['name']}|{who['role']}|{cid}|{snap}|{ts}"
         else: self.last_review = f"{who['name']}|{who['role']}|{cid}|{snap}|LIVE"
-        return self.L.add(ts, phase, snap, "human_disposition_recorded", human(who), control_id=cid, machine_assessment=st["assessment"], change_classification=st["classification"],
+        e = self.L.add(ts, phase, snap, "human_disposition_recorded", human(who), control_id=cid, machine_assessment=st["assessment"], change_classification=st["classification"],
                           human_disposition=value, fileId=b and b["fileId"], fileName=b and b["fileName"], versionId=b and b["versionId"],
                           contentHash=b and self.V[self.V.by_vid(b["versionId"])]["contentHash"], quote=b and b["quote"], clause_support=st["clauses"],
                           comment=comment, via=via, reviewer_identity=box_identity(who),
@@ -460,6 +506,8 @@ class Scenario:
                                   "all_clauses_supported": all(c["support"] == "supported" for c in st["clauses"]) if value == "verified" else None},
                           freshness_check={"decision_snapshot_id": snap, "current_snapshot_id": self.current, "result": "pass" if snap == self.current else "rejected"},
                           projection={"box_metadata": "pending"}, **extra)
+        if value == "verified": assert self.prior_ver[cid]["event_id"] == e["event_id"]
+        return e
     def diff_hints(self, snap_old, snap_new):
         rows = []
         for cid in self.ids:
@@ -546,18 +594,24 @@ for old, new in CHANGED_43:
 BASIS_S4 = {
  "SEC-ARCH-07": [f"Verified quote from architecture.md v2 {p7['section']} ¶{p7['paragraph']} not found in v3 after normalization ({NORMALIZATION}).",
                  f"Encryption is still stated at {w7['section'].split(' ')[0]} ¶{w7['paragraph']}; 1 of 5 required clauses supported. AES-256, the key model, the rotation period and the custodians are unsupported.",
-                 "Box AI ask over 4 other files for customer-managed keys, CipherTrust, rotation and key custodians: 0 cited statements.",
+                 f"Box AI ask over 4 other files, query '{Q07_QUERY}': 0 cited statements.",
                  f"{len(CHANGED_43)} other assertions changed in {w7['section'].split(' ')[0]}."],
  "SEC-ARCH-22": [f"Verified quote from architecture.md v2 {p22['section']} ¶{p22['paragraph']} not found in v3 after normalization.",
-                 "Box AI ask over 4 other files for RTO, RPO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 3 of 3 required clauses supported.",
+                 f"Box AI ask over 4 other files, query '{Q22_QUERY}': 1 cited statement in runbook.md §3, validated against pinned text.",
+                 "3 of 3 required clauses supported by validated quotes from runbook.md v2.",
                  "The runbook quote already existed before v3 (runbook.md v1 and v2), so the binding moved and the support did not."],
 }
 r4 = FS.evaluate("live_v3", "S4", "2026-10-17T15:30:16Z", basis_for=BASIS_S4, gate="arch-v3",
                  extra_for={c: {"finding_id": FIND[c]} for c in CIDS})
 assert {c: (r4[c]["ma"], r4[c]["cc"]) for c in CIDS} == {**{c: ("evidence_found", "unchanged") for c in CIDS}, "SEC-ARCH-07": ("evidence_weakened", "weakened"), "SEC-ARCH-22": ("evidence_found", "moved")}
 FS.staleness("live_v3", "S4", "2026-10-17T15:30:25Z", r4)
-assert [c for c in CIDS if FS.holds[c]] == ["SEC-ARCH-01", "SEC-ARCH-02", "SEC-ARCH-04", "SEC-ARCH-05", "SEC-ARCH-17", "SEC-ARCH-20"]
+assert [c for c in CIDS if FS.holds[c]] == ["SEC-ARCH-01", "SEC-ARCH-02", "SEC-ARCH-04", "SEC-ARCH-17", "SEC-ARCH-20"], FS.holds
+assert FS.ack["SEC-ARCH-05"] == "section"
 FS.completed("live_v3", "S4", "2026-10-17T15:30:26Z", attempts=1, quotes_validated="8 of 8")
+for e in L.events:
+    if e["snapshot_id"] == "S4" and e["actor"]["type"] != "human" and "current_disposition" in e:
+        assert e["current_disposition"] == "unreviewed" and e["prior_verification"]["event_id"].startswith("EVT-"), e["event_id"]
+    if e["event_type"] == "control_evaluated" and e["snapshot_id"] == "S4": assert isinstance(e["verification_holds"], bool)
 display_before = {c: FS.display(c) for c in CIDS}
 S4_META = FS.project("live_v3", "S4", "2026-10-17T15:30:27Z")
 # review tasks: one per finding that needs review
@@ -566,7 +620,10 @@ TASK_A = {"task_id": "box-task-77120931", "assignment_id": "box-asgn-88120931", 
 TASK_C = {"task_id": "box-task-77120932", "assignment_id": "box-asgn-88120932", "action": "review", "fileId": F["run"][0], "assignee": DANA["name"], "assignee_box_user_id": DANA["box_user_id"],
           "finding_id": FIND["SEC-ARCH-22"], "control_id": "SEC-ARCH-22", "snapshot_id": "S4",
           "message": f"{FIND['SEC-ARCH-22']} (snapshot S4): SEC-ARCH-22 evidence binding changed (Low). The recovery sentence left architecture.md v3; the same sentence is in runbook.md v2 §3. Confirm the new binding."}
-for tk, t in ((TASK_A, "2026-10-17T15:30:28Z"), (TASK_C, "2026-10-17T15:30:29Z")):
+TASK_D = {"task_id": "box-task-77120933", "assignment_id": "box-asgn-88120933", "action": "review", "fileId": F["arch"][0], "assignee": DANA["name"], "assignee_box_user_id": DANA["box_user_id"],
+          "finding_id": FIND["SEC-ARCH-05"], "control_id": "SEC-ARCH-05", "snapshot_id": "S4",
+          "message": f"{FIND['SEC-ARCH-05']} (snapshot S4): SEC-ARCH-05 Acknowledge: evidencing section changed, §4.2 text differs around an unchanged quote."}
+for tk, t in ((TASK_A, "2026-10-17T15:30:28Z"), (TASK_C, "2026-10-17T15:30:29Z"), (TASK_D, "2026-10-17T15:30:30Z")):
     L.add(t, "live_v3", "S4", "box_task_created", APP, control_id=tk["control_id"], finding_id=tk["finding_id"], task=tk,
           server_mapping={"task_id": tk["task_id"], "assignment_id": tk["assignment_id"], "finding_id": tk["finding_id"], "control_id": tk["control_id"], "snapshot_id": "S4", "immutable": True})
 DANA_REASON = "Encrypted is stated; the key model and rotation are not. IS-STD-014 §5.1 requires the KMS CMK statement restored."
@@ -577,6 +634,7 @@ L.add("2026-10-17T15:33:52Z", "live_v3", "S4", "box_task_response_ingested", APP
 TASK_B = {"task_id": "box-task-77120944", "assignment_id": "box-asgn-88120944", "action": "review", "kind": "author_remediation", "fileId": F["arch"][0],
           "assignee": JPARK["name"], "assignee_box_user_id": JPARK["box_user_id"], "finding_id": FIND["SEC-ARCH-07"], "control_id": "SEC-ARCH-07", "snapshot_id": "S4",
           "due_at": "2026-10-23T17:00:00Z", "due_rule": "5 business days (profile default remediation window)", "jira": "LAN-2291",
+          "message_drafted_by": "Box AI text generation from the finding and the reviewer's reason", "shown_to_reviewer_before_sending": True, "stored_verbatim": True,
           "message": f"Returned by Dana Okafor (ARB reviewer): \"{DANA_REASON}\" Lost from architecture.md §4.3 in v3: \"{Q['07']}\" and \"{Q['07aes']}\" Restore them or cite where the key model is now documented."}
 L.add("2026-10-17T15:33:53Z", "live_v3", "S4", "box_task_created", APP, control_id="SEC-ARCH-07", finding_id=FIND["SEC-ARCH-07"], task=TASK_B,
       lost_clauses=[c["clause"] for c in FS.state["SEC-ARCH-07"]["clauses"] if c["support"] == "unsupported"],
@@ -600,9 +658,9 @@ def gate_order(led):
     ev = [e["event_type"] for e in led.events if e["snapshot_id"] == "S4"]
     i = ev.index("input_gate"); assert ev[i - 1] == "texts_fetched" and ev[i + 1] == "evaluation_attempt" and ev.count("input_gate") == 1, ev[:6]
 gate_order(L)
-assert [display_before[c][0] for c in CIDS].count("VERIFIED_HOLDS") == 6
+assert [display_before[c][0] for c in CIDS].count("VERIFIED_HOLDS") == 5 and display_before["SEC-ARCH-05"][0] == "ACKNOWLEDGE"
 assert display_before["SEC-ARCH-07"][0] == "NEEDS_REVIEW_WEAKENED" and display_before["SEC-ARCH-22"][0] == "NEEDS_REVIEW_BINDING"
-assert [display_after[c][0] for c in CIDS].count("VERIFIED_HOLDS") == 6 and display_after["SEC-ARCH-07"][0] == "RETURNED_TO_AUTHOR" and display_after["SEC-ARCH-22"][0] == "VERIFIED"
+assert [display_after[c][0] for c in CIDS].count("VERIFIED_HOLDS") == 5 and display_after["SEC-ARCH-05"][0] == "ACKNOWLEDGE" and display_after["SEC-ARCH-07"][0] == "RETURNED_TO_AUTHOR" and display_after["SEC-ARCH-22"][0] == "VERIFIED"
 
 def make_findings(S, results, fids, prior, snap, before, after, actions):
     out = []
@@ -611,7 +669,7 @@ def make_findings(S, results, fids, prior, snap, before, after, actions):
         out.append({"finding_id": fids[cid], "control_id": cid, "control_title": S.ctl[cid]["title"], "tier": S.ctl[cid]["tier"], "materiality": MATERIALITY[S.ctl[cid]["tier"]],
                     "snapshot_id": snap, "machine_assessment": r["ma"], "change_classification": r["cc"], "basis": r["basis"], "evidence": r["evidence"], "clause_support": r["cs"],
                     "prior_evidence": [{**pv["binding"], "verified_by": pv["by"], "verified_role": pv["role"], "verified_at": pv["at"], "verified_snapshot_id": pv["snapshot_id"]}],
-                    "verification_holds": S.holds[cid] if before[cid][0] != "VERIFIED" else None,
+                    "verification_holds": r["holds"], "acknowledgment_required": r["ack"] is not None,
                     "expected_display": before[cid][1], "expected_projection_code": before[cid][0],
                     "expected_display_after_human_action": after[cid][1], "expected_projection_code_after_human_action": after[cid][0],
                     "model_id": MODEL_ID, "inference_profile": INFERENCE_PROFILE, "prompt_version": PROMPT_VERSION, "prompt_hash": PROMPT_HASH,
@@ -620,13 +678,14 @@ def make_findings(S, results, fids, prior, snap, before, after, actions):
     return out
 def count_line(S, snap, disp):
     """Top line per design v3.2 section 4: counts of current displayed outcomes, not dispositions."""
-    order = ["Verified holds", "Verified", "Needs review (Low)", "Needs review (Medium)", "Needs review (High)", "Needs review (Critical)", "Returned to author", "Pending review", "Not evaluated"]
+    order = ["Verified holds", "Acknowledge (Critical)", "Acknowledge (High)", "Verified", "Needs review (Low)", "Needs review (Medium)", "Needs review (High)", "Needs review (Critical)", "Returned to author", "Pending review", "Not evaluated"]
     n = {}
     for cid, (code, _) in disp.items():
         if code == "VERIFIED_HOLDS": k = "Verified holds"
         elif code == "VERIFIED": k = "Verified"
         elif code == "NEEDS_REVIEW_BINDING": k = "Needs review (Low)"
-        elif code.startswith("NEEDS_REVIEW") or code == "ACKNOWLEDGE": k = f"Needs review ({S.ctl[cid]['tier']})"
+        elif code == "ACKNOWLEDGE": k = f"Acknowledge ({S.ctl[cid]['tier']})"
+        elif code.startswith("NEEDS_REVIEW"): k = f"Needs review ({S.ctl[cid]['tier']})"
         elif code == "RETURNED_TO_AUTHOR": k = "Returned to author"
         elif code == "NOT_EVALUATED": k = "Not evaluated"
         else: k = "Pending review"
@@ -634,10 +693,16 @@ def count_line(S, snap, disp):
     return f"{len(disp)} controls on snapshot {snap}: " + ", ".join(f"{n[k]} {k}" for k in order if k in n)
 ACTIONS = {c: "None. The prior verification holds." for c in CIDS}
 ACTIONS["SEC-ARCH-07"] = "Return to author: restore the AWS KMS customer-managed key, annual rotation, custodian and AES-256 statements in §4.3 (IS-STD-014 §5.1). Verify stays unavailable until every required clause has a supporting quote."
+ACTIONS["SEC-ARCH-05"] = "Acknowledge (High): the cited quote is unchanged but the surrounding §4.2 text changed; confirm the section still supports the control."
 ACTIONS["SEC-ARCH-22"] = "Acknowledge the new binding (Low): confirm runbook.md v2 §3 as the evidence of record."
 findings = make_findings(FS, r4, FIND, prior_snapshot_quotes, "S4", display_before, display_after, ACTIONS)
-EXP_BEFORE = {**{c: "Verified, holds" for c in CIDS}, "SEC-ARCH-07": "Needs review: key-management evidence missing", "SEC-ARCH-22": "Needs review: evidence binding changed"}
-EXP_AFTER = {**{c: "Verified, holds" for c in CIDS}, "SEC-ARCH-07": "Returned to author, open", "SEC-ARCH-22": "Verified"}
+for fd in findings:
+    if fd["control_id"] == "SEC-ARCH-05":
+        fd["open_review_task"] = {"task_id": TASK_D["task_id"], "assignee": DANA["name"], "state": "open", "response": None}
+assert not any(e["event_type"] == "box_task_response_ingested" and e["response"]["task_id"] == TASK_D["task_id"] for e in L.events)
+assert display_after["SEC-ARCH-05"][1] == "Acknowledge: evidencing section changed"
+EXP_BEFORE = {**{c: "Verified, holds" for c in CIDS}, "SEC-ARCH-05": "Acknowledge: evidencing section changed", "SEC-ARCH-07": "Needs review: key-management evidence missing", "SEC-ARCH-22": "Needs review: evidence binding changed"}
+EXP_AFTER = {**{c: "Verified, holds" for c in CIDS}, "SEC-ARCH-05": "Acknowledge: evidencing section changed", "SEC-ARCH-07": "Returned to author, open", "SEC-ARCH-22": "Verified"}
 for fd in findings:
     assert fd["expected_display"] == EXP_BEFORE[fd["control_id"]] and fd["expected_display_after_human_action"] == EXP_AFTER[fd["control_id"]], fd["control_id"]
 q_checked = []
@@ -659,16 +724,16 @@ ledger = {"folderId": FOLDER_ID, "folderName": "Project Lantern - ARB package", 
           "population": L.population(), "phases": {"seed": "Before the demo: S1 to S3, the ARB decision and the verifications.", "live_v3": "Produced on stage by the v3 upload (S4) and the reviewer's responses."},
           "events": L.events}
 CL_BEFORE, CL_AFTER = count_line(FS, "S4", display_before), count_line(FS, "S4", display_after)
-assert CL_BEFORE == "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)", CL_BEFORE
-assert CL_AFTER == "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author", CL_AFTER
+assert CL_BEFORE == "8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Needs review (Low), 1 Needs review (Critical)", CL_BEFORE
+assert CL_AFTER == "8 controls on snapshot S4: 5 Verified holds, 1 Acknowledge (High), 1 Verified, 1 Returned to author", CL_AFTER
 expected = {**PROJECT, "expected_count_line_before": CL_BEFORE, "expected_count_line_after": CL_AFTER, "snapshot_id": "S4", "prior_snapshot_id": "S3", "manifest_hash": FS.snapshots["S4"]["manifest_hash"], "control_profile_version": PROFILE_VERSION,
   "trigger": {"fileId": F["arch"][0], "fileName": F["arch"][1], "fromVersionId": FULL["arch-v2"]["versionId"], "toVersionId": FULL["arch-v3"]["versionId"], "uploadedBy": "svc-confluence-export", **V3_META},
   "summary": {"controls_evaluated": 8, "evidence_found": 7, "evidence_weakened": 1, "evidence_absent": 0, "evidence_contradicted": 0, "not_evaluated": 0,
-              "change_classification": {"unchanged": 6, "weakened": 1, "moved": 1}, "verification_holds": 6, "binding_changed": 1,
+              "change_classification": {"unchanged": 6, "weakened": 1, "moved": 1}, "verification_holds": 5, "verification_requires_acknowledgment": 1, "binding_changed": 1,
               "top_line_before_human_action": CL_BEFORE, "top_line_after_human_action": CL_AFTER,
               "displayed_counts_before": counts(display_before), "displayed_counts_after": counts(display_after)},
   "prior_quote_diff_hints": hints, "removed_from_v2": [Q["07"], Q["07aes"], Q["22"]],
-  "box_tasks": {"A_review_SEC_ARCH_07": TASK_A["task_id"], "B_author_remediation": TASK_B["task_id"], "C_review_SEC_ARCH_22": TASK_C["task_id"]},
+  "box_tasks": {"A_review_SEC_ARCH_07": TASK_A["task_id"], "B_author_remediation": TASK_B["task_id"], "C_review_SEC_ARCH_22": TASK_C["task_id"], "D_review_SEC_ARCH_05": TASK_D["task_id"]},
   "human_actions_expected": [{"control_id": "SEC-ARCH-07", "actor": "Dana Okafor", "task": TASK_A["task_id"], "resolution": "rejected", "disposition": "returned_to_author", "message": DANA_REASON, "author_task": TASK_B["task_id"], "due_at": TASK_B["due_at"]},
                              {"control_id": "SEC-ARCH-22", "actor": "Dana Okafor", "task": TASK_C["task_id"], "resolution": "approved", "disposition": "verified", "binding": "runbook.md v2", "message": DANA_22}],
   "findings": findings}
@@ -687,15 +752,17 @@ def agent_substeps(t0, vers, snap, ids, prior, search_keys, n_files, read_ms, wr
         pv = prior[c]
         s("tool_call", f"get_prior_evidence({c})", 55, tool="get_prior_evidence", args={"control_id": c},
           result={"quote": pv["binding"]["quote"], "fileName": pv["binding"]["fileName"], "versionId": pv["binding"]["versionId"], "verified_by": pv["by"], "verified_at": pv["at"]})
-    hits = [vers[k]["fileName"] for k in search_keys if has_term(vers.text(k), "customer-managed keys")]
+    hits = [vers[k]["fileName"] for k in ask_hits(vers, search_keys, Q07_QUERY)]
     NOTE = "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code"
     s("tool_call", f"Box AI ask over {len(search_keys)} files, {len(hits)} cited statements", 140, tool="box_ai_ask",
-      args={"agent_tool": "search_snapshot", "query": "customer-managed keys", "snapshot_id": snap, "mode": "multiple_item_qa", "include_citations": True},
-      detail=NOTE, result={"files_asked": [vers[k]["fileName"] for k in search_keys], "cited_statements": len(hits), "citations": []})
-    rto = [k for k in search_keys if has_term(vers.text(k), "RTO")]
+      args={"agent_tool": "search_snapshot", "query": Q07_QUERY, "snapshot_id": snap, "mode": "multiple_item_qa", "include_citations": True},
+      query=Q07_QUERY,
+      detail=f"{NOTE}; query '{Q07_QUERY}'", result={"files_asked": [vers[k]["fileName"] for k in search_keys], "cited_statements": len(hits), "citations": []})
+    rto = ask_hits(vers, search_keys, Q22_QUERY)
     s("tool_call", f"Box AI ask over {len(search_keys)} files, {len(rto)} cited statement in " + ", ".join(vers[k]["fileName"] for k in rto), 130, tool="box_ai_ask",
-      args={"agent_tool": "search_snapshot", "query": "RTO", "snapshot_id": snap, "mode": "multiple_item_qa", "include_citations": True},
-      detail=NOTE, result={"files_asked": [vers[k]["fileName"] for k in search_keys], "cited_statements": len(rto),
+      args={"agent_tool": "search_snapshot", "query": Q22_QUERY, "snapshot_id": snap, "mode": "multiple_item_qa", "include_citations": True},
+      query=Q22_QUERY,
+      detail=f"{NOTE}; query '{Q22_QUERY}'", result={"files_asked": [vers[k]["fileName"] for k in search_keys], "cited_statements": len(rto),
                            "citations": [{**vers.ev(k, Q["22"]), "validated_against_pinned_text": True} for k in rto]})
     s("model_turn", f"Writing {len(ids)} typed findings with per-clause support", write_ms, output_tokens=out_tokens)
     assert not hits and [vers[k]["fileName"] for k in rto] == ["runbook.md"]
@@ -720,15 +787,15 @@ def build_trace(S, snap, prior_snap, ids, results, prior, hints, search_keys, fi
     tr.step("app", "quotes_validated", f"{len(ids)} of {len(ids)} quotes matched; a failed match would set the finding to not_evaluated. Coverage complete.", step_ms[3],
             detail={"normalization": NORMALIZATION, "downgraded": []})
     tr.step("app", "findings_applied", findings_label, step_ms[4], detail={"assessment_rule": profile_us["assessment_rule"]})
-    ev_ids = [e["event_id"] for e in S.L.events if e["snapshot_id"] == snap and e["event_type"] in ("texts_fetched", "input_gate", "evaluation_attempt", "control_evaluated", "verification_holds", "binding_changed", "evaluation_completed")]
+    ev_ids = [e["event_id"] for e in S.L.events if e["snapshot_id"] == snap and e["event_type"] in ("texts_fetched", "input_gate", "evaluation_attempt", "control_evaluated", "verification_holds", "verification_requires_acknowledgment", "binding_changed", "evaluation_completed")]
     tr.step("app", "ledger_events_written", f"Ledger events written: {len(ev_ids)} events, hash chain extended", step_ms[5], detail={"event_ids": ev_ids})
     tr.step("app", "box_folder_metadata_written", "Box folder metadata written: keel_snapshot_id, one status field per control, keel_last_human_review, keel_record_url", step_ms[6],
             detail={"pointer_check": "current snapshot matches", "fields": meta, "outcome": "ok"})
     tr.step("app", "box_task_created", task[0], step_ms[7], detail=task[1])
     return tr
 tr = build_trace(FS, "S4", "S3", CIDS, r4, prior_snapshot_quotes, hints, OTHERS, "5 files", S4_META,
-                 ("Box review tasks created: task A for SEC-ARCH-07, task C for SEC-ARCH-22 (both Dana Okafor)", {"tasks": [TASK_A, TASK_C]}),
-                 4100, 6700, 2690, "Findings applied: 1 weakened, 1 binding moved, 6 verifications hold", [240, 720, 80, 55, 40, 35, 470, 520])
+                 ("Box review tasks created: A (SEC-ARCH-07), C (SEC-ARCH-22), D (SEC-ARCH-05)", {"tasks": [TASK_A, TASK_C, TASK_D]}),
+                 4100, 6700, 2690, "Findings applied: 1 weakened, 1 binding moved, 1 High acknowledgment, 5 verifications hold", [240, 720, 80, 55, 40, 35, 470, 520])
 assert 13400 <= tr.t <= 13600, tr.t
 trace_full = {"run_id": "run-20261017-153004-lantern", "mode_label": "Live", "snapshot_id": "S4", "prior_snapshot_id": "S3", "started_at": SNAP_TS["S4"],
               "total_duration_ms": tr.t, "model_id": MODEL_ID, "inference_profile": INFERENCE_PROFILE, "mrm_model_id": MRM_MODEL_ID, "steps": tr.steps}
@@ -774,9 +841,10 @@ LFIND = {c: FIND[c] for c in LCIDS}
 lw7 = LV.locate("arch-v3", Q["07w"])
 LBASIS = {"SEC-ARCH-07": ["Verified quote from architecture.md v2 §4.3 ¶1 not found in v3 after normalization.",
                           f"Encryption is still stated at §4.3 ¶{lw7['paragraph']}; 1 of 5 required clauses supported. The key model and rotation clauses have no support.",
-                          "Box AI ask over 2 files for customer-managed keys: 0 cited statements."],
+                          f"Box AI ask over 2 files, query '{Q07_QUERY}': 0 cited statements."],
           "SEC-ARCH-22": ["Verified quote from architecture.md v2 §4.6 not found in v3 after normalization.",
-                          "Box AI ask over 2 files for RTO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 2 of 2 required clauses supported.",
+                          f"Box AI ask over 2 files, query '{Q22_QUERY}': 1 cited statement in runbook.md §3, validated against pinned text.",
+                          "2 of 2 required clauses supported by validated quotes from runbook.md.",
                           "The runbook quote already existed at the reviewed baseline, so the binding moved from architecture.md v2 to runbook.md and the support did not."]}
 lr4 = LS.evaluate("live_v3", "S4", "LIVE", basis_for=LBASIS, gate="arch-v3", extra_for={c: {"finding_id": LFIND[c]} for c in LCIDS})
 assert {c: (lr4[c]["ma"], lr4[c]["cc"]) for c in LCIDS} == {"SEC-ARCH-07": ("evidence_weakened", "weakened"), "SEC-ARCH-22": ("evidence_found", "moved"), "SEC-ARCH-17": ("evidence_found", "unchanged")}

@@ -108,7 +108,7 @@ The agent desktop VLAN, through the internal ALB, is the only inbound path. Secu
 
 Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.
 
-For each request, application audit logs record the agent id, ticket id, model id, latency, and whether the draft was accepted, edited or discarded. Ticket text is not logged. Operational alarms and on-call are described in the runbook.
+Application audit logs record, for each request: agent id, ticket id, model id, latency, and whether the draft was accepted, edited or discarded. They do not record the ticket text. Operational alarms and on-call are described in the runbook.
 
 ## 7. Third-party dependencies
 

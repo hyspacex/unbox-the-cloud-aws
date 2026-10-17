@@ -18,13 +18,13 @@
       "label": "Snapshot S4 captured: 2 files",
       "detail": {
         "snapshot_id": "S4",
-        "manifest_hash": "sha256:c981b2255c52fecbad97e9abdc435862201e80fac8a7a3345984a75a7924a42e",
+        "manifest_hash": "sha256:194dabfda25fed46a2718cf4ce4a8605acfbe2de48ec079cb5c8fd5e79d7536c",
         "files": [
           {
             "fileId": "1650233401",
             "fileName": "architecture.md",
             "versionId": "1801102233",
-            "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302"
+            "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067"
           },
           {
             "fileId": "1650233403",
@@ -218,12 +218,13 @@
             "tool": "box_ai_ask",
             "args": {
               "agent_tool": "search_snapshot",
-              "query": "customer-managed keys",
+              "query": "customer-managed keys OR CipherTrust OR key rotation OR key custodians",
               "snapshot_id": "S4",
               "mode": "multiple_item_qa",
               "include_citations": true
             },
-            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code",
+            "query": "customer-managed keys OR CipherTrust OR key rotation OR key custodians",
+            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code; query 'customer-managed keys OR CipherTrust OR key rotation OR key custodians'",
             "result": {
               "files_asked": [
                 "architecture.md",
@@ -242,12 +243,13 @@
             "tool": "box_ai_ask",
             "args": {
               "agent_tool": "search_snapshot",
-              "query": "RTO",
+              "query": "RTO OR RPO OR roll back",
               "snapshot_id": "S4",
               "mode": "multiple_item_qa",
               "include_citations": true
             },
-            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code",
+            "query": "RTO OR RPO OR roll back",
+            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code; query 'RTO OR RPO OR roll back'",
             "result": {
               "files_asked": [
                 "architecture.md",

@@ -119,7 +119,7 @@
       "basis": [
         "Verified quote from architecture.md v2 §4.3 ¶1 not found in v3 after normalization.",
         "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. The key model and rotation clauses have no support.",
-        "Box AI ask over 2 files for customer-managed keys: 0 cited statements."
+        "Box AI ask over 2 files, query 'customer-managed keys OR CipherTrust OR key rotation OR key custodians': 0 cited statements."
       ],
       "evidence": [
         {
@@ -194,6 +194,7 @@
         }
       ],
       "verification_holds": false,
+      "acknowledgment_required": false,
       "expected_display": "Needs review: key-management evidence missing",
       "expected_projection_code": "NEEDS_REVIEW_WEAKENED",
       "expected_display_after_human_action": "Returned to author, open",
@@ -212,13 +213,14 @@
       "control_id": "SEC-ARCH-22",
       "control_title": "Recovery targets and rollback path documented",
       "tier": "High",
-      "materiality": "hold_if_unchanged",
+      "materiality": "acknowledge_on_evidencing_section_change",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "moved",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 not found in v3 after normalization.",
-        "Box AI ask over 2 files for RTO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 2 of 2 required clauses supported.",
+        "Box AI ask over 2 files, query 'RTO OR RPO OR roll back': 1 cited statement in runbook.md §3, validated against pinned text.",
+        "2 of 2 required clauses supported by validated quotes from runbook.md.",
         "The runbook quote already existed at the reviewed baseline, so the binding moved from architecture.md v2 to runbook.md and the support did not."
       ],
       "evidence": [
@@ -286,6 +288,7 @@
         }
       ],
       "verification_holds": false,
+      "acknowledgment_required": false,
       "expected_display": "Needs review: evidence binding changed",
       "expected_projection_code": "NEEDS_REVIEW_BINDING",
       "expected_display_after_human_action": "Verified",
@@ -304,13 +307,14 @@
       "control_id": "SEC-ARCH-17",
       "control_title": "Security events to enterprise SIEM (Splunk)",
       "tier": "High",
-      "materiality": "hold_if_unchanged",
+      "materiality": "acknowledge_on_evidencing_section_change",
       "snapshot_id": "S4",
       "machine_assessment": "evidence_found",
       "change_classification": "unchanged",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §6 unchanged; tier High holds without acknowledgment."
       ],
       "evidence": [
         {
@@ -393,6 +397,7 @@
         }
       ],
       "verification_holds": true,
+      "acknowledgment_required": false,
       "expected_display": "Verified, holds",
       "expected_projection_code": "VERIFIED_HOLDS",
       "expected_display_after_human_action": "Verified, holds",

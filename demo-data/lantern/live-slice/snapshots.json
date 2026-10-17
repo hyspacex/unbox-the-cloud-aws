@@ -41,7 +41,7 @@
           "fileId": "1650233401",
           "fileName": "architecture.md",
           "versionId": "1801102233",
-          "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302"
+          "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067"
         },
         {
           "fileId": "1650233403",
@@ -51,7 +51,7 @@
         }
       ],
       "era": "live v3 upload",
-      "manifest_hash": "sha256:c981b2255c52fecbad97e9abdc435862201e80fac8a7a3345984a75a7924a42e"
+      "manifest_hash": "sha256:194dabfda25fed46a2718cf4ce4a8605acfbe2de48ec079cb5c8fd5e79d7536c"
     }
   ]
 }

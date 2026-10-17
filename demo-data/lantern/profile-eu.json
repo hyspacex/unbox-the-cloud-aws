@@ -23,8 +23,8 @@
   ],
   "materiality": {
     "Critical": "acknowledge_on_evidencing_file_change",
-    "High": "hold_if_unchanged",
-    "Medium": "hold_if_unchanged"
+    "High": "acknowledge_on_evidencing_section_change",
+    "Medium": "hold_if_quote_unchanged"
   },
   "attestation_phrase": "I attest the cited evidence meets the requirement.",
   "assessment_rule": "all required clauses supported: evidence_found; some: evidence_weakened; none: evidence_absent (applied by code)",

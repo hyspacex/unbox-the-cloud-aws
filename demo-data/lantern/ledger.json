@@ -19,7 +19,7 @@
   "chain": {
     "algorithm": "sha256(previous chain_hash + canonical JSON of event without chain_hash)",
     "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
-    "head": "30a2e77eab51073c6ac0d1d3133bbda6f7f5b1e2f3fd3eda169bf1cc685ceab1"
+    "head": "868fefd10eec1dc71278c97394e3505b6972bd116fbc281a345af349fd1a1e37"
   },
   "population": {
     "file_version_observed": 8,
@@ -28,10 +28,11 @@
     "evaluation_completed": 4,
     "control_evaluated": 32,
     "evaluation_error": 1,
-    "verification_holds": 14,
+    "verification_holds": 13,
+    "verification_requires_acknowledgment": 1,
     "binding_changed": 1,
     "box_metadata_written": 6,
-    "box_task_created": 3,
+    "box_task_created": 4,
     "box_task_response_ingested": 2,
     "human_disposition_recorded": 10
   },
@@ -50,7 +51,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Kevin Lindqvist",
@@ -70,6 +70,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102231",
+      "human_disposition": null,
       "chain_hash": "53e475685d2d42013ed9ffa7b0f4c604d16a3e450129e21c5b5c9d173a61b8f6"
     },
     {
@@ -82,7 +83,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Kevin Lindqvist",
@@ -102,6 +102,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233402?version=1801102241",
+      "human_disposition": null,
       "chain_hash": "46f9e15322165e75a9ab0c3765c2192f5ddf16786a6fc011b6054ea83573f714"
     },
     {
@@ -114,7 +115,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Kevin Lindqvist",
@@ -134,6 +134,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
+      "human_disposition": null,
       "chain_hash": "4f239ab2149fd2a1cd8b22dc5ce594fdb4f6e8fffeaf9203b7e2793652e0fefc"
     },
     {
@@ -146,7 +147,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Owen Pryce",
@@ -166,6 +166,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233404?version=1801102261",
+      "human_disposition": null,
       "chain_hash": "0254f46596e21539ca2778fb1f1bcc821411244a96307e3ffa188fe66a95bcfc"
     },
     {
@@ -178,7 +179,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Kevin Lindqvist",
@@ -198,6 +198,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "human_disposition": null,
       "chain_hash": "90a613ec00fa77bebe4c8f375fcf3ee2e115ba6dfce5fbbf8c3b49f28b052af7"
     },
     {
@@ -210,7 +211,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -259,7 +259,7 @@
           "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
         }
       ],
-      "chain_hash": "9ba874d8ba676a7c8a516206c297d393acd7a7338209f2299ffd10e032a32b29"
+      "chain_hash": "45f53d0cd753a5f30b21860fb25adf5a588e108634a99bc429fa5731ad0fdba6"
     },
     {
       "event_id": "EVT-0007",
@@ -271,7 +271,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -324,7 +323,7 @@
           "readable": false
         }
       ],
-      "chain_hash": "8b3789922d2fcaac0f2bcdad3ebf5de45d646d45b76a46abced95d7bc4c8e500"
+      "chain_hash": "ce6ab100e6cfb891e23a775b0e7dc8cb7b1bba86fa2a689fe186770e7f6b90bc"
     },
     {
       "event_id": "EVT-0008",
@@ -336,7 +335,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -367,7 +365,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "8a9d25c627e190e002419d56c9a45ef6a20dda48da9a86ce758635703768949c"
+      "chain_hash": "ddccf44c312730a7c59d2952836a7e5c38fca267f095b45f2ec939237557af73"
     },
     {
       "event_id": "EVT-0009",
@@ -379,7 +377,6 @@
       "machine_assessment": "not_evaluated",
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -402,6 +399,8 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
       "evaluation_id": "EVAL-S1",
       "attempt": 1,
       "coverage": {
@@ -412,7 +411,7 @@
         "code": "TEXT_REPRESENTATION_NOT_READY",
         "message": "Box text representation still processing after upload (HTTP 202). File temporarily unreadable."
       },
-      "chain_hash": "700dca5ee696853510c32d629dfa0b9cfb1bae92ca45b03bc051080d98f0cbe6"
+      "chain_hash": "a4a597f17c97a7d27d2017f2a06885b9415be8361fda02a7ed8967bad8b5ab03"
     },
     {
       "event_id": "EVT-0010",
@@ -424,7 +423,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -498,6 +496,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102231",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -531,7 +532,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "2cb89d159c9c2ef010c8161758447b0d04cadfd5bfc8927716a7e851211ff47b"
+      "chain_hash": "848ffba12c7849ffa71dd9e1f8b8f8dfa367e9645717413b5f2e1bc3f4b111ec"
     },
     {
       "event_id": "EVT-0011",
@@ -543,7 +544,6 @@
       "machine_assessment": "evidence_absent",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -588,6 +588,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [],
       "evaluation_id": "EVAL-S1",
       "attempt": 1,
@@ -598,7 +601,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "7922a07b6b9a9b93a29fa12c5e1a6ec6b8c7c591d10a0d0504209bf6db971159"
+      "chain_hash": "7483e174f217761e42da330befa1bd90d506e31832827294bdb598e0bdacdbf2"
     },
     {
       "event_id": "EVT-0012",
@@ -610,7 +613,6 @@
       "machine_assessment": "evidence_absent",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -661,6 +663,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [],
       "evaluation_id": "EVAL-S1",
       "attempt": 1,
@@ -671,7 +676,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "72b3570d56f2b9631bae372b86ee6e10f66ee4d0c696ceefe09b2961b5842752"
+      "chain_hash": "7e31b281633c04e94f252bc13d7173e34bb7424dc237766ddcbc9e4457239e8e"
     },
     {
       "event_id": "EVT-0013",
@@ -683,7 +688,6 @@
       "machine_assessment": "evidence_weakened",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -750,6 +754,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102231",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -772,7 +779,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "2d3a52fe24ab562098a8c12e390b47c7fe6dcc88a756f9a7cafd0662ff9ca4a0"
+      "chain_hash": "6be66ff3689bf7d314d100d3632c6e672d38bb1d92bc7b8b9e1f18001f45a564"
     },
     {
       "event_id": "EVT-0014",
@@ -784,7 +791,6 @@
       "machine_assessment": "evidence_absent",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -829,6 +835,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [],
       "evaluation_id": "EVAL-S1",
       "attempt": 1,
@@ -839,7 +848,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "5673eeef423cc96fa92f935dfa6b3216fa0fee013aae9e01a3cf0019a289c49d"
+      "chain_hash": "02c58e62212b8cedafea5661a356674f2fccc8a168bca7327a91eb13475ed103"
     },
     {
       "event_id": "EVT-0015",
@@ -851,7 +860,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -941,6 +949,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102231",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -963,7 +974,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "5e543a572cf67195b44b7b666232c14ea221109938f8e0a6ccbab32c78bcace2"
+      "chain_hash": "4762296cb1a8a1b673c4904d876b254d5cc005d65ce2213d80c71f39f26cd5cf"
     },
     {
       "event_id": "EVT-0016",
@@ -975,7 +986,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1049,6 +1059,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233403",
@@ -1082,7 +1095,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "6d34d56e4ee6c7685a3d195a23299d9a8cfb77516caee08c178312c8c8b40d58"
+      "chain_hash": "80dbd5dd3bfe951f1f9195b1111913452a28048ac4d37ba9a19b99505f72858a"
     },
     {
       "event_id": "EVT-0017",
@@ -1094,7 +1107,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1147,7 +1159,7 @@
           "readable": true
         }
       ],
-      "chain_hash": "ca7dc76b9491834616aa6112e2ef57bd272db62ed0c6f35cf16a2696f318aedd"
+      "chain_hash": "d41b26e4baeafe120f586700631867e9501f126363253864472ae571f3110f69"
     },
     {
       "event_id": "EVT-0018",
@@ -1159,7 +1171,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1190,7 +1201,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "11a36c63b83773abf7178ee9cf7279bc522d4c5ade2a576220f4d53004e290a1"
+      "chain_hash": "515258963f9e640ef761c2c3f111ac2ed673c82c9cac8aa895253695a9d38f16"
     },
     {
       "event_id": "EVT-0019",
@@ -1202,7 +1213,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "not_evaluated",
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1260,6 +1270,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233405",
@@ -1293,7 +1306,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "aa2ea417f10fa02940de2e3126bdc2217bcef8989bd85fc15f412d8cc2cd4142"
+      "chain_hash": "f85ebc53cd18188c11b88f5c2458c2c420566d25d01d54e1847de6d180f52c3a"
     },
     {
       "event_id": "EVT-0020",
@@ -1305,7 +1318,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1380,7 +1392,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "8b2d9d6572701ab05e63924aa04fd0a2a18c936cd6039fe5021d4dd811b31e23"
+      "chain_hash": "628bb8f2c9643a3ecf7f5cb0c00c36f4f511b503267eeeadf5ccd39192973a3d"
     },
     {
       "event_id": "EVT-0021",
@@ -1392,7 +1404,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1436,7 +1447,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S1"
       },
       "last_projected_snapshot": "S1",
-      "chain_hash": "ed1f8527d413dfa043b80c74fae164e712a69a9993fac1e85dda42116e26ca5d"
+      "chain_hash": "03489c3783831e7660ae04e3f87471650674eb77cf760e2b93a7ab8d9f8e696d"
     },
     {
       "event_id": "EVT-0022",
@@ -1448,7 +1459,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Kevin Lindqvist",
@@ -1468,7 +1478,8 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
-      "chain_hash": "a773a1b9f771feed13586684fa1b448b5d235b4f0d47056400de40cf87bc1e88"
+      "human_disposition": null,
+      "chain_hash": "9af3bae2da5e9eaa30b2c58f22129793fa9c315f2dab0f7a5607b7f15fe57828"
     },
     {
       "event_id": "EVT-0023",
@@ -1480,7 +1491,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1529,7 +1539,7 @@
           "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
         }
       ],
-      "chain_hash": "967e336d39cd5a7db96da103fa2a50d77bab53e1e627ad7a68e44f72008753ab"
+      "chain_hash": "8431b36eb51a4f8ad913f4dff444753c8de1f61c4e38fe2e92adbd23c7004c43"
     },
     {
       "event_id": "EVT-0024",
@@ -1541,7 +1551,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -1594,7 +1603,7 @@
           "readable": true
         }
       ],
-      "chain_hash": "11b82c37549740eba82de213ad552d06b826ea2220042a6b06c20a9a9ecc36af"
+      "chain_hash": "c37a7626737e563628a11ddbb2fcb348b59b7ff39ca0b2a4ac6f24d5fbc5e351"
     },
     {
       "event_id": "EVT-0025",
@@ -1606,7 +1615,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1637,7 +1645,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "fea86502d567e16393b1ff56bcada2909c21e2d33dfb40f7166f794a3ae6d140"
+      "chain_hash": "1b0e2f079affe7d72e5bbac32b8468e7497288eb82b170a95010b7b907105a5f"
     },
     {
       "event_id": "EVT-0026",
@@ -1649,7 +1657,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1707,6 +1714,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233405",
@@ -1740,7 +1750,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "87ccb450b9f0e2c052938f2726456eb9a1bb646b202e8cd02f434a460c836cb8"
+      "chain_hash": "9b9051386031385a3e395c571a34f7ca2a9d9ef08674edbecb71495f67f90e70"
     },
     {
       "event_id": "EVT-0027",
@@ -1752,7 +1762,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1826,6 +1835,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -1859,7 +1871,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "db1b0487285d45c1e94a43c69ddf30282e46843197a098181d97fad1aed28ec1"
+      "chain_hash": "bc3cb3416aad3b3946380e14dcbee1c7e1662545993bae5778e469f6ba169e03"
     },
     {
       "event_id": "EVT-0028",
@@ -1871,7 +1883,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_absent",
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -1945,6 +1956,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -1967,7 +1981,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "9da3b8daba673188086345d3a351c941c5d513da83a4b45d7a77b71d0e2b5130"
+      "chain_hash": "e8cc3486ed1632810ea507f4437e40ba14efecc690206cb3404823aa05df2445"
     },
     {
       "event_id": "EVT-0029",
@@ -1979,7 +1993,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_absent",
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -2069,6 +2082,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -2102,7 +2118,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "aa7da5e53fd062213d2198b2c2d9789ee5058f646237db1f8f5beba53505b814"
+      "chain_hash": "febca642880039bc2e80b5df2f67d351b4bbab00aac24ce5442de0734f0fdf0a"
     },
     {
       "event_id": "EVT-0030",
@@ -2114,7 +2130,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_weakened",
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -2221,6 +2236,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -2254,7 +2272,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "16bf242d25cf4ff62441359a21de867816637c6bea2c9e3596bec4aae40990e7"
+      "chain_hash": "62ee6a5d98e148d812d556ffa1963079a874a964539c360ca9709f3dbea3f647"
     },
     {
       "event_id": "EVT-0031",
@@ -2266,7 +2284,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_absent",
       "change_classification": "none",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -2340,6 +2357,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -2362,7 +2382,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "91733c3c5a07f4b1f0aded28000b9e913d154194fd37c6b04b6412448e57c8e5"
+      "chain_hash": "5883e207a1be2b14af889341d54641661ede3d19fab58cc136e6d9b315cfda2f"
     },
     {
       "event_id": "EVT-0032",
@@ -2374,7 +2394,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -2464,6 +2483,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -2486,7 +2508,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "0b6617a16644eb2282cc9a806bf2423209abfcf3eaffefdaa185e28a4c360218"
+      "chain_hash": "8a31586db96bc5f92ffb7d51231713e818662aace2c1473ac831740d842c62e5"
     },
     {
       "event_id": "EVT-0033",
@@ -2498,7 +2520,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "moved",
-      "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -2571,6 +2592,9 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": null,
+      "verification_holds": null,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -2604,7 +2628,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "3520688fefc31271e22fd6a75af69a4f1d5f310da2d509b68b768f587de98385"
+      "chain_hash": "5528f01402e1cf171ef1536bac9f8efd10a639ae1c0eca8a8f86c65037423bcc"
     },
     {
       "event_id": "EVT-0034",
@@ -2616,7 +2640,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -2691,7 +2714,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "0233d1abaf1fc5b1a83cecaaa9cfc04f30cd05061c326e9e3851339b2d926c8a"
+      "chain_hash": "b869397f7d51b6c0759b32701771ddff5b9d16150f40034822155c2b64730931"
     },
     {
       "event_id": "EVT-0035",
@@ -2703,7 +2726,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -2747,7 +2769,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
       "last_projected_snapshot": "S2",
-      "chain_hash": "d3fc0229117fc864ce2810de88482db2934719e75a5402e26010b7479515e0ef"
+      "chain_hash": "bc72a3fd69744ce008ff7af98f3869cefcbd418e1a24b14563f425df67189662"
     },
     {
       "event_id": "EVT-0036",
@@ -2759,7 +2781,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "R. Alvarez",
@@ -2780,6 +2801,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
+      "human_disposition": null,
       "decision": {
         "id": "ARB-2026-0338",
         "outcome": "approved with conditions",
@@ -2790,7 +2812,7 @@
         "Confirm the two approved Bedrock model ids with Model Risk Management by 20 Oct 2026.",
         "Load test at 2x expected peak by 23 Oct 2026."
       ],
-      "chain_hash": "ad161e623776dcc14913ef0e67468d4b7b8f3dd473afb97c6b34da691bc43c25"
+      "chain_hash": "1a4a0fc2d4677c2833867e315000e2fdf730854d1ca8ac192794ca6da5217102"
     },
     {
       "event_id": "EVT-0037",
@@ -2802,7 +2824,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -2888,6 +2909,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -2917,7 +2939,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "dd8f5a2f146a41765a2696f6683d856ee830b5920a906ca55f61daf852755e7d"
+      "chain_hash": "886d72336fcccc3330eafc2182b0a0b5aff1aea7bc1e059a5df503cc81aff41e"
     },
     {
       "event_id": "EVT-0038",
@@ -2929,7 +2951,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -2999,6 +3020,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -3028,7 +3050,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "19ec76963991923fcd7be46900fd191863a7120962bacd84fdb8edac5042de1a"
+      "chain_hash": "ad69d081223b534867ffe990f5b3afb4846bb05a3715816f4be22afab17e6154"
     },
     {
       "event_id": "EVT-0039",
@@ -3040,7 +3062,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "moved",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -3110,6 +3131,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -3139,7 +3161,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "61f05b40b2f60cbd2e84704c5a9439c6caeaf9845dc02ab0853cc1385c613c35"
+      "chain_hash": "c7d1aaf5fee16926c0332b2fcdb6c40b7103928cdbde56e5684bce1250867e10"
     },
     {
       "event_id": "EVT-0040",
@@ -3151,7 +3173,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Marcus Hale",
@@ -3205,6 +3226,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -3234,7 +3256,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "1e7a65e6b8a9cc22608b941e7441e088028761ac40889fb11c632a6b2d255347"
+      "chain_hash": "1c5b61f5b4ad6dd7dae1ab8022c297ea1652a940a25461f4c6e1bcb3b6ff756f"
     },
     {
       "event_id": "EVT-0041",
@@ -3246,7 +3268,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Marcus Hale",
@@ -3316,6 +3337,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -3345,7 +3367,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "4733d4b307b099a81d0f538f5800e61c431e8b8b5c34ce0d83c363d9ea076c2c"
+      "chain_hash": "4c07228a37b49b9bc401dfe6f04e0523308be8d038f6d7ba435d7af2b27822e0"
     },
     {
       "event_id": "EVT-0042",
@@ -3357,7 +3379,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Marcus Hale",
@@ -3427,6 +3448,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -3456,7 +3478,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "3823fa096eeb60371bdea26f1a20070f92af3408e9b414e3233cea280c8585a3"
+      "chain_hash": "ff8978731e175b7f21910b18d250b5d192196e35584634d701563cf8a734e0de"
     },
     {
       "event_id": "EVT-0043",
@@ -3468,7 +3490,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Marcus Hale",
@@ -3554,6 +3575,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -3583,7 +3605,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "8da089dd0bd9476cafb9742bba5e240df520f5fa3e631bd10416b881219a826d"
+      "chain_hash": "414b5b64c7f3d6f2c4693c79f12c815f862ac61ee4a7b2ccf5898e5de15afe26"
     },
     {
       "event_id": "EVT-0044",
@@ -3595,7 +3617,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "none",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Priya Natarajan",
@@ -3697,6 +3718,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "human_disposition": "verified",
       "comment": "I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -3726,7 +3748,7 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "eab86735d817b32d96c880f4f738aa24921e9367767ddf086b7ed22153efc4f9"
+      "chain_hash": "c527b8d4db8cc8cf91fe8ccc5a383468b476983964e249c8eb897fb2a1d9a3f3"
     },
     {
       "event_id": "EVT-0045",
@@ -3738,7 +3760,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -3782,7 +3803,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
       "last_projected_snapshot": "S2",
-      "chain_hash": "c39887d285cb660629866d1ee44886f923cd5565b169e72de573b4e8293c9ce6"
+      "chain_hash": "fe351abba121eed08cff05eb1c8d70876ecce2e62e9380d185a2f781bf20ab50"
     },
     {
       "event_id": "EVT-0046",
@@ -3794,7 +3815,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "human",
         "name": "Kevin Lindqvist",
@@ -3814,7 +3834,8 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252",
-      "chain_hash": "bf4525ff0e4a67f52f0af6341a0d39a288d0932785dab7984239bbf26312dbd1"
+      "human_disposition": null,
+      "chain_hash": "176e4cdd08d27541fa6e6b69b2590a88158a882a903f32afb55e62b14be7fa4c"
     },
     {
       "event_id": "EVT-0047",
@@ -3826,7 +3847,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -3875,7 +3895,7 @@
           "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
         }
       ],
-      "chain_hash": "50770436abd2cdb95a5c3afd305cbc542d3d206b1addb20870c80cbec6053858"
+      "chain_hash": "59042e55df9c060949f6a1647569503bcce7cb8bd92ce338d58beb947e380b32"
     },
     {
       "event_id": "EVT-0048",
@@ -3887,7 +3907,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -3940,7 +3959,7 @@
           "readable": true
         }
       ],
-      "chain_hash": "8972735f6a87b34fc7fee7be0f20aff23659f37357eb4e6bbae05c8e824b0b1c"
+      "chain_hash": "227eb15e266ff9300e7f883725c4ddf7ac8ad45e555aecf88e5fc3d6f1c3a8ef"
     },
     {
       "event_id": "EVT-0049",
@@ -3952,7 +3971,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -3983,7 +4001,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "b7b8c0a90bfcb542a967053976e085e15b95c0bb7b6ad698909e3a9e1d45134a"
+      "chain_hash": "6d86d2a5ed8ca1262d883db7ceae8c329bd182ba17f01e4f4c3f8f7786d1f478"
     },
     {
       "event_id": "EVT-0050",
@@ -3995,7 +4013,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -4010,7 +4027,8 @@
       "quote": "This list names every AWS service and third-party component in the Project Lantern design and records whether it is on the Approved Cloud Services Catalog or is used under an approved exception.",
       "basis": [
         "2 of 2 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier Medium holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -4053,6 +4071,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233405",
+        "fileName": "approved-services-and-exceptions.md",
+        "versionId": "1801102271",
+        "verified_at": "2026-10-08T09:05:44Z",
+        "event_id": "EVT-0040"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233405",
@@ -4086,7 +4116,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "b88d475f8bc0663ff0b9eef2e61bbefad9d3966c0ccd19729159da3c8524f345"
+      "chain_hash": "85a604c0af9861f9807d0dafd09e1ebd460449cb01948eac32bae084f152e6be"
     },
     {
       "event_id": "EVT-0051",
@@ -4098,7 +4128,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -4113,7 +4142,8 @@
       "quote": "The snapshot bucket, the session table and the vector index are classified Confidential / NPI (GLBA), and Lantern is outside PCI DSS scope because full PANs are masked before ingestion.",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier High holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -4172,6 +4202,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:11:20Z",
+        "event_id": "EVT-0041"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -4205,7 +4247,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "b2106b95a29e2f7cdfc257e01f8c835dcd90af0ae390181319b746cafacf24e1"
+      "chain_hash": "54efaf91d276166f17d108820a501d72d496552ce29b6803bb8724e54e549eca"
     },
     {
       "event_id": "EVT-0052",
@@ -4217,7 +4259,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -4232,7 +4273,8 @@
       "quote": "All human access to Lantern, for agents and engineers, authenticates through the Meridian enterprise IdP with phishing-resistant MFA; Lantern has no local user accounts.",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier Medium holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -4291,6 +4333,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:16:02Z",
+        "event_id": "EVT-0042"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -4313,7 +4367,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "7154ebf3a318cdc8fc9fca6eaf6e295d65be67c9fec4e6df838f0abaf6baf0d9"
+      "chain_hash": "a1ee1d5a2019c9ac9506be4f280a4af567e9a91a7f667f736c8fb73a4a8ea3e5"
     },
     {
       "event_id": "EVT-0053",
@@ -4325,7 +4379,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -4340,7 +4393,8 @@
       "quote": "Privileged access to the Lantern production accounts is brokered through the enterprise PAM vault; there is no shared administrator account, and the named break-glass role is LanternBreakGlass, which requires two-person approval and expires after 4 hours.",
       "basis": [
         "4 of 4 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier High holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -4415,6 +4469,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:40:12Z",
+        "event_id": "EVT-0037"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -4448,7 +4514,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "ae0d482fa2a16300a8442fbfe4c5ef4b62ee63d325a8137015d1220a2feed92c"
+      "chain_hash": "1363c9265486c089f5e335a89d6b3f27af71eea9f08c93d5a3d9d09dd3195960"
     },
     {
       "event_id": "EVT-0054",
@@ -4460,7 +4526,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -4475,7 +4540,8 @@
       "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
       "basis": [
         "5 of 5 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier Critical holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -4566,6 +4632,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Priya Natarajan",
+        "role": "Principal Security Architect, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T10:32:00Z",
+        "event_id": "EVT-0044"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -4599,7 +4677,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "25a8cc22821dcc291f006972347543187cc02efef29105a6cda696fb1d393e4a"
+      "chain_hash": "45232adf074d5e74673abb315817209c8f65d1e224326aa7b94930e10cf72e20"
     },
     {
       "event_id": "EVT-0055",
@@ -4611,7 +4689,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -4626,7 +4703,8 @@
       "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier High holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -4685,6 +4763,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:46:31Z",
+        "event_id": "EVT-0038"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -4707,7 +4797,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "33b03e9b8f6b741221f8aba3776de4c7008cc18f0dec20ba237649edf6abcb66"
+      "chain_hash": "ed4dcf241e51bf0d09d8ad9a02615b52be049deca8b622d71b2f0680019a5518"
     },
     {
       "event_id": "EVT-0056",
@@ -4719,7 +4809,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -4734,7 +4823,8 @@
       "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
       "basis": [
         "4 of 4 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier Medium holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -4809,6 +4899,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:22:47Z",
+        "event_id": "EVT-0043"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -4831,7 +4933,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "41ffc095d7597e8dcd6f294c072d64357335a65215d8c9898f636a062fca5000"
+      "chain_hash": "e70f9d71334d22f9f33834d4f0f9a215a9651f3b047f730d25266174b2007ed7"
     },
     {
       "event_id": "EVT-0057",
@@ -4843,7 +4945,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -4858,7 +4959,8 @@
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier High holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -4917,6 +5019,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:52:08Z",
+        "event_id": "EVT-0039"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -4950,7 +5064,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "83c36df40b51edb6a5dbe628569927be7e6a43f2c8f850c351ecb593c0e18937"
+      "chain_hash": "aaf259abc3fcd38b82e30cba3123413a28e5780fca20698320ce7b3bcc971f70"
     },
     {
       "event_id": "EVT-0058",
@@ -4962,7 +5076,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -4982,15 +5095,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Marcus Hale",
+        "actor": "Marcus Hale",
         "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
-        "at": "2026-10-08T09:05:44Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233405",
+        "fileName": "approved-services-and-exceptions.md",
+        "versionId": "1801102271",
+        "verified_at": "2026-10-08T09:05:44Z",
+        "event_id": "EVT-0040"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier Medium holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "f977903cd455000eb125ea2d695a398886d85039b66ab5c93c8692a99d0bf584"
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier Medium holds without acknowledgment",
+      "materiality": "hold_if_quote_unchanged",
+      "chain_hash": "b42ab88395b29e2fa41d9eb2fa5126a553158f13ac2d778fb8adf35b0bee7af3"
     },
     {
       "event_id": "EVT-0059",
@@ -5002,7 +5121,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5022,15 +5140,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Marcus Hale",
+        "actor": "Marcus Hale",
         "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
-        "at": "2026-10-08T09:11:20Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:11:20Z",
+        "event_id": "EVT-0041"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier High holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "16922c85358dafb7da09a565573caada3f86d7e8d173fec57b8b7b0dac2de875"
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier High holds without acknowledgment",
+      "materiality": "acknowledge_on_evidencing_section_change",
+      "chain_hash": "a2f86439aa35f5e6e6d093a291f753052b50d04f059f3ac9702fdf7f89ac8bd6"
     },
     {
       "event_id": "EVT-0060",
@@ -5042,7 +5166,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5062,15 +5185,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Marcus Hale",
+        "actor": "Marcus Hale",
         "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
-        "at": "2026-10-08T09:16:02Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:16:02Z",
+        "event_id": "EVT-0042"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier Medium holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "a55bc118e1f768694eb29da79a559094f3fdeeea55757f5faf6b1f1dc1696aa2"
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier Medium holds without acknowledgment",
+      "materiality": "hold_if_quote_unchanged",
+      "chain_hash": "8ad75d7ed3faf5e35b376ccd2fa0b323e411f7154306e75d99a2e3683678e79d"
     },
     {
       "event_id": "EVT-0061",
@@ -5082,7 +5211,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5102,15 +5230,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Dana Okafor",
+        "actor": "Dana Okafor",
         "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:40:12Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:40:12Z",
+        "event_id": "EVT-0037"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier High holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "3a03889c3085095e57de78b62153344344bc1888d93ea5a4b1a7ff6d4dd188a1"
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier High holds without acknowledgment",
+      "materiality": "acknowledge_on_evidencing_section_change",
+      "chain_hash": "b9876ba5b27e8b11ef0d27420637f4ca7060a6b5f5b5c7d6d94d496efbb4a77e"
     },
     {
       "event_id": "EVT-0062",
@@ -5122,7 +5256,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5142,15 +5275,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Priya Natarajan",
+        "actor": "Priya Natarajan",
         "role": "Principal Security Architect, ARB reviewer",
-        "at": "2026-10-08T10:32:00Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T10:32:00Z",
+        "event_id": "EVT-0044"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier Critical holds without acknowledgment",
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier Critical holds without acknowledgment",
       "materiality": "acknowledge_on_evidencing_file_change",
-      "chain_hash": "a15b07c21361c18bf601366d183b12c2bc32a0334fea80db3c0cf2e90b2f73c7"
+      "chain_hash": "5fe75eea1fba17cd877166abfca213e76abb720696534727b80dd07c38e6b883"
     },
     {
       "event_id": "EVT-0063",
@@ -5162,7 +5301,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5182,15 +5320,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Dana Okafor",
+        "actor": "Dana Okafor",
         "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:46:31Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:46:31Z",
+        "event_id": "EVT-0038"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier High holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "89b2170b70ef84f866308e691741c6b95ce18961e234ef3d6326a2ffad0dd2a4"
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier High holds without acknowledgment",
+      "materiality": "acknowledge_on_evidencing_section_change",
+      "chain_hash": "47cb910b0ee1a535a58f80881445264048c2d87b50ad942842987f7457d7d044"
     },
     {
       "event_id": "EVT-0064",
@@ -5202,7 +5346,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5222,15 +5365,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Marcus Hale",
+        "actor": "Marcus Hale",
         "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
-        "at": "2026-10-08T09:22:47Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:22:47Z",
+        "event_id": "EVT-0043"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier Medium holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "3f4937ec019c925cbb2132f9ffe24e0da2db2112d445d2180a8115c8c2a05f35"
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier Medium holds without acknowledgment",
+      "materiality": "hold_if_quote_unchanged",
+      "chain_hash": "a8515e7aa33a5b2b87419a4f25bb3d63828a1353354a172cbb112b9b0a692b3c"
     },
     {
       "event_id": "EVT-0065",
@@ -5242,7 +5391,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5262,15 +5410,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Dana Okafor",
+        "actor": "Dana Okafor",
         "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:52:08Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:52:08Z",
+        "event_id": "EVT-0039"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier High holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "224f16c17297dfec2723d97bf94cf5170fa552853f13c5ffa320309d93aff306"
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier High holds without acknowledgment",
+      "materiality": "acknowledge_on_evidencing_section_change",
+      "chain_hash": "e848aa12ff2bba2eb6ac1add5bab1c09a036f6032328fa007d942c8cfc04641c"
     },
     {
       "event_id": "EVT-0066",
@@ -5282,7 +5436,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -5357,7 +5510,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "051382f3ff731fa3ea09a6c745af60e70a709dafe750d8b648c35d506fd1b9fa"
+      "chain_hash": "0139b847b598902e0cc28eb6ccdcfbb99f0e3eff5a39af57f19f37749caba677"
     },
     {
       "event_id": "EVT-0067",
@@ -5369,7 +5522,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5413,7 +5565,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S3"
       },
       "last_projected_snapshot": "S3",
-      "chain_hash": "d6866b92af8a17b0a4ec2fe62733eec64e3dfa5a3d7effedc07885f38ee43f9f"
+      "chain_hash": "8be71cbd281d0640e18d0a731aae65e2a4ade1b6f28921f12f5480a80535a508"
     },
     {
       "event_id": "EVT-0068",
@@ -5425,7 +5577,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "service",
         "name": "svc-confluence-export",
@@ -5434,7 +5585,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": null,
       "basis": null,
       "clause_support": null,
@@ -5448,7 +5599,7 @@
       "version_comment": "Section 4 rewrite for clarity",
       "confluence_editor": "J. Park (Eng)",
       "jira": "LAN-2291",
-      "chain_hash": "5f11887031cf32e612c0db2146a1c4e8c5269dfffd47bce892481cd787d3b056"
+      "chain_hash": "8c02096408a0ebe4ed62ba4693089cdab6f0c9f32805b11e73736160cadec9ed"
     },
     {
       "event_id": "EVT-0069",
@@ -5460,7 +5611,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5480,13 +5630,13 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
-      "manifest_hash": "sha256:e150c919c0259fdde5a9efdac245504c11dc2e4707765ecb3375aa452fe4e2bd",
+      "manifest_hash": "sha256:be779881a04610801b3f4410db43edcb028be479a666fb8c158608793d71c524",
       "control_profile_version": "2026.3",
       "files": [
         {
           "fileName": "architecture.md",
           "versionId": "1801102233",
-          "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302"
+          "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067"
         },
         {
           "fileName": "data-flow-and-classification.md",
@@ -5509,7 +5659,7 @@
           "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
         }
       ],
-      "chain_hash": "46b35ca0d6d5012e4b047f32086541ff28389d62f130c6fb6cb5b0db4eb81794"
+      "chain_hash": "b2ad2c70fab286e8027cdbb645a85a24da2296ee32ef97b1b5bc9864c2a3be44"
     },
     {
       "event_id": "EVT-0070",
@@ -5521,7 +5671,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -5574,7 +5723,7 @@
           "readable": true
         }
       ],
-      "chain_hash": "469251c4c18f15bcf92e29679fbfad3db0e6ce6679353e98377dcae774b10c23"
+      "chain_hash": "9d6fb7d08f40fbfef2b327a9a2e5fe07d85483d5a2cdac0666089357cdb10e36"
     },
     {
       "event_id": "EVT-0071",
@@ -5586,7 +5735,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "gate",
         "name": "Strands Decider 2B",
@@ -5596,7 +5744,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": null,
       "basis": null,
       "clause_support": null,
@@ -5624,7 +5772,7 @@
         "latency_ms": 118
       },
       "note": "gate result recorded; never writes a status",
-      "chain_hash": "9c1aa99f5bb86f0d13931e19304b3ebb0bb3b4cc4f7b2dc26defa1d81bfa5271"
+      "chain_hash": "52d5fe3a9e614b2b05bfab6d195cbf126b0428f06c4fdcdcdf2cb6aafb6dfddc"
     },
     {
       "event_id": "EVT-0072",
@@ -5636,7 +5784,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -5667,7 +5814,7 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "6f3b0bddf3856a0366d1bcb82757b0ba5ad200c8d260ffcb325e0551c031082b"
+      "chain_hash": "b506a8b98ad8fcad65648e79dd800351e5b66b08b20650c3e3b27b06747fb636"
     },
     {
       "event_id": "EVT-0073",
@@ -5679,7 +5826,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -5694,7 +5840,8 @@
       "quote": "This list names every AWS service and third-party component in the Project Lantern design and records whether it is on the Approved Cloud Services Catalog or is used under an approved exception.",
       "basis": [
         "2 of 2 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version unchanged; tier Medium holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -5737,6 +5884,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233405",
+        "fileName": "approved-services-and-exceptions.md",
+        "versionId": "1801102271",
+        "verified_at": "2026-10-08T09:05:44Z",
+        "event_id": "EVT-0040"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233405",
@@ -5771,7 +5930,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0401",
-      "chain_hash": "82d85dc2c217d6adacf29d10629a6b5415a569a84d2b58e824bcf180005900e5"
+      "chain_hash": "60da01c413f8bcb33523ab50b3a47810f90116850ee59cb0c917a164ebea7505"
     },
     {
       "event_id": "EVT-0074",
@@ -5783,7 +5942,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -5794,11 +5952,12 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "The snapshot bucket, the session table and the vector index are classified Confidential / NPI (GLBA), and Lantern is outside PCI DSS scope because full PANs are masked before ingestion.",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §3.2 unchanged; tier High holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -5857,6 +6016,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:11:20Z",
+        "event_id": "EVT-0041"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -5891,7 +6062,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0402",
-      "chain_hash": "e7eed8d0ef8ee0006c547705368338be1df8e306db87dc0c12d2d4ada77a7c56"
+      "chain_hash": "4cc005c0271651690d1c58d8876a3d1d2b9f54d1cd54eb4f52f65d7b4353dc7e"
     },
     {
       "event_id": "EVT-0075",
@@ -5903,7 +6074,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -5914,11 +6084,12 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "All human access to Lantern, for agents and engineers, authenticates through the Meridian enterprise IdP with phishing-resistant MFA; Lantern has no local user accounts.",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier Medium holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -5977,6 +6148,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:16:02Z",
+        "event_id": "EVT-0042"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -6000,7 +6183,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0403",
-      "chain_hash": "62616d4794cd147cb785e0907498f7c418c4abbb95d04e67d969818336d27408"
+      "chain_hash": "d0868a2541848165ea65ccff29ec28a8ca66a76c3549105ae39ac13d6250b02a"
     },
     {
       "event_id": "EVT-0076",
@@ -6012,7 +6195,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -6023,11 +6205,12 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "Privileged access to the Lantern production accounts is brokered through the enterprise PAM vault; there is no shared administrator account, and the named break-glass role is LanternBreakGlass, which requires two-person approval and expires after 4 hours.",
       "basis": [
         "4 of 4 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §4.2 text changed; tier High requires acknowledgment."
       ],
       "clause_support": [
         {
@@ -6102,6 +6285,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:40:12Z",
+        "event_id": "EVT-0037"
+      },
+      "verification_holds": false,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -6136,7 +6331,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0404",
-      "chain_hash": "96e37f8102ff3b69c80e50e11955826392113eed2fc449e49a701be6f04f9a61"
+      "chain_hash": "09e1b27bfc02bee4614c0205be5f61aec8e022dff9696ad3d28689933ddfff56"
     },
     {
       "event_id": "EVT-0077",
@@ -6148,7 +6343,6 @@
       "machine_assessment": "evidence_weakened",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "weakened",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -6159,12 +6353,12 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
       "basis": [
         "Verified quote from architecture.md v2 §4.3 Encryption at rest and key management ¶1 not found in v3 after normalization (whitespace, quotes, hyphens, case).",
         "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. AES-256, the key model, the rotation period and the custodians are unsupported.",
-        "Box AI ask over 4 other files for customer-managed keys, CipherTrust, rotation and key custodians: 0 cited statements.",
+        "Box AI ask over 4 other files, query 'customer-managed keys OR CipherTrust OR key rotation OR key custodians': 0 cited statements.",
         "3 other assertions changed in §4.3."
       ],
       "clause_support": [
@@ -6216,6 +6410,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Priya Natarajan",
+        "role": "Principal Security Architect, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T10:32:00Z",
+        "event_id": "EVT-0044"
+      },
+      "verification_holds": false,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -6239,7 +6445,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0405",
-      "chain_hash": "6a4c409d4b65d4b4e3fab01671fd388ef4c02d8abffbd53048330da6beb70664"
+      "chain_hash": "734465accb1bc6c7ea773b0a4968c582f8d46322a998d491f7295e69ebad7ca9"
     },
     {
       "event_id": "EVT-0078",
@@ -6251,7 +6457,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -6262,11 +6467,12 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
       "basis": [
         "3 of 3 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §6 unchanged; tier High holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -6325,6 +6531,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:46:31Z",
+        "event_id": "EVT-0038"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -6348,7 +6566,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0406",
-      "chain_hash": "0c44c28c59d32a6313f4fa9915b14d342bb91ca20e60c0286456b3c372abe037"
+      "chain_hash": "c1707b18a11cbec93b41798229a5e8657e3dbe8c0d137f097fa22d6e33a08f2b"
     },
     {
       "event_id": "EVT-0079",
@@ -6360,7 +6578,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -6371,11 +6588,12 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
       "basis": [
         "4 of 4 required clauses supported by validated quotes.",
-        "Prior binding quote matched after normalization."
+        "Prior binding quote matched after normalization.",
+        "Staleness check: evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier Medium holds without acknowledgment."
       ],
       "clause_support": [
         {
@@ -6450,6 +6668,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Marcus Hale",
+        "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:22:47Z",
+        "event_id": "EVT-0043"
+      },
+      "verification_holds": true,
       "evidence": [
         {
           "fileId": "1650233401",
@@ -6473,7 +6703,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0407",
-      "chain_hash": "ac4e4d96e3a4f1d4cb0fae7779819e0ccb2510abb1bded22ff0afc056b2e521c"
+      "chain_hash": "03f5a1fc1664b836bc6d74da9c648741368336d0a09d72decfa9d4e3b18f84d2"
     },
     {
       "event_id": "EVT-0080",
@@ -6485,7 +6715,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": "evidence_found",
       "change_classification": "moved",
-      "human_disposition": "verified",
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -6500,7 +6729,8 @@
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 Resilience and recovery ¶1 not found in v3 after normalization.",
-        "Box AI ask over 4 other files for RTO, RPO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 3 of 3 required clauses supported.",
+        "Box AI ask over 4 other files, query 'RTO OR RPO OR roll back': 1 cited statement in runbook.md §3, validated against pinned text.",
+        "3 of 3 required clauses supported by validated quotes from runbook.md v2.",
         "The runbook quote already existed before v3 (runbook.md v1 and v2), so the binding moved and the support did not."
       ],
       "clause_support": [
@@ -6560,6 +6790,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252",
+      "current_disposition": "unreviewed",
+      "prior_verification": {
+        "actor": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:52:08Z",
+        "event_id": "EVT-0039"
+      },
+      "verification_holds": false,
       "evidence": [
         {
           "fileId": "1650233403",
@@ -6594,7 +6836,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0408",
-      "chain_hash": "3c32ad57e92d0156da26fc8f4be96faaead8094a26e0c3dd53bec278bed3c6d2"
+      "chain_hash": "a4f47b91f88a2c3d4eb3bded28ab82463177d8ff0832d5f998bd2afa8a859707"
     },
     {
       "event_id": "EVT-0081",
@@ -6606,7 +6848,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -6626,15 +6867,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233405?version=1801102271",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Marcus Hale",
+        "actor": "Marcus Hale",
         "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
-        "at": "2026-10-08T09:05:44Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233405",
+        "fileName": "approved-services-and-exceptions.md",
+        "versionId": "1801102271",
+        "verified_at": "2026-10-08T09:05:44Z",
+        "event_id": "EVT-0040"
       },
-      "note": "evidencing file version unchanged; another file in the package changed; tier Medium holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "a596bb0a7b054465c0eb66242fb6a3b95a7fa506832f9d996cfc39435b6157bb"
+      "verification_holds": true,
+      "note": "evidencing file version unchanged; tier Medium holds without acknowledgment",
+      "materiality": "hold_if_quote_unchanged",
+      "chain_hash": "eaaf14b1469ee577e53e75ec61599a21cf8ae0d46f9f67caa019670c5d3a2cf5"
     },
     {
       "event_id": "EVT-0082",
@@ -6646,7 +6893,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -6655,7 +6901,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "The snapshot bucket, the session table and the vector index are classified Confidential / NPI (GLBA), and Lantern is outside PCI DSS scope because full PANs are masked before ingestion.",
       "basis": null,
       "clause_support": null,
@@ -6666,15 +6912,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Marcus Hale",
+        "actor": "Marcus Hale",
         "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
-        "at": "2026-10-08T09:11:20Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:11:20Z",
+        "event_id": "EVT-0041"
       },
-      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "caa38c27013168878a321d5854f93798a4a4b8f85e0c250a3b27220ad7342b59"
+      "verification_holds": true,
+      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §3.2 unchanged; tier High holds without acknowledgment",
+      "materiality": "acknowledge_on_evidencing_section_change",
+      "chain_hash": "5da801f51609a7d3e33ae0e1e2baad5f7eb60851090481def98b38469b5e68a0"
     },
     {
       "event_id": "EVT-0083",
@@ -6686,7 +6938,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -6695,7 +6946,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "All human access to Lantern, for agents and engineers, authenticates through the Meridian enterprise IdP with phishing-resistant MFA; Lantern has no local user accounts.",
       "basis": null,
       "clause_support": null,
@@ -6706,15 +6957,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Marcus Hale",
+        "actor": "Marcus Hale",
         "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
-        "at": "2026-10-08T09:16:02Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:16:02Z",
+        "event_id": "EVT-0042"
       },
+      "verification_holds": true,
       "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier Medium holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "1f3f2197c4279fc812780034c99190f4810e9c57aabe943712b68aaaa00758dc"
+      "materiality": "hold_if_quote_unchanged",
+      "chain_hash": "d8b1d228bf4b931d8051ac4900a1b007b44396ec4b6d80f8b549b45917b8324c"
     },
     {
       "event_id": "EVT-0084",
@@ -6722,11 +6979,10 @@
       "phase": "live_v3",
       "snapshot_id": "S4",
       "control_id": "SEC-ARCH-05",
-      "event_type": "verification_holds",
+      "event_type": "verification_requires_acknowledgment",
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -6735,7 +6991,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "Privileged access to the Lantern production accounts is brokered through the enterprise PAM vault; there is no shared administrator account, and the named break-glass role is LanternBreakGlass, which requires two-person approval and expires after 4 hours.",
       "basis": null,
       "clause_support": null,
@@ -6746,15 +7002,26 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Dana Okafor",
+        "actor": "Dana Okafor",
         "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:40:12Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:40:12Z",
+        "event_id": "EVT-0037"
       },
-      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "66fd2c9899ae94d406873eae08b4611b433ac3059f716bac2ab6a1b544ea3d51"
+      "verification_holds": false,
+      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §4.2 text changed; tier High requires acknowledgment",
+      "materiality": "acknowledge_on_evidencing_section_change",
+      "acknowledgment": {
+        "required": true,
+        "severity": "High acknowledgment",
+        "reason": "evidencing section changed"
+      },
+      "chain_hash": "303f7eda118c46be8a0ce133c1a5e23e7c24600fd04c08439c1dbf69e718e1f0"
     },
     {
       "event_id": "EVT-0085",
@@ -6766,7 +7033,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -6775,7 +7041,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
       "basis": null,
       "clause_support": null,
@@ -6786,15 +7052,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Dana Okafor",
+        "actor": "Dana Okafor",
         "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:46:31Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:46:31Z",
+        "event_id": "EVT-0038"
       },
-      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "4f60d886879326df6d2b7ff55972dcbf69bd54e896f1ec5bc9240bdd1b5f19bd"
+      "verification_holds": true,
+      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; evidencing section §6 unchanged; tier High holds without acknowledgment",
+      "materiality": "acknowledge_on_evidencing_section_change",
+      "chain_hash": "0a7ed63ded006535b1c36cf75f9d5cd7df1b24a9785d9e310c5c9828dd98c5bc"
     },
     {
       "event_id": "EVT-0086",
@@ -6806,7 +7078,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "unchanged",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -6815,7 +7086,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "Third parties are Corvid Systems (ticketing software, self-hosted), TPRM-2026-0412, inherent risk Tier 2, assessment current to 2027-03, and Amazon Web Services (cloud provider), TPRM-2025-0007, inherent risk Tier 1, assessment current to 2026-12.",
       "basis": null,
       "clause_support": null,
@@ -6826,15 +7097,21 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Marcus Hale",
+        "actor": "Marcus Hale",
         "role": "Data Governance and Third-Party Risk Lead, ARB reviewer",
-        "at": "2026-10-08T09:22:47Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-08T09:22:47Z",
+        "event_id": "EVT-0043"
       },
+      "verification_holds": true,
       "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier Medium holds without acknowledgment",
-      "materiality": "hold_if_unchanged",
-      "chain_hash": "77c13eec63ec37d43856920f979270a9cab7b31a94dcb32b53ff58b258b3f697"
+      "materiality": "hold_if_quote_unchanged",
+      "chain_hash": "5e7d6b575b5f026ac6b00b6238925ab10eddef318c13a32917bbd327783230e9"
     },
     {
       "event_id": "EVT-0087",
@@ -6846,7 +7123,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "moved",
-      "human_disposition": "verified",
       "actor": {
         "type": "app",
         "name": "keel",
@@ -6866,12 +7142,18 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252",
+      "current_disposition": "unreviewed",
       "prior_verification": {
-        "by": "Dana Okafor",
+        "actor": "Dana Okafor",
         "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:52:08Z",
-        "snapshot_id": "S2"
+        "snapshot_id": "S2",
+        "fileId": "1650233401",
+        "fileName": "architecture.md",
+        "versionId": "1801102232",
+        "verified_at": "2026-10-07T15:52:08Z",
+        "event_id": "EVT-0039"
       },
+      "verification_holds": false,
       "previous_binding": {
         "fileId": "1650233401",
         "fileName": "architecture.md",
@@ -6888,7 +7170,7 @@
         "severity": "Low"
       },
       "note": "selected binding moved from architecture.md v2 to runbook.md v2; the quote already existed in that file, so the binding moved and the support did not",
-      "chain_hash": "e3a10c8c6e3c37b63ef553f517165ce46920ade04f79131e4e2f063e0cab7766"
+      "chain_hash": "c1719f3d3534b6332f027ba464f0148cd8aa54b7d852f8e8e110e97adf03997f"
     },
     {
       "event_id": "EVT-0088",
@@ -6900,7 +7182,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "agent",
         "name": "keel-evaluator",
@@ -6976,7 +7257,7 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "quotes_validated": "8 of 8",
-      "chain_hash": "72ac476c1f35699ad3c9b3996b933acbf8624cd15f49d1efb5fa64c9f6f9c38b"
+      "chain_hash": "b3415400ba83b1733eb8861a590c508b72f7471f8079150bebf426c48d3c586a"
     },
     {
       "event_id": "EVT-0089",
@@ -6988,7 +7269,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -7023,7 +7303,7 @@
         "keel_status_SEC_ARCH_01": "VERIFIED_HOLDS",
         "keel_status_SEC_ARCH_02": "VERIFIED_HOLDS",
         "keel_status_SEC_ARCH_04": "VERIFIED_HOLDS",
-        "keel_status_SEC_ARCH_05": "VERIFIED_HOLDS",
+        "keel_status_SEC_ARCH_05": "ACKNOWLEDGE",
         "keel_status_SEC_ARCH_07": "NEEDS_REVIEW_WEAKENED",
         "keel_status_SEC_ARCH_17": "VERIFIED_HOLDS",
         "keel_status_SEC_ARCH_20": "VERIFIED_HOLDS",
@@ -7032,7 +7312,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "2a618c405b7b3b22a1b515d8e4296f8a41dbcf16ed595958a0cd9a68620cab19"
+      "chain_hash": "f2ab4ba52fbb83700e66e077360fb710d838276f679e3cf527d730d4029edb9b"
     },
     {
       "event_id": "EVT-0090",
@@ -7044,7 +7324,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -7085,7 +7364,7 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "72b79b6e8622a7cb0e783bf7788cffe276c68e98a2a5c6b8871a6533b11d6bf2"
+      "chain_hash": "62fa64abcbfe3ec449b309339d4632ef85a531ad03609266bc6119787573f79a"
     },
     {
       "event_id": "EVT-0091",
@@ -7097,7 +7376,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -7138,10 +7416,62 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "d44c48eccd4e62408ebfa90a212d7202e7f46ac7bef3fb09650c1c19922a0955"
+      "chain_hash": "613d9af3eb0369c9cddf430f8d1037de8941143a6d29763c0b6dcffeb679e61a"
     },
     {
       "event_id": "EVT-0092",
+      "ts": "2026-10-17T15:30:30Z",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": "SEC-ARCH-05",
+      "event_type": "box_task_created",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "finding_id": "KEEL-2026-0404",
+      "task": {
+        "task_id": "box-task-77120933",
+        "assignment_id": "box-asgn-88120933",
+        "action": "review",
+        "fileId": "1650233401",
+        "assignee": "Dana Okafor",
+        "assignee_box_user_id": "30118804",
+        "finding_id": "KEEL-2026-0404",
+        "control_id": "SEC-ARCH-05",
+        "snapshot_id": "S4",
+        "message": "KEEL-2026-0404 (snapshot S4): SEC-ARCH-05 Acknowledge: evidencing section changed, §4.2 text differs around an unchanged quote."
+      },
+      "server_mapping": {
+        "task_id": "box-task-77120933",
+        "assignment_id": "box-asgn-88120933",
+        "finding_id": "KEEL-2026-0404",
+        "control_id": "SEC-ARCH-05",
+        "snapshot_id": "S4",
+        "immutable": true
+      },
+      "chain_hash": "4dcaaef7d90a8969de7d5c10ab84cf400ea50c7f253dca7952b1a55d00a7f921"
+    },
+    {
+      "event_id": "EVT-0093",
       "ts": "2026-10-17T15:33:52Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7150,7 +7480,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -7189,10 +7518,10 @@
         "source": "identity as returned by Box (task assignment assigned_to)"
       },
       "mapped_action": "returned_to_author",
-      "chain_hash": "66423173539473bbc2cba8bb51b858c97436308eebba4215045df3b696571bfb"
+      "chain_hash": "f1c9f843311579c32434190ebd444247b6b5ae2c2071a6df08e237141dbc5d30"
     },
     {
-      "event_id": "EVT-0093",
+      "event_id": "EVT-0094",
       "ts": "2026-10-17T15:33:53Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7201,7 +7530,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -7236,6 +7564,9 @@
         "due_at": "2026-10-23T17:00:00Z",
         "due_rule": "5 business days (profile default remediation window)",
         "jira": "LAN-2291",
+        "message_drafted_by": "Box AI text generation from the finding and the reviewer's reason",
+        "shown_to_reviewer_before_sending": true,
+        "stored_verbatim": true,
         "message": "Returned by Dana Okafor (ARB reviewer): \"Encrypted is stated; the key model and rotation are not. IS-STD-014 §5.1 requires the KMS CMK statement restored.\" Lost from architecture.md §4.3 in v3: \"All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.\" and \"Each data store has its own AES-256 key: `lantern-s3-snapshots`, `lantern-ddb-state`, `lantern-aoss-index` and `lantern-logs`.\" Restore them or cite where the key model is now documented."
       },
       "lost_clauses": [
@@ -7252,10 +7583,10 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "8d49071091ac6ba620ddab32d3b21fdc2f35314a68b9e18a5891d0032ff196a7"
+      "chain_hash": "31da9ae014cf95cada9ba36c813c3ca3e063b968822c82ce5e86f2dbb1724234"
     },
     {
-      "event_id": "EVT-0094",
+      "event_id": "EVT-0095",
       "ts": "2026-10-17T15:33:54Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7264,7 +7595,6 @@
       "machine_assessment": "evidence_weakened",
       "prior_machine_assessment": null,
       "change_classification": "weakened",
-      "human_disposition": "returned_to_author",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -7274,7 +7604,7 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067",
       "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
       "basis": null,
       "clause_support": [
@@ -7326,6 +7656,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "human_disposition": "returned_to_author",
       "comment": "Encrypted is stated; the key model and rotation are not. IS-STD-014 §5.1 requires the KMS CMK statement restored.",
       "via": {
         "channel": "Box task",
@@ -7357,10 +7688,10 @@
       "author_task_id": "box-task-77120944",
       "jira": "LAN-2291",
       "recorded_after": "author task created successfully",
-      "chain_hash": "d4ff7614bd4c7045c7f6bde4dc7b63ace4437ffd1b4335a5d6357abe3255d6b5"
+      "chain_hash": "81cad308bee28b8659c723631e13c1e182e06f7a15cfcda15513f78d4531ebb9"
     },
     {
-      "event_id": "EVT-0095",
+      "event_id": "EVT-0096",
       "ts": "2026-10-17T15:34:22Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7369,7 +7700,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -7410,10 +7740,10 @@
       },
       "mapped_action": "verified",
       "acknowledgment_duration_s": 30,
-      "chain_hash": "168145276ef57ed8077e933c0ae67ac5e6423d85633fac0a89e94de46a831404"
+      "chain_hash": "e0cb3a31c4525a815826fde9e00a8793d2afc09b57b8881a074e5e71ac46ef34"
     },
     {
-      "event_id": "EVT-0096",
+      "event_id": "EVT-0097",
       "ts": "2026-10-17T15:34:23Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7422,7 +7752,6 @@
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
       "change_classification": "moved",
-      "human_disposition": "verified",
       "actor": {
         "type": "human",
         "name": "Dana Okafor",
@@ -7492,6 +7821,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252",
+      "human_disposition": "verified",
       "comment": "Recovery targets present in runbook §3; binding updated. I attest the cited evidence meets the requirement.",
       "via": {
         "channel": "Box task",
@@ -7520,10 +7850,10 @@
       },
       "finding_id": "KEEL-2026-0408",
       "rebinding": "re-verified on runbook.md v2",
-      "chain_hash": "d3447cc55f3be6ac65d2a5f54aae83c83c9dc821ec6094f5e5ce226982aa167e"
+      "chain_hash": "e60f6c951e2fb2cb8efdd2fb3b79417edba542c5c59bc5fa0a4a58e6d3292574"
     },
     {
-      "event_id": "EVT-0097",
+      "event_id": "EVT-0098",
       "ts": "2026-10-17T15:34:24Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7532,7 +7862,6 @@
       "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": null,
       "actor": {
         "type": "app",
         "name": "keel",
@@ -7567,7 +7896,7 @@
         "keel_status_SEC_ARCH_01": "VERIFIED_HOLDS",
         "keel_status_SEC_ARCH_02": "VERIFIED_HOLDS",
         "keel_status_SEC_ARCH_04": "VERIFIED_HOLDS",
-        "keel_status_SEC_ARCH_05": "VERIFIED_HOLDS",
+        "keel_status_SEC_ARCH_05": "ACKNOWLEDGE",
         "keel_status_SEC_ARCH_07": "RETURNED_TO_AUTHOR",
         "keel_status_SEC_ARCH_17": "VERIFIED_HOLDS",
         "keel_status_SEC_ARCH_20": "VERIFIED_HOLDS",
@@ -7576,7 +7905,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "30a2e77eab51073c6ac0d1d3133bbda6f7f5b1e2f3fd3eda169bf1cc685ceab1"
+      "chain_hash": "868fefd10eec1dc71278c97394e3505b6972bd116fbc281a345af349fd1a1e37"
     }
   ]
 }

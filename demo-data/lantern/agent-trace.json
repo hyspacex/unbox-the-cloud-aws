@@ -18,13 +18,13 @@
       "label": "Snapshot S4 captured: 5 files",
       "detail": {
         "snapshot_id": "S4",
-        "manifest_hash": "sha256:e150c919c0259fdde5a9efdac245504c11dc2e4707765ecb3375aa452fe4e2bd",
+        "manifest_hash": "sha256:be779881a04610801b3f4410db43edcb028be479a666fb8c158608793d71c524",
         "files": [
           {
             "fileId": "1650233401",
             "fileName": "architecture.md",
             "versionId": "1801102233",
-            "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302"
+            "contentHash": "sha256:ea6bbe553b41c3179b708108c653111d45e624728165ed2b7d3314a347038067"
           },
           {
             "fileId": "1650233402",
@@ -264,12 +264,13 @@
             "tool": "box_ai_ask",
             "args": {
               "agent_tool": "search_snapshot",
-              "query": "customer-managed keys",
+              "query": "customer-managed keys OR CipherTrust OR key rotation OR key custodians",
               "snapshot_id": "S4",
               "mode": "multiple_item_qa",
               "include_citations": true
             },
-            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code",
+            "query": "customer-managed keys OR CipherTrust OR key rotation OR key custodians",
+            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code; query 'customer-managed keys OR CipherTrust OR key rotation OR key custodians'",
             "result": {
               "files_asked": [
                 "data-flow-and-classification.md",
@@ -290,12 +291,13 @@
             "tool": "box_ai_ask",
             "args": {
               "agent_tool": "search_snapshot",
-              "query": "RTO",
+              "query": "RTO OR RPO OR roll back",
               "snapshot_id": "S4",
               "mode": "multiple_item_qa",
               "include_citations": true
             },
-            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code",
+            "query": "RTO OR RPO OR roll back",
+            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code; query 'RTO OR RPO OR roll back'",
             "result": {
               "files_asked": [
                 "data-flow-and-classification.md",
@@ -383,7 +385,7 @@
       "startMs": 12448,
       "durationMs": 40,
       "kind": "findings_applied",
-      "label": "Findings applied: 1 weakened, 1 binding moved, 6 verifications hold",
+      "label": "Findings applied: 1 weakened, 1 binding moved, 1 High acknowledgment, 5 verifications hold",
       "detail": {
         "assessment_rule": "all required clauses supported: evidence_found; some: evidence_weakened; none: evidence_absent (applied by code)"
       }
@@ -433,7 +435,7 @@
           "keel_status_SEC_ARCH_01": "VERIFIED_HOLDS",
           "keel_status_SEC_ARCH_02": "VERIFIED_HOLDS",
           "keel_status_SEC_ARCH_04": "VERIFIED_HOLDS",
-          "keel_status_SEC_ARCH_05": "VERIFIED_HOLDS",
+          "keel_status_SEC_ARCH_05": "ACKNOWLEDGE",
           "keel_status_SEC_ARCH_07": "NEEDS_REVIEW_WEAKENED",
           "keel_status_SEC_ARCH_17": "VERIFIED_HOLDS",
           "keel_status_SEC_ARCH_20": "VERIFIED_HOLDS",
@@ -450,7 +452,7 @@
       "startMs": 12993,
       "durationMs": 520,
       "kind": "box_task_created",
-      "label": "Box review tasks created: task A for SEC-ARCH-07, task C for SEC-ARCH-22 (both Dana Okafor)",
+      "label": "Box review tasks created: A (SEC-ARCH-07), C (SEC-ARCH-22), D (SEC-ARCH-05)",
       "detail": {
         "tasks": [
           {
@@ -476,6 +478,18 @@
             "control_id": "SEC-ARCH-22",
             "snapshot_id": "S4",
             "message": "KEEL-2026-0408 (snapshot S4): SEC-ARCH-22 evidence binding changed (Low). The recovery sentence left architecture.md v3; the same sentence is in runbook.md v2 §3. Confirm the new binding."
+          },
+          {
+            "task_id": "box-task-77120933",
+            "assignment_id": "box-asgn-88120933",
+            "action": "review",
+            "fileId": "1650233401",
+            "assignee": "Dana Okafor",
+            "assignee_box_user_id": "30118804",
+            "finding_id": "KEEL-2026-0404",
+            "control_id": "SEC-ARCH-05",
+            "snapshot_id": "S4",
+            "message": "KEEL-2026-0404 (snapshot S4): SEC-ARCH-05 Acknowledge: evidencing section changed, §4.2 text differs around an unchanged quote."
           }
         ]
       }

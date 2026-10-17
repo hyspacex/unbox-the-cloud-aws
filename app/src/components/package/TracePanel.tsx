@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { TraceSource, TraceStep } from "@/lib/types";
 import { substepsOf } from "@/lib/client";
-import { addMs, ms, utcTime } from "@/lib/ui/format";
+import { addMs, ms, utc, utcTime } from "@/lib/ui/format";
 import { SourceLegend, SourceSwatch, SourceTag } from "@/components/ui/SourceTag";
 import { Caret, Disclosure } from "@/components/ui/Disclosure";
 import { T_BASE } from "@/lib/ui/motion";
@@ -116,6 +116,9 @@ export function TracePanel({
   controls,
   onCollapse,
   stacked = false,
+  replay,
+  onEndReplay,
+  clockStartMs,
 }: {
   steps: TraceStep[];
   meta: TraceMeta;
@@ -126,6 +129,11 @@ export function TracePanel({
   onCollapse?: () => void;
   /** Stacked above the table (narrow screens): cap the list height. */
   stacked?: boolean;
+  /** Set while showing a replay of a stored run. */
+  replay?: { run_id: string; started_at?: string; speed: number } | null;
+  onEndReplay?: () => void;
+  /** Wall-clock start for the live elapsed counter (replays start now, not at the recorded time). */
+  clockStartMs?: number;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
   const followRef = useRef(true);
@@ -171,8 +179,9 @@ export function TracePanel({
 
   const total = totalOf(steps, meta, elapsedMs);
   const coverage = coverageText(steps);
-  const started = meta.started_at ? new Date(meta.started_at).getTime() : NaN;
-  const liveElapsed = running && now && !Number.isNaN(started) ? Math.max(0, now - started) : null;
+  const started = clockStartMs ?? (meta.started_at ? new Date(meta.started_at).getTime() : NaN);
+  // During a replay, show recorded time (wall time multiplied by the replay speed).
+  const liveElapsed = running && now && !Number.isNaN(started) ? Math.max(0, now - started) * (replay?.speed ?? 1) : null;
 
   // What is running now: the agent loop until quotes are validated, else the next application step.
   const top = steps.filter((s) => !isSub(s as Step));
@@ -187,6 +196,21 @@ export function TracePanel({
       aria-label="Run trace"
     >
       <header className="flex-none px-5 pt-4 pb-3 border-b hairline bg-panel-cool">
+        {replay ? (
+          <div className="mb-2 flex items-start justify-between gap-3 rounded-md border border-line-strong bg-panel px-3 py-2 text-[12.5px] text-ink-2">
+            <span>
+              <span className="font-semibold text-ink">Replay of run</span> <span className="mono">{replay.run_id}</span>
+              {replay.started_at ? <>, recorded <span className="mono">{utc(replay.started_at)}</span></> : null}
+              {replay.speed !== 1 ? <span className="text-muted"> · {replay.speed}x speed</span> : null}
+              <span className="block text-[11.5px] text-muted">Stored steps replayed with their original relative timing. Nothing is re-evaluated or written.</span>
+            </span>
+            {onEndReplay ? (
+              <button className="btn btn-ghost btn-sm !h-7 !px-2 text-muted flex-none" onClick={onEndReplay}>
+                End replay
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <AnimatePresence initial={false}>
           {!running && steps.length ? (
             <motion.div
@@ -213,7 +237,7 @@ export function TracePanel({
               className={`h-2 w-2 rounded-full flex-none ${running ? "pulse" : ""}`}
               style={{ background: running ? "var(--ink-2)" : "var(--grey-dot)" }}
             />
-            <h2 className="text-[14px] font-semibold text-ink">{running ? "Re-check running" : "Run trace"}</h2>
+            <h2 className="text-[14px] font-semibold text-ink">{running ? (replay ? "Replaying" : "Re-check running") : replay ? "Replay" : "Run trace"}</h2>
             {meta.snapshot_id ? (
               <span className="text-[12.5px] text-muted truncate">
                 {meta.prior_snapshot_id ? (

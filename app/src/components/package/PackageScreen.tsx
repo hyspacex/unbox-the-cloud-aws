@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ActionResponse, ControlRow, DisplayedStatus, PackageView, SubmitRequest, TraceStep } from "@/lib/types";
-import { api, followRun, type TaskItem } from "@/lib/client";
+import { api, followRun, type RunSummary, type TaskItem } from "@/lib/client";
 import { useKeel } from "@/components/AppProvider";
 import { CountLine } from "@/components/ui/CountLine";
 import { ErrorBlock, LoadingBlock } from "@/components/ui/States";
@@ -62,6 +62,9 @@ export function PackageScreen() {
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [scenario, setScenario] = useState<string | null>(null);
+  const [replay, setReplay] = useState<{ run_id: string; started_at?: string; speed: number; clockStart: number } | null>(null);
+  const savedRunRef = useRef<RunUi | null>(null);
+  const replayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pushedRef = useRef(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const cancelRunRef = useRef<(() => void) | null>(null);
@@ -171,7 +174,7 @@ export function PackageScreen() {
       const cancel = followRun(runId, {
         onStep: (step) => {
           setRun((r) => (r && r.runId === runId ? { ...r, steps: [...r.steps, step] } : r));
-          if (step.kind === "findings_applied") flip(runId);
+          if (step.kind === "findings_applied" || step.kind === "evaluation_completed") flip(runId);
         },
         onMeta: (m) => {
           setRun((r) =>
@@ -197,17 +200,16 @@ export function PackageScreen() {
           setRun((r) => (r && r.runId === runId ? { ...r, running: false, steps: final?.steps?.length ? final.steps : r.steps } : r));
           await flip(runId);
           loadTasks();
-          // Pick up the projection and tasks written after findings were applied, without re-animating rows.
+          // The projection and tasks are written after findings are applied. Re-read once the reveal has
+          // finished and apply that ONE response whole (header, count line and rows together).
+          await new Promise((res) => setTimeout(res, STAGGER_MS * 10 + 120));
           const v = await loadPackage();
-          if (v && !anyPending(v)) {
-            setView(v);
-            setCountLine(v.count_line);
-          }
+          if (v && !anyPending(v)) showView(v);
         },
       });
       cancelRunRef.current = cancel;
     },
-    [flip, loadPackage, loadTasks, setRunLabel],
+    [flip, loadPackage, loadTasks, setRunLabel, showView],
   );
 
   // Initial load; resume a run in progress or show the last run's trace.
@@ -289,7 +291,59 @@ export function PackageScreen() {
     setTimeout(() => el?.focus?.({ preventScroll: false }), 460);
   };
 
+  /** Replay a stored run through the same trace panel on a client clock. Read-only: no state changes. */
+  const startReplay = async (runId: string, speed: number) => {
+    replayTimersRef.current.forEach(clearTimeout);
+    replayTimersRef.current = [];
+    let t;
+    try {
+      t = await api.run(runId);
+    } catch (e) {
+      setSubmitErr(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (!replay) savedRunRef.current = run;
+    const meta: TraceMeta = {
+      run_id: t.run_id,
+      mode_label: "Replay",
+      started_at: t.started_at,
+      total_duration_ms: t.total_duration_ms,
+      snapshot_id: t.snapshot_id,
+      prior_snapshot_id: t.prior_snapshot_id,
+      compressed_timing: t.compressed_timing,
+    };
+    const clockStart = Date.now();
+    setReplay({ run_id: t.run_id, started_at: t.started_at, speed, clockStart });
+    setRunLabel({ run_id: t.run_id, mode_label: "Replay" });
+    setTraceOpen(true);
+    setRun({ runId: `replay:${t.run_id}`, steps: [], meta, running: true });
+    // Emit each step when it completed in the recording (the agent call when it started), in order.
+    let at = 0;
+    t.steps.forEach((s) => {
+      const end = s.kind === "agent_evaluation" ? s.startMs : s.startMs + (s.durationMs ?? 0);
+      at = Math.max(at, end);
+      replayTimersRef.current.push(
+        setTimeout(() => setRun((r) => (r && r.runId === `replay:${t.run_id}` ? { ...r, steps: [...r.steps, s] } : r)), at / speed),
+      );
+    });
+    const total = Math.max(at, t.total_duration_ms ?? 0);
+    replayTimersRef.current.push(
+      setTimeout(() => setRun((r) => (r && r.runId === `replay:${t.run_id}` ? { ...r, running: false } : r)), total / speed + 60),
+    );
+  };
+
+  const endReplay = () => {
+    replayTimersRef.current.forEach(clearTimeout);
+    replayTimersRef.current = [];
+    setReplay(null);
+    const prev = savedRunRef.current;
+    savedRunRef.current = null;
+    setRun(prev);
+    setRunLabel(prev ? { run_id: prev.meta.run_id ?? prev.runId, mode_label: prev.meta.mode_label ?? "Mock" } : null);
+  };
+
   const submit = async (sc?: string) => {
+    if (replay) endReplay();
     setSubmitting(true);
     setSubmitErr(null);
     try {
@@ -310,6 +364,7 @@ export function PackageScreen() {
   };
 
   const reset = async () => {
+    if (replay) endReplay();
     cancelRunRef.current?.();
     try {
       await api.reset();
@@ -352,22 +407,26 @@ export function PackageScreen() {
     );
   }
 
-  const running = Boolean(run?.running);
+  const running = Boolean(run?.running) && !replay;
+  const traceRunning = Boolean(run?.running);
   const pendingView = running || rows.some((r) => r.status.kind === "pending_recheck");
   const orderedRows = order ? order.map((id) => rows.find((r) => r.control_id === id)).filter((r): r is ControlRow => Boolean(r)) : rows;
   const extra = rows.filter((r) => !orderedRows.includes(r));
   const displayRows = [...orderedRows, ...extra];
 
   const trace =
-    run && (traceOpen || running) ? (
+    run && (traceOpen || traceRunning) ? (
       <TracePanel
         steps={run.steps}
         meta={run.meta}
         running={run.running}
-        gate={run.running ? null : view.gate}
-        elapsedMs={run.running ? null : view.elapsed_ms ?? null}
+        gate={run.running || replay ? null : view.gate}
+        elapsedMs={run.running || replay ? null : view.elapsed_ms ?? null}
         controls={view.rows.length}
         onCollapse={() => setTraceOpen(false)}
+        replay={replay}
+        onEndReplay={endReplay}
+        clockStartMs={replay?.clockStart}
       />
     ) : run ? (
       <TraceSummary steps={run.steps} meta={run.meta} gate={view.gate} elapsedMs={view.elapsed_ms ?? null} controls={view.rows.length} onExpand={() => setTraceOpen(true)} />
@@ -377,7 +436,15 @@ export function PackageScreen() {
     <Shell>
       <PackageHeader view={view} />
 
-      <SubmitBar isMock={isMock} running={running} submitting={submitting} error={submitErr} onSubmit={() => submit()} onReset={reset} />
+      <SubmitBar
+        isMock={isMock}
+        running={running}
+        submitting={submitting}
+        error={submitErr}
+        onSubmit={() => submit()}
+        onReset={reset}
+        replayControl={<ReplayControl disabled={running || submitting} onReplay={startReplay} />}
+      />
       {isMock ? (
         <Disclosure className="mt-2 ml-1" label="Other scenarios" hint="what if the model fabricates a quote, someone injects instructions, or a file cannot be read">
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
@@ -434,7 +501,7 @@ export function PackageScreen() {
         <div className={`min-w-0 order-1 xl:order-2 xl:sticky xl:top-[72px] xl:self-start ${run ? "" : "hidden xl:block"}`}>
           <AnimatePresence initial={false} mode="wait">
             {trace ? (
-              <motion.div key={run && (traceOpen || running) ? "panel" : "summary"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={T_SLOW}>
+              <motion.div key={run && (traceOpen || traceRunning) ? `panel-${run.runId}` : "summary"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={T_SLOW}>
                 {trace}
               </motion.div>
             ) : (
@@ -466,6 +533,7 @@ function SubmitBar({
   error,
   onSubmit,
   onReset,
+  replayControl,
 }: {
   isMock: boolean;
   running: boolean;
@@ -473,6 +541,7 @@ function SubmitBar({
   error: string | null;
   onSubmit: () => void;
   onReset: () => void;
+  replayControl?: React.ReactNode;
 }) {
   return (
     <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[12px] border hairline bg-panel-cool px-5 py-3">
@@ -497,6 +566,7 @@ function SubmitBar({
         </AnimatePresence>
       </div>
       <div className="flex items-center gap-3">
+        {replayControl}
         {isMock ? (
           <button className="btn btn-ghost btn-sm text-muted" onClick={onReset} disabled={running || submitting}>
             Reset to baseline
@@ -516,6 +586,90 @@ function SubmitBar({
           )}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Quiet control: pick a recorded run (newest by default) and replay it, optionally at 2x. */
+function ReplayControl({ disabled, onReplay }: { disabled: boolean; onReplay: (runId: string, speed: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [runs, setRuns] = useState<RunSummary[] | null>(null);
+  const [pick, setPick] = useState<string>("");
+  const [fast, setFast] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      setErr(null);
+      api
+        .runs()
+        .then((r) => {
+          setRuns(r);
+          setPick((p) => p || r[0]?.run_id || "");
+        })
+        .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button className="btn btn-ghost btn-sm text-muted" onClick={toggle} disabled={disabled} aria-expanded={open}>
+        Replay a recorded run
+      </button>
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={T_BASE}
+            className="absolute right-0 top-full mt-2 z-30 w-[360px] rounded-[10px] border border-line-strong bg-panel p-3"
+            style={{ boxShadow: "var(--shadow-modal)" }}
+          >
+            <div className="text-[12.5px] text-muted mb-2">
+              Replays a stored trace with its original timing. Nothing is re-evaluated or written.
+            </div>
+            {err ? <p className="text-[12px] text-red-ink">{err}</p> : null}
+            {runs && runs.length === 0 ? <p className="text-[12.5px] text-ink-2">No recorded runs yet. Submit once first.</p> : null}
+            {runs && runs.length ? (
+              <>
+                <select
+                  className="w-full h-8 rounded-lg border border-line-strong bg-white px-2 text-[12.5px] mono text-ink"
+                  value={pick}
+                  onChange={(e) => setPick(e.target.value)}
+                >
+                  {runs.map((r) => (
+                    <option key={r.run_id} value={r.run_id}>
+                      {r.run_id} · {r.prior_snapshot_id ? `${r.prior_snapshot_id}→` : ""}
+                      {r.snapshot_id}
+                      {r.scenario && r.scenario !== "architecture_v3" ? ` · ${r.scenario}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-2 flex items-center justify-between">
+                  <label className="inline-flex items-center gap-2 text-[12.5px] text-ink-2">
+                    <input type="checkbox" checked={fast} onChange={(e) => setFast(e.target.checked)} />
+                    2x speed
+                  </label>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={!pick}
+                    onClick={() => {
+                      setOpen(false);
+                      onReplay(pick, fast ? 2 : 1);
+                    }}
+                  >
+                    Replay
+                  </button>
+                </div>
+              </>
+            ) : null}
+            {!runs && !err ? <LoadingBlock lines={2} /> : null}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

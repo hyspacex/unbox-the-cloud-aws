@@ -70,6 +70,20 @@ export type TaskItem = BoxTask & {
   completed_at?: string;
 };
 
+export type RunSummary = {
+  run_id: string;
+  mode_label: "Live" | "Replay" | "Mock";
+  snapshot_id: string;
+  prior_snapshot_id?: string;
+  started_at: string;
+  total_duration_ms?: number;
+  status?: string;
+  step_count?: number;
+  compressed_timing?: boolean;
+  scenario?: string;
+  error?: string;
+};
+
 export type DraftAuthorMessage = { text: string; drafted_by: "box_ai_text_gen" | "template" | string };
 
 export const api = {
@@ -78,6 +92,10 @@ export const api = {
   finding: (id: string) => req<FindingCard>(`/api/finding/${encodeURIComponent(id)}`),
   submit: (body: SubmitRequest) => post<SubmitResponse>("/api/submit", body),
   run: (runId: string) => req<RunState>(`/api/run/${encodeURIComponent(runId)}`),
+  runs: async (): Promise<RunSummary[]> => {
+    const b = await req<{ runs?: RunSummary[] } | RunSummary[]>("/api/runs");
+    return Array.isArray(b) ? b : b.runs ?? [];
+  },
   action: (body: ActionRequest) => post<ActionResponse>("/api/action", body),
   draftAuthorMessage: (finding_id: string, reason: string) =>
     post<DraftAuthorMessage>("/api/draft-author-message", { finding_id, reason }),

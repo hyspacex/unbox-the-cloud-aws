@@ -79,7 +79,7 @@ export function verifyAction(st: ControlState, row: RowWithState, attestation: s
   return { enabled: false, reason: `Verify is disabled: no document in this package supports the ${listJoin(nouns, "or")} clause.`, attestation_phrase: attestation };
 }
 
-export function buildFindingCard(store: Store, profile: ControlProfile, config: KeelConfig, finding: Finding & { run_id?: string }): FindingCard {
+export function buildFindingCard(store: Store, profile: ControlProfile, config: KeelConfig, finding: Finding & { run_id?: string }): FindingCard & { opened_at?: string } {
   const control = profile.controls.find((c) => c.id === finding.control_id)!;
   const currentId = store.data.current_snapshot_id ?? finding.snapshot_id;
   const rows = buildRows(store, profile, currentId);
@@ -110,6 +110,9 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
     default_due_at: addBusinessDays(new Date(), profile.default_remediation_window_business_days),
     author: config.author.name,
   };
+  // A starting point for the reviewer's reason, built from the unsupported clauses; the reviewer edits it.
+  const uns = st.clause_support.filter((c) => c.support !== "supported").map((c) => clauseNoun(c.clause));
+  if (rta.enabled && uns.length) (rta as typeof rta & { suggested_reason?: string }).suggested_reason = `${listJoin(uns)} ${uns.length === 1 ? "is" : "are"} no longer supported. ${control.standard} requires ${uns.length === 1 ? "it" : "them"} restored.`;
 
   const thread = store.events
     .filter((e) => e.control_id === control.id)
@@ -127,7 +130,9 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   const decisionRow = decision === currentId ? row : buildRows(store, profile, decision).find((r) => r.control_id === control.id);
   const binding_fresh = decision === currentId || bindingsEqual(decisionRow?.state.binding, st.binding);
 
+  const opened = store.events.find((e) => e.control_id === control.id && e.snapshot_id === finding.snapshot_id && e.finding_id === finding.finding_id);
   return {
+    opened_at: opened?.ts,
     finding,
     control,
     profile_version: profile.profile_version,

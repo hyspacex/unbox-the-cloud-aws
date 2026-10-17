@@ -244,7 +244,12 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     if (p.text === null) continue;
     start = Date.now();
     const g = await gate.gate({ fileId: p.fileId, fileName: p.fileName, versionId: p.versionId, contentHash: p.contentHash }, p.text);
-    if (!g) continue; // Decider not running: the step is omitted, never faked
+    if (!g) {
+      // Decider not running: the step is omitted, never faked; keep the gate's own reason for the label.
+      const why = (gate as { lastOmissionReason?: string }).lastOmissionReason;
+      gateInfo = { ran: false, label: why ? (why.startsWith("omitted") ? why : `omitted: ${why}`) : "omitted: Decider not running" };
+      continue;
+    }
     gateResults.push(g);
     const isQ = g.injection.answer === "yes" && g.injection.probability >= config.gateInjectionThreshold;
     if (isQ) quarantined.set(p.fileId, g);
@@ -426,7 +431,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       emit({ ...s, startMs: agentStart - t0 + s.startMs, detail: s.detail ?? undefined, parent_seq: agentStep.seq } as TraceStep);
     });
   } catch (err) {
-    evalError = { code: "EVALUATOR_FAILED", message: err instanceof Error ? err.message : String(err) };
+    evalError = { code: (err as { code?: string })?.code ?? "EVALUATOR_FAILED", message: err instanceof Error ? err.message : String(err) };
   }
   agentStep.durationMs = Date.now() - agentStart;
   agentStep.prompt_hash = evalResult?.prompt_hash;

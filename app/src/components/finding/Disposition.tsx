@@ -477,7 +477,7 @@ function ReturnToAuthorModal({
                 }`}
               >
                 {draftedByBoxAi ? "Drafted by Box AI" : "Template"}
-                {mode === "mock" ? " (fixture)" : ""}
+                {mode === "mock" ? " (mock)" : ""}
               </span>
               <span className="text-[12px] text-muted">Edit before sending. Stored verbatim in the ledger.</span>
             </div>

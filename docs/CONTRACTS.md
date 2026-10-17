@@ -300,3 +300,9 @@ Design: `docs/research/51-ui-v4-1-team-review.md`, section "API additions". All 
 - With `q`, `match` is `{ start, end, section?, paragraph? }`: raw character offsets of the sentence in `text`, matched under the engine's normalization. It is null when the sentence is not in that version.
 - An unknown file, or a version no snapshot pinned, returns 404 `{ error: { code: "NOT_FOUND", message } }`.
 - `locateInText(quote, text)` in `engine/normalize.ts` is pure and has no imports. It is the offset version of `norm()`.
+
+**Round 6 follow-up: baseline header (lane B, design 2.4).** At baseline, meaning no run of this app produced the current snapshot (`trace_run_id` absent) and it is not pending:
+- `changed_line` reads "snapshot S3 · 8 verifications hold".
+- `changed_files` is `[]`.
+- `header_line` and `holds_line` are absent.
+The panel shows that single line and the expanded hold list. Once a run produces the snapshot, the three fields return as before: "architecture.md v3 · snapshot S4", "Re-checked 8 controls" and "5 verifications hold". `Trace.outcome` is unaffected.

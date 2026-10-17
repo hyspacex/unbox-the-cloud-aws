@@ -700,9 +700,11 @@ describe("Codex 15/16/18: display strings from the API", () => {
   it("header_line, holds_line, changed_files/changed_line, hover_line, pending_status across states", async () => {
     svc.reset();
     let pv = svc.getPackageView();
-    expect(pv.header_line).toBe("8 verifications hold");
-    expect(pv.holds_line).toBe("8 verifications hold");
-    expect(pv.changed_line).toBe("runbook.md v2 · snapshot S3");
+    // Baseline (lane B / design 2.4): one line, no file named, no header or holds title.
+    expect(pv.changed_line).toBe("snapshot S3 · 8 verifications hold");
+    expect(pv.changed_files).toEqual([]);
+    expect(pv.header_line).toBeUndefined();
+    expect(pv.holds_line).toBeUndefined();
     expect(pv.files!.every((f) => f.hover_line === undefined)).toBe(true);
     expect(pv.pending_status).toMatchObject({ rule: 1, kind: "pending_recheck", label: "Re-check pending", projection_code: "PENDING", tone: "grey", short: "Re-checking against the new snapshot" });
     expect(pendingStatus()).toEqual(pv.pending_status);

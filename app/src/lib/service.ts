@@ -167,6 +167,12 @@ function displayLines(s: Store, snap: import("./types").Snapshot, rows: ReturnTy
   const acked = (id: string) => rows.some((r) => r.control_id === id && hasRecordedDecision(s, r));
   const ch = changedFiles(snap, s.previousSnapshot(snap.snapshot_id), (f) => f.versionLabel ?? s.versionLabel(f.fileId, f.versionId));
   const holds = holdsLine(rows, acked);
+  // Baseline (no run of this app produced the snapshot; design 2.4): one line "snapshot S3 · 8 verifications hold",
+  // no file named, no separate header or holds title (the hold list is shown expanded).
+  if (baseline && evalState !== "pending") {
+    const h = headerLine(rows, evalState, true);
+    return { changed_files: [] as string[], changed_line: h.startsWith("Re-checked") ? `snapshot ${snap.snapshot_id}` : `snapshot ${snap.snapshot_id} · ${h}` };
+  }
   return { header_line: headerLine(rows, evalState, baseline), ...(holds ? { holds_line: holds } : {}), changed_files: ch.names, changed_line: ch.line };
 }
 

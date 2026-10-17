@@ -29,7 +29,7 @@ it needs a human, and opens a single side panel where the reviewer reads two quo
 
 Decisions I made without asking, flagged here so they can be reversed:
 
-- Panel width 420 px, slides in from the right over the Box page in 320 ms. The Box page does not dim and does not reflow.
+- Panel width 420 px, slides in from the right in 320 ms. Build change (Oct 17, after the first integrated pass): at 1180 px and wider the panel pushes the Box page aside, as Box's own details sidebar does, so Name, Updated, Version and Size stay visible; below 1180 px it overlays and the owl hides while open. The page never dims.
 - The owl speaks in the first person, short, never evaluative: it reports what it did and what needs a person. It never says a control is fine.
 - The Box details pane (the "i" icon) is kept as a native affordance and shows the `keelReview` metadata fields. It is closed by default and is not in the script. It exists so a Box judge can ask "where is this in Box" and get an answer in one click.
 - The badge count is the number of open human decisions (Needs review plus Acknowledge). After the run it reads 3.

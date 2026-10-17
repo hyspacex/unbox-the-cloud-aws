@@ -8,3 +8,4 @@ app/.env
 app/node_modules/
 app/.next/
 app/coverage/
+app/.review/

@@ -19,11 +19,14 @@ export const projectionInFlight: Set<string> = (PG.__keelProjecting ??= new Set(
 
 export const eventOpts = (config: KeelConfig) => ({ mrmModelId: config.mrmModelId, folderId: config.box.folderId });
 
-/** Most recent human disposition anywhere in the ledger, encoded for keel_last_human_review. */
+/**
+ * Most recent human review anywhere in the ledger, encoded for keel_last_human_review: a disposition,
+ * or (UI v4, judge A1) a human acknowledgment. The Confirm-finding fallback is not a review outcome.
+ */
 export function lastHumanReview(events: LedgerEvent[]): string | null {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i];
-    if (e.event_type === "human_disposition_recorded") {
+    if (e.event_type === "human_disposition_recorded" || (e.event_type === "acknowledgment_recorded" && e.actor.type === "human" && !e.fallback)) {
       return encodeLastHumanReview({ name: e.actor.name, role: e.actor.role ?? "", controlId: e.control_id ?? "", snapshotId: e.snapshot_id ?? "", utc: e.ts });
     }
   }

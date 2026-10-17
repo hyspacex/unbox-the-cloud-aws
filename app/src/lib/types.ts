@@ -272,6 +272,8 @@ export interface DisplayInputs {
   verification_holds: boolean;
   acknowledgment_required: boolean;
   acknowledgment_reason?: "evidencing file changed" | "evidencing section changed";
+  /** Added (UI v4, judge A1): a human acknowledgment recorded on this snapshot and binding; rule 11 then yields to rule 10. */
+  acknowledgment?: { actor: string; role: string; at: string };
   machine_assessment: MachineAssessment;
   change_classification: ChangeClassification;
   unsupported_clauses: string[]; // clause text of unsupported required clauses
@@ -638,7 +640,7 @@ export interface ControlRow {
   open_task_id?: string;
   /** Added (UI v4): the row waits for a human decision on its snapshot (counts toward the owl badge). */
   needs_decision?: boolean;
-  /** Added (UI v4): a human decision is recorded on the row's snapshot (disposition, or an acknowledgment that leaves the label unchanged). */
+  /** Added (UI v4): a human decision is recorded on the row's snapshot (a disposition, or an acknowledgment; an acknowledged rule-11 row reads rule 10). */
   decision_recorded?: boolean;
 }
 

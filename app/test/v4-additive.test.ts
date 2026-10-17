@@ -116,8 +116,8 @@ describe("decision_summary for each state", () => {
     expect(pv.open_decisions).toBe(0);
     expect(pv.decision_summary).toBe("All 8 recorded on S4.");
     expect(pv.files!.find((f) => f.file_name === "architecture.md")!.recorded_decisions).toBe(2);
-    // The acknowledged row keeps its engine label; only the open-decision count changes.
-    expect(pv.rows.find((r) => r.control_id === "SEC-ARCH-05")!.status.kind).toBe("acknowledge");
+    // Judge A1: the acknowledged rule-11 row reads rule 10, Verified, holds, with the acknowledgment named.
+    expect(pv.rows.find((r) => r.control_id === "SEC-ARCH-05")!.status.kind).toBe("verified_holds");
     checkView(pv);
   });
 
@@ -320,7 +320,7 @@ describe("upload-version route handler and the SSE stream", () => {
 });
 
 describe("follow-ups from lanes A and B", () => {
-  it("ControlRow.needs_decision / decision_recorded track the acknowledgment without a label change", async () => {
+  it("ControlRow.needs_decision / decision_recorded track the acknowledgment", async () => {
     await runV3();
     const row = (id: string) => svc.getPackageView().rows.find((r) => r.control_id === id)!;
     expect(row("SEC-ARCH-05")).toMatchObject({ needs_decision: true, decision_recorded: false });
@@ -329,7 +329,7 @@ describe("follow-ups from lanes A and B", () => {
     expect(c5.row.needs_decision).toBe(true);
     const a = await svc.act({ finding_id: c5.finding.finding_id, control_id: "SEC-ARCH-05", decision_snapshot_id: "S4", action: "acknowledge", message: "Section rewrite reviewed." });
     expect(a.row).toMatchObject({ needs_decision: false, decision_recorded: true });
-    expect(row("SEC-ARCH-05")).toMatchObject({ needs_decision: false, decision_recorded: true, status: { kind: "acknowledge" } });
+    expect(row("SEC-ARCH-05")).toMatchObject({ needs_decision: false, decision_recorded: true, status: { kind: "verified_holds" } });
     expect(svc.getFindingCard("SEC-ARCH-05").receipt!.tone).toBe("blue");
     svc.reset();
   });
@@ -384,6 +384,71 @@ describe("Trace.outcome.files for replay", () => {
     delete svc.internals.store().data.runs[sub.run_id].outcome!.files;
     const rebuilt = svc.getRun(sub.run_id).outcome!.files!;
     expect(rebuilt.map((f) => [f.file_name, f.version_label, f.control_ids.length, f.open_decisions])).toEqual(o.files!.map((f) => [f.file_name, f.version_label, f.control_ids.length, f.open_decisions]));
+    svc.reset();
+  });
+});
+
+describe("judge A1: an acknowledgment ends rule 11", () => {
+  it("05 reads Verified, holds (teal, VERIFIED_HOLDS), Box metadata and keel_last_human_review follow, count line updates", async () => {
+    await runV3();
+    const c7 = svc.getFindingCard("SEC-ARCH-07");
+    const d = await svc.draftAuthorMessage(c7.finding.finding_id, DANA_REASON);
+    await svc.act({ finding_id: c7.finding.finding_id, control_id: "SEC-ARCH-07", decision_snapshot_id: "S4", action: "return_to_author", reason: DANA_REASON, author_message: d.text });
+    await svc.act({ finding_id: "KEEL-2026-0408", control_id: "SEC-ARCH-22", decision_snapshot_id: "S4", action: "verify", reason: "Recovery targets present in runbook §3; binding updated." });
+    const before = svc.getPackageView().rows.find((r) => r.control_id === "SEC-ARCH-05")!;
+    expect(before.status).toMatchObject({ rule: 11, kind: "acknowledge", projection_code: "ACKNOWLEDGE", tone: "amber" });
+
+    const c5 = svc.getFindingCard("SEC-ARCH-05");
+    const a = await svc.act({ finding_id: c5.finding.finding_id, control_id: "SEC-ARCH-05", decision_snapshot_id: "S4", action: "acknowledge" });
+    expect(a.result).toBe("applied");
+    expect(a.events.some((e) => e.event_type === "box_metadata_written")).toBe(true);
+    const pv = svc.getPackageView();
+    const r5 = pv.rows.find((r) => r.control_id === "SEC-ARCH-05")!;
+    expect(r5.status).toMatchObject({ rule: 10, kind: "verified_holds", label: "Verified, holds", projection_code: "VERIFIED_HOLDS", tone: "teal", short: "Acknowledged by Dana Okafor" });
+    expect(r5.status.detail).toMatch(/^Acknowledged by Dana Okafor, 2026-/);
+    expect(r5.status.secondary).toMatch(/^Verified by Dana Okafor/); // the original review stays on the secondary line
+    expect(pv.count_line).toBe("8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author");
+    expect(pv.projection!.statuses["SEC-ARCH-05"]).toBe("VERIFIED_HOLDS");
+    const box = (await svc.internals.adapters()).box;
+    const md = await box.readFolderMetadata("318840021", "keelReview");
+    expect(md!.keel_status_SEC_ARCH_05).toBe("VERIFIED_HOLDS");
+    expect(md!.keel_last_human_review).toMatch(/\|SEC-ARCH-05\|S4\|/);
+    expect(pv.projection!.keel_last_human_review).toMatch(/^Dana Okafor\|[^|]*\|SEC-ARCH-05\|S4\|2026-/);
+    expect(pv.decision_summary).toBe("All 8 recorded on S4.");
+    expect(pv.open_decisions).toBe(0);
+    const c = svc.getFindingCard("SEC-ARCH-05");
+    expect(c.receipt).toMatchObject({ line1: "Acknowledged by Dana Okafor", line2: "on architecture.md v3 §4.2 · snapshot S4", tone: "blue" });
+    expect(c.verdict_line).toBe("The section around the verified sentence was rewritten. The sentence is unchanged.");
+    expect(c.actions.verify.enabled).toBe(false);
+    checkView(pv);
+    expect(svc.getLedger().chain_verification.ok).toBe(true);
+    svc.reset();
+  });
+
+  it("the Confirm-finding fallback (return awaiting a draft) leaves a Needs review row as it is", async () => {
+    await runV3();
+    const c7 = svc.getFindingCard("SEC-ARCH-07");
+    await svc.draftAuthorMessage(c7.finding.finding_id, DANA_REASON);
+    // A return without author_message waits for approve_author_draft: an acknowledgment_recorded with fallback confirm_finding.
+    svc.internals.store().data.drafts = {};
+    const r = await svc.act({ finding_id: c7.finding.finding_id, control_id: "SEC-ARCH-07", decision_snapshot_id: "S4", action: "return_to_author", reason: DANA_REASON });
+    expect(svc.getLedger({ control: "SEC-ARCH-07" }).events.some((e) => e.event_type === "acknowledgment_recorded" && e.fallback === "confirm_finding")).toBe(true);
+    void r;
+    const row = svc.getPackageView().rows.find((x) => x.control_id === "SEC-ARCH-07")!;
+    expect(row.status).toMatchObject({ kind: "needs_review_weakened", projection_code: "NEEDS_REVIEW_WEAKENED" });
+    expect(row.needs_decision).toBe(true);
+    expect(svc.getPackageView().projection!.keel_last_human_review ?? "").not.toMatch(/SEC-ARCH-07\|S4/);
+    svc.reset();
+  });
+
+  it("an acknowledgment on S4 does not carry to a later snapshot's re-evaluation", async () => {
+    await runV3();
+    const c5 = svc.getFindingCard("SEC-ARCH-05");
+    await svc.act({ finding_id: c5.finding.finding_id, control_id: "SEC-ARCH-05", decision_snapshot_id: "S4", action: "acknowledge" });
+    const { displayStatus } = await import("../src/lib/engine/display");
+    const base = { current_snapshot_id: "S5", current_disposition: null, prior_verification: { actor: "Dana Okafor", role: "r", snapshot_id: "S2", fileId: "f", fileName: "a.md", versionId: "v", verified_at: "t", event_id: "E" }, verification_holds: false, acknowledgment_required: true, acknowledgment_reason: "evidencing section changed" as const, machine_assessment: "evidence_found" as const, change_classification: "unchanged" as const, unsupported_clauses: [], evaluation_state: "complete" as const, tier: "High" as const };
+    expect(displayStatus(base).kind).toBe("acknowledge");
+    expect(displayStatus({ ...base, acknowledgment: { actor: "Dana Okafor", role: "r", at: "t" } }).kind).toBe("verified_holds");
     svc.reset();
   });
 });

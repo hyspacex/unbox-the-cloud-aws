@@ -427,9 +427,11 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
       note:
         view.resolution_state === "approved"
           ? "approved without the attestation phrase: recorded as an acknowledgment; no disposition"
-          : "task completed: acknowledgment recorded; no disposition; the row label is unchanged",
+          : "task completed: acknowledgment recorded; no disposition; an Acknowledge row then reads Verified, holds (rule 10)",
     });
     setStage("acknowledged");
+    // Judge A1: the acknowledgment changes the displayed status (rule 11 yields to rule 10) and keel_last_human_review: reproject.
+    await publishProjection({ store, box, profile, config, snapshotId: snap, extra: { phase: "live" } }).then((r) => events.push(r.event));
     return { result: resultKind, mapped_action: "acknowledged", explanation: clientNote + "Acknowledgment recorded; no disposition written.", events };
   }
 

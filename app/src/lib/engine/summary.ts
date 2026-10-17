@@ -41,7 +41,13 @@ type RowLike = Pick<ControlRow, "control_id" | "status" | "severity" | "evidenci
 /** A human decision recorded on the row's snapshot: a disposition shown by the row, or an acknowledgment. */
 export function recordedOnRow(row: RowLike, acknowledged: boolean): boolean {
   if (DISPOSITION_KINDS.includes(row.status.kind)) return true;
+  if (acknowledgedHolds(row)) return true; // judge A1: an acknowledged rule-11 row reads rule 10 with the acknowledgment
   return row.status.kind === "acknowledge" && acknowledged;
+}
+
+/** Rule 10 reached through a recorded acknowledgment (display.ts names it on the detail line). */
+export function acknowledgedHolds(row: Pick<ControlRow, "status">): boolean {
+  return row.status.kind === "verified_holds" && /^Acknowledged by /.test(row.status.detail ?? "");
 }
 export function needsDecisionOnRow(row: RowLike, acknowledged: boolean): boolean {
   return OPEN_DECISION_KINDS.includes(row.status.kind) && !recordedOnRow(row, acknowledged);
@@ -222,6 +228,9 @@ export function receiptFor(store: Store, row: RowWithState): FindingReceipt | nu
   if (disp && disp.snapshot_id === snap && DISPOSITION_KINDS.includes(row.status.kind)) {
     human = disp;
     kind = row.status.kind === "verified" ? "verified" : row.status.kind === "returned_to_author" ? "returned_to_author" : "other";
+  } else if (acknowledgedHolds(row) && st.acknowledgment_event) {
+    human = st.acknowledgment_event;
+    kind = "acknowledged";
   } else if (row.status.kind === "acknowledge") {
     human = acknowledgmentOn(store, row.control_id, snap);
     if (human) kind = "acknowledged";

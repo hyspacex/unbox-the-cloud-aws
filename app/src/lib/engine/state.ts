@@ -43,6 +43,11 @@ export interface ControlState {
   staleness_event: LedgerEvent | null;
   current_disposition: DispositionRecord | null;
   current_disposition_event: LedgerEvent | null;
+  /**
+   * Added (UI v4, judge A1): a human acknowledgment recorded on this snapshot for the current evaluation
+   * (same finding), with no later disposition. Not the Confirm-finding fallback.
+   */
+  acknowledgment_event: LedgerEvent | null;
   prior_verification: PriorVerification | null;
   prior_verification_event: LedgerEvent | null;
   finding_id?: string;
@@ -156,15 +161,23 @@ export function deriveControlState(store: Store, control: Control, snapshotId: s
   let evalEvent: LedgerEvent | null = null;
   let staleness: LedgerEvent | null = null;
   let disp: LedgerEvent | null = null;
+  let ackEvent: LedgerEvent | null = null;
   for (const e of events) {
     if (e.snapshot_id !== snapshotId || e.control_id !== control.id) continue;
     if (EVAL_TYPES.has(e.event_type)) {
       evalEvent = e;
       staleness = null; // a re-evaluation supersedes earlier staleness on the same snapshot
+      ackEvent = null; // and an acknowledgment of the earlier evaluation
     }
+    if (e.event_type === "acknowledgment_recorded" && e.actor.type === "human" && !e.fallback) ackEvent = e;
     if (e.event_type === "verification_holds" || e.event_type === "verification_requires_acknowledgment" || e.event_type === "binding_changed") staleness = e;
-    if (e.event_type === "human_disposition_recorded") disp = e;
+    if (e.event_type === "human_disposition_recorded") {
+      disp = e;
+      ackEvent = null; // a newer disposition supersedes the acknowledgment
+    }
   }
+  // The acknowledgment must answer the current evaluation (its finding), i.e. the current binding.
+  if (ackEvent && evalEvent?.finding_id && ackEvent.finding_id && ackEvent.finding_id !== evalEvent.finding_id) ackEvent = null;
   const snapState = snapshotEvaluationState(events, snapshotId);
   // History is bounded to the viewed snapshot: S3's row never names a later S4 review (Codex finding 15).
   const pvEvent = latestVerification(events, control.id, historyBound(events, store.data.snapshots.map((x) => x.snapshot_id), snapshotId));
@@ -203,6 +216,7 @@ export function deriveControlState(store: Store, control: Control, snapshotId: s
     staleness_event: staleness,
     current_disposition: disp ? dispositionRecordFromEvent(disp) : null,
     current_disposition_event: disp,
+    acknowledgment_event: ackEvent,
     prior_verification: pvEvent ? priorVerificationFromEvent(pvEvent) : null,
     prior_verification_event: pvEvent,
     finding_id: (evalEvent?.finding_id as string | undefined) ?? undefined,
@@ -218,6 +232,7 @@ export function displayInputsFor(st: ControlState, priorDisplayed?: string): Dis
     verification_holds: st.verification_holds,
     acknowledgment_required: st.acknowledgment_required,
     acknowledgment_reason: st.acknowledgment_reason,
+    ...(st.acknowledgment_event ? { acknowledgment: { actor: st.acknowledgment_event.actor.name, role: st.acknowledgment_event.actor.role ?? "", at: st.acknowledgment_event.ts } } : {}),
     machine_assessment: st.machine_assessment,
     change_classification: st.change_classification,
     unsupported_clauses: st.clause_support.filter((c) => c.support !== "supported").map((c) => c.clause),

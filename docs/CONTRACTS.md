@@ -192,3 +192,13 @@ Examples: "Key-management evidence missing", "Same sentence, now in runbook.md",
 - `ControlRow.needs_decision?` and `ControlRow.decision_recorded?` are booleans, computed by `decisionFlags()` in `summary.ts`. An acknowledgment sets `decision_recorded` without changing the label.
 - `Trace.outcome.open_decisions?`, `Trace.outcome.decision_summary?` and `Trace.outcome.files?: PackageFile[]` are written when the outcome is recorded. Older runs get them on read, from the recorded rows and `outcome.snapshot`.
 - `POST /api/upload-version` accepts the same `scenario` values as `POST /api/submit`.
+
+**Round 5 engine decision (judge A1): an acknowledgment ends rule 11.** Spec v3.4 defines rule 11 for a verification whose materiality requires an acknowledgment. It does not say what the row displays once that acknowledgment is recorded. Keel decides it here, additively.
+- **When it applies.** A human `acknowledgment_recorded` event exists for the control on the current snapshot. It must answer the current evaluation's finding, so it is on the current binding, and no disposition may be newer. The Confirm-finding fallback (`fallback: "confirm_finding"`) does not count.
+- **What the row shows.** Rule 11 no longer fires, and the row reads rule 10, "Verified, holds": tone teal, `projection_code` VERIFIED_HOLDS.
+  The secondary line still names the original review. `detail` reads "Acknowledged by Dana Okafor, <utc>" and `short` reads "Acknowledged by Dana Okafor".
+- **Engine plumbing.** `DisplayInputs.acknowledgment?: { actor, role, at }` is added, and `ControlState.acknowledgment_event` is added on the internal state.
+- **Box metadata.** An acknowledgment reprojects folder metadata. `keel_last_human_review` now takes the latest human disposition or non-fallback acknowledgment, encoded as `name|role|controlId|snapshotId|utc`.
+- **Unchanged.** The Confirm-finding fallback leaves a Needs review row as Needs review. A re-evaluation, such as a new snapshot, starts without the acknowledgment.
+- **Count line.** After the demo's three actions (return 07, verify 22, acknowledge 05) it reads "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author". The fixture's `expected_count_line_after` is still the line after the first two actions, "… 5 Verified holds, 1 Acknowledge (High), 1 Verified, 1 Returned to author".
+- `needs_decision` and `decision_recorded` behave as before. The acknowledgment receipt stays blue.

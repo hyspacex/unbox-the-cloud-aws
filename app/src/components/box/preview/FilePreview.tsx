@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
-import { api } from "@/lib/client";
+import { ApiError, api } from "@/lib/client";
 import { useKeelState } from "@/components/KeelStateProvider";
 import { BoxDropdown } from "../UploadMenu";
 import { boxDate, boxSize } from "../format";
@@ -38,23 +38,23 @@ type FileText = {
  * GET /api/file-text?file_id&version_id. While the route is not deployed (a bare 404), the finding card named by `c`
  * supplies the section text of its versions, labelled as an excerpt.
  */
-async function loadFileText(fileId: string, versionId: string | null, controlId: string | null, signal: AbortSignal): Promise<FileText> {
-  const qs = new URLSearchParams({ file_id: fileId });
-  if (versionId) qs.set("version_id", versionId);
-  const res = await fetch(`/api/file-text?${qs}`, { signal, cache: "no-store", headers: { Accept: "application/json" } });
-  if (res.ok) return (await res.json()) as FileText;
-  const body = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
-  if (body?.error?.code) throw new Error(body.error.message ?? "This version is not in any snapshot.");
-  if (!controlId) throw new Error("The document preview is not available yet.");
+/**
+ * GET /api/file-text through the client. The highlight itself is found client-side with the same engine `norm` the
+ * route uses for `match`, because it must land on rendered blocks rather than raw markdown offsets. If the route is
+ * absent (a bare 404 without an error code), the finding card named by `c` supplies its section text as an excerpt.
+ */
+async function loadFileText(fileId: string, versionId: string, controlId: string | null, signal: AbortSignal): Promise<FileText> {
+  try {
+    return (await api.fileText(fileId, versionId, null, signal)) as FileText;
+  } catch (e) {
+    const code = e instanceof ApiError && e.body && typeof e.body === "object" ? (e.body as { error?: { code?: string } }).error?.code : undefined;
+    if (!(e instanceof ApiError) || code || e.status !== 404 || !controlId) throw e;
+  }
   const card = await api.finding(controlId, signal);
   const sides = [card.prior_version, card.old_location, card.new_version]
     .filter((x): x is NonNullable<typeof x> => Boolean(x))
     .map((x) => ({ file: x.file, section: x.section, text: x.text }))
     .filter((x) => x.file.fileId === fileId && x.text);
-  const versions: FileVersion[] = [];
-  sides.forEach((x) => {
-    if (!versions.some((v) => v.version_id === x.file.versionId)) versions.push({ version_id: x.file.versionId, version_label: x.file.versionLabel });
-  });
   const chosen = sides.find((x) => x.file.versionId === versionId) ?? sides[sides.length - 1];
   if (!chosen) throw new Error("The document preview is not available yet.");
   return {
@@ -63,7 +63,6 @@ async function loadFileText(fileId: string, versionId: string | null, controlId:
     version_id: chosen.file.versionId,
     version_label: chosen.file.versionLabel,
     text: `## ${chosen.section ?? ""}\n\n${chosen.text ?? ""}`,
-    versions,
     excerpt: true,
   };
 }

@@ -91,6 +91,20 @@ export type RunSummary = {
   has_outcome?: boolean;
 };
 
+/** GET /api/file-text (docs/CONTRACTS.md, Round 6). `match` holds raw offsets into `text` when `q` was given. */
+export type FileTextResponse = {
+  file_id: string;
+  file_name: string;
+  version_id: string;
+  version_label?: string;
+  created_at?: string;
+  uploader?: string;
+  text: string;
+  snapshot_ids?: string[];
+  versions?: { version_id: string; version_label?: string; created_at?: string; uploader?: string; snapshot_ids?: string[] }[];
+  match?: { start: number; end: number; section?: string; paragraph?: number } | null;
+};
+
 export type DraftAuthorMessage = { text: string; drafted_by: "box_ai_text_gen" | "template" | string };
 
 /** Finding cards already fetched, so the drawer opens filled (B5). Cleared on every new run. */
@@ -120,6 +134,12 @@ export const api = {
   /** UI v4: Upload new version. Mock: submit architecture_v3 (or `scenario`). Live: Box upload, then submit. */
   uploadVersion: (body: { file_name: string; file_id?: string; scenario?: SubmitRequest["scenario"] | (string & {}); content_base64?: string }) =>
     post<SubmitResponse>("/api/upload-version", body),
+  /** UI v4.1 Box preview: the pinned text of one file version (any snapshot's), its known versions, and an optional `q` match. */
+  fileText: (fileId: string, versionId: string, q?: string | null, signal?: AbortSignal) => {
+    const qs = new URLSearchParams({ file_id: fileId, version_id: versionId });
+    if (q) qs.set("q", q);
+    return req<FileTextResponse>(`/api/file-text?${qs}`, { signal });
+  },
   run: (runId: string, signal?: AbortSignal) => req<RunState>(`/api/run/${encodeURIComponent(runId)}`, { signal }),
   runs: async (signal?: AbortSignal): Promise<RunSummary[]> => {
     const b = await req<{ runs?: RunSummary[] } | RunSummary[]>("/api/runs", { signal });

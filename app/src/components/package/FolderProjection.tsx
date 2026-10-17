@@ -11,6 +11,7 @@ export function FolderProjection({
   defaultOpen = false,
   folderName,
   writing = false,
+  note,
 }: {
   projection: FP | null;
   currentSnapshotId: string;
@@ -18,6 +19,7 @@ export function FolderProjection({
   folderName?: string;
   /** A run is in progress or its metadata write has not landed yet: show it as in flight, not as a warning. */
   writing?: boolean;
+  note?: string;
 }) {
   if (!projection) {
     return <div className="text-[13px] text-muted">In Box: no folder metadata written yet for this package.</div>;
@@ -37,7 +39,9 @@ export function FolderProjection({
         </span>
       }
       hint={
-        inFlight ? (
+        note ? (
+          <span className="text-muted">· {note}</span>
+        ) : inFlight ? (
           <span className="text-muted">· Writing {currentSnapshotId} to Box metadata…</span>
         ) : (
           <span className={failed ? "text-red-ink" : ""}>

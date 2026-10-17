@@ -97,6 +97,7 @@ export function TraceLine({
   onToggle,
   clockStartMs,
   replaySpeed,
+  startingLabel,
 }: {
   steps: TraceStep[];
   meta: TraceMeta;
@@ -107,6 +108,7 @@ export function TraceLine({
   onToggle: () => void;
   clockStartMs?: number;
   replaySpeed?: number;
+  startingLabel?: string;
 }) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -131,6 +133,7 @@ export function TraceLine({
       </span>
       {running && live != null ? <span className="mono text-[12px] text-muted tabular-nums whitespace-nowrap">· {ms(live)}</span> : null}
       {running && last ? <span className="text-muted truncate">· {last.label}</span> : null}
+      {running && !last && startingLabel ? <span className="text-muted truncate">· {startingLabel}…</span> : null}
       {!running && meta.run_id ? <span className="mono text-[12px] text-muted truncate">· {meta.run_id}</span> : null}
     </button>
   );
@@ -201,6 +204,7 @@ export function TracePanel({
   clockStartMs,
   summary,
   maxHeight,
+  startingLabel,
 }: {
   steps: TraceStep[];
   meta: TraceMeta;
@@ -219,6 +223,8 @@ export function TracePanel({
   summary?: RunSummaryCounts;
   /** Fixed height (popover use): header and footer stay put, only the step list scrolls. */
   maxHeight?: number;
+  /** Shown before the first step arrives, e.g. "Pinning 5 files". */
+  startingLabel?: string;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
   const userUpAt = useRef(0);
@@ -283,7 +289,7 @@ export function TracePanel({
   const lastTop = top[top.length - 1];
   const inAgent = lastTop?.kind === "agent_evaluation" && !steps.some((s) => s.kind === "quotes_validated");
   const sinceLast = running ? clock.since : 0;
-  const workingLabel = steps.length === 0 ? "Starting" : inAgent ? "Agent working" : "Working";
+  const workingLabel = steps.length === 0 ? startingLabel ?? "Starting" : inAgent ? "Agent working" : "Working";
 
   return (
     <section
@@ -367,6 +373,7 @@ export function TracePanel({
       <ol
         ref={listRef}
         onScroll={onScroll}
+        style={{ maskImage: "linear-gradient(to bottom, transparent 0, black 16px)", WebkitMaskImage: "linear-gradient(to bottom, transparent 0, black 16px)" }}
         className={`flex-1 min-h-0 px-2 py-2 overflow-y-auto scroll-quiet ${maxHeight ? "" : stacked ? "max-h-[420px]" : "max-h-[560px] xl:max-h-none"}`}
         aria-live="polite"
       >

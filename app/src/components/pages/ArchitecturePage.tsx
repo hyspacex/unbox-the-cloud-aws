@@ -152,7 +152,15 @@ function FlowStrip() {
       <div className="flex flex-wrap xl:flex-nowrap items-start gap-y-6">
         {FLOW.map((n, i) => (
           <div key={n.title} className="contents">
-          {i === 3 ? <div className="basis-full h-0 xl:hidden" aria-hidden /> : null}
+          {i === 3 ? (
+            <div className="basis-full xl:hidden -mt-4 -mb-3" aria-hidden>
+              {/* Down-and-back connector: box 3 (agent) continues to box 4 (code) on the next row. */}
+              <svg width="600" height="34" viewBox="0 0 600 34" className="block">
+                <path d="M483 2 V16 H83 V30" fill="none" stroke="var(--faint)" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M78 25 L83 31 L88 25" fill="none" stroke="var(--faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          ) : null}
           <div className="flex items-start">
             <div className="flex flex-col w-[166px]">
               <div className="rounded-[10px] border border-line-strong bg-white px-3.5 py-3 min-h-[118px]" style={{ boxShadow: `inset 0 3px 0 ${n.color}` }}>

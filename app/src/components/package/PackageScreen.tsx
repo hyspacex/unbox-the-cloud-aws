@@ -101,7 +101,7 @@ export function PackageScreen() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [scenario, setScenario] = useState<string | null>(null);
   const [confirmScenario, setConfirmScenario] = useState<string | null>(null);
-  const [replay, setReplay] = useState<{ run_id: string; started_at?: string; speed: number; clockStart: number } | null>(null);
+  const [replay, setReplay] = useState<{ run_id: string; started_at?: string; speed: number; clockStart: number; storeSnapshot?: string } | null>(null);
   const savedRunRef = useRef<RunUi | null>(null);
   const savedSnapRef = useRef<Snap | null>(null);
   const replayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -407,6 +407,17 @@ export function PackageScreen() {
     };
   }, [replay, openId, run, startFollowing, showView, loadTasks, showStoredRun]);
 
+  // A card that is no longer on the snapshot asks the package to reload (judge3 C10).
+  useEffect(() => {
+    const onReload = async () => {
+      const v = await loadPackage();
+      if (v) showView(v);
+      loadTasks();
+    };
+    window.addEventListener("keel:reload-package", onReload);
+    return () => window.removeEventListener("keel:reload-package", onReload);
+  }, [loadPackage, showView, loadTasks]);
+
   // Drawer is portalled: close it if this route is hidden by Activity.
   useLayoutEffect(() => () => setOpenId(null), []);
 
@@ -459,6 +470,11 @@ export function PackageScreen() {
       if (view) savedSnapRef.current = { view, rows, countLine };
     }
     const saved = savedSnapRef.current;
+    const outcome = t.outcome;
+    if (!outcome?.rows || !saved) {
+      setSubmitErr("This run has no recorded outcome, so it cannot be replayed.");
+      return;
+    }
     const meta: TraceMeta = {
       run_id: t.run_id,
       mode_label: "Replay",
@@ -468,17 +484,40 @@ export function PackageScreen() {
       prior_snapshot_id: t.prior_snapshot_id,
       compressed_timing: t.compressed_timing,
     };
+    // A1: the replay shows the RECORDED outcome, whatever the store holds now. The header shows the
+    // replayed snapshot until End replay; nothing is written.
+    const snap = outcome.snapshot ?? { ...saved.view.snapshot, snapshot_id: outcome.snapshot_id };
+    const recordedView: PackageView = {
+      ...saved.view,
+      snapshot: snap,
+      prior_snapshot_id: outcome.prior_snapshot_id ?? saved.view.prior_snapshot_id,
+      rows: outcome.rows,
+      count_line: outcome.count_line ?? saved.view.count_line,
+      evaluation_state: "complete",
+    };
     const clockStart = wallNow();
     const key = `replay:${t.run_id}`;
-    setReplay({ run_id: t.run_id, started_at: t.started_at, speed, clockStart });
+    setReplay({ run_id: t.run_id, started_at: t.started_at, speed, clockStart, storeSnapshot: saved.view.snapshot.snapshot_id });
     setRunLabel({ run_id: t.run_id, mode_label: "Replay" });
     setTraceOpen(true);
-    setRun({ runId: key, steps: [], meta, running: true });
+    setRun({ runId: key, steps: [], meta, running: true, summary: (t as WithSummary).summary });
     clearTimers();
-    if (saved) {
-      setPriorCount(saved.countLine);
-      setRows(saved.rows.map(pendingOf));
-    }
+    // Pending: the recorded pending count line over the struck prior line, rows held at Re-check pending.
+    const priorRows = saved.rows.length === outcome.rows.length ? saved.rows : outcome.rows;
+    setView({ ...saved.view, snapshot: snap });
+    setCountLine(outcome.pending_count_line);
+    setPriorCount(outcome.prior_count_line ?? saved.countLine);
+    setOrder(orderById(priorRows).map((r) => r.control_id));
+    setRows(priorRows.map(pendingOf));
+    const flipToRecorded = () => {
+      // One commit: header, count line and the whole row set swap together; no per-row cascade.
+      clearTimers();
+      setView(recordedView);
+      setCountLine(recordedView.count_line);
+      setPriorCount(null);
+      setOrder((allHold(outcome.rows!) ? orderById(outcome.rows!) : orderByAttention(outcome.rows!)).map((r) => r.control_id));
+      setRows(outcome.rows!);
+    };
     let at = 0;
     let flipped = false;
     t.steps.forEach((s) => {
@@ -487,10 +526,9 @@ export function PackageScreen() {
       replayTimersRef.current.push(
         setTimeout(() => {
           setRun((r) => (r && r.runId === key ? { ...r, steps: [...r.steps, s] } : r));
-          if (!flipped && saved && (s.kind === "findings_applied" || s.kind === "evaluation_completed")) {
+          if (!flipped && (s.kind === "findings_applied" || s.kind === "evaluation_completed")) {
             flipped = true;
-            // Flip back to the package as it is now; the replay never changes state.
-            revealView(saved.view);
+            flipToRecorded();
           }
         }, at / speed),
       );
@@ -499,7 +537,7 @@ export function PackageScreen() {
     replayTimersRef.current.push(
       setTimeout(() => {
         setRun((r) => (r && r.runId === key ? { ...r, running: false } : r));
-        if (!flipped && saved) revealView(saved.view);
+        if (!flipped) flipToRecorded();
       }, total / speed + 60),
     );
   };
@@ -532,10 +570,14 @@ export function PackageScreen() {
         if (base) showView(base);
       }
       setScenario(sc ?? null);
+      // C5: the trace slot answers at click time; the real run replaces this placeholder.
+      setRun({ runId: "starting", steps: [], meta: { snapshot_id: undefined }, running: true });
+      setTraceOpen(true);
       const res = await api.submit(isMock ? { scenario: (sc ?? "architecture_v3") as SubmitRequest["scenario"] } : {});
       startFollowing(res.run_id, { run_id: res.run_id, snapshot_id: res.snapshot_id }, sc && sc !== "architecture_v3" ? viewRef.current?.count_line : prior);
     } catch (e) {
       setSubmitErr(e instanceof Error ? e.message : String(e));
+      setRun((r) => (r?.runId === "starting" ? null : r));
     } finally {
       setSubmitting(false);
     }
@@ -624,6 +666,7 @@ export function PackageScreen() {
       replay={replay}
       onEndReplay={endReplay}
       clockStartMs={replay?.clockStart}
+      startingLabel={`Pinning ${view.snapshot.files.length} files`}
     />
   ) : null;
 
@@ -648,7 +691,15 @@ export function PackageScreen() {
         onReset={reset}
         scenarioUpload={scen?.upload}
         scenarioTitle={scen?.title}
-        replayControl={<ReplayControl disabled={running || submitting || Boolean(replay)} onReplay={startReplay} />}
+        replayControl={
+          replay ? (
+            <button className="btn btn-secondary btn-sm" onClick={endReplay}>
+              End replay
+            </button>
+          ) : (
+            <ReplayControl disabled={running || submitting} onReplay={startReplay} />
+          )
+        }
       />
       {isMock ? (
         <Disclosure className="mt-2 ml-1" label="Other scenarios" hint="what if the model fabricates a quote, someone injects instructions, or a file cannot be read">
@@ -684,22 +735,6 @@ export function PackageScreen() {
               </button>
             </div>
           ) : null}
-          {view.awaiting_drafts && view.awaiting_drafts.length ? (
-            <div className="mb-3 rounded-[10px] border border-blue-line bg-blue-bg/50 px-4 py-2.5 text-[13px] text-ink-2" role="status">
-              <span className="font-medium text-blue-ink">
-                {view.awaiting_drafts.length} author {view.awaiting_drafts.length === 1 ? "task" : "tasks"} awaiting the reviewer&apos;s approval of the Box AI draft
-              </span>
-              {" · "}
-              {view.awaiting_drafts.map((d, i) => (
-                <span key={d.finding_id}>
-                  {i ? ", " : ""}
-                  <button type="button" className="link mono text-[12.5px]" onClick={() => openFinding(d.finding_id, false, d.control_id)}>
-                    {d.control_id} {d.finding_id}
-                  </button>
-                </span>
-              ))}
-            </div>
-          ) : null}
           <div className="mb-3">
             <CountLine text={countLine} className="text-[18px] leading-snug text-ink tracking-[-0.01em]" />
             {priorCount && priorCount !== countLine ? <p className="mt-0.5 text-[12.5px] struck">{priorCount}</p> : null}
@@ -721,6 +756,7 @@ export function PackageScreen() {
                 }}
                 clockStartMs={replay?.clockStart}
                 replaySpeed={replay?.speed}
+                startingLabel={`Pinning ${view.snapshot.files.length} files`}
               />
               <AnimatePresence initial={false}>
                 {lineOpen ? (
@@ -771,12 +807,14 @@ export function PackageScreen() {
             </div>
           ) : null}
           <ControlRows
+            key={`${view.snapshot.snapshot_id}-${replay?.run_id ?? "live"}`}
             rows={displayRows}
             ordering={order ? "attention" : "id"}
             onOpen={(r) => openFinding(r.finding_id ?? r.control_id, false, r.control_id)}
             selectedId={openId}
             holdsDefaultOpen={pendingView ? undefined : allHold(rows) ? true : false}
             preserveOrder={Boolean(order)}
+            awaiting={(view.awaiting_drafts ?? []).map((d) => d.control_id)}
           />
           <p className="mt-2 text-[12px] text-muted">
             Select a row to open its finding card. Statuses come from the{" "}
@@ -792,10 +830,11 @@ export function PackageScreen() {
               <FolderProjection
                 key={`${view.snapshot.snapshot_id}-${Boolean(run) && !running}`}
                 projection={view.projection}
-                currentSnapshotId={view.snapshot.snapshot_id}
+                currentSnapshotId={replay?.storeSnapshot ?? view.snapshot.snapshot_id}
                 defaultOpen={Boolean(run) && !running}
                 folderName={view.header.folderName}
-                writing={Boolean((view as PackageView & { projection_in_flight?: boolean }).projection_in_flight) || running}
+                writing={!replay && (Boolean((view as PackageView & { projection_in_flight?: boolean }).projection_in_flight) || running)}
+                note={replay ? "Replay: Box metadata is shown as it is now; a replay writes nothing." : undefined}
               />
             </div>
             <OpenTasks tasks={tasks} error={tasksErr} />
@@ -861,8 +900,7 @@ export function PackageScreen() {
         }
       >
         <p className="text-[14px] text-ink-2">
-          This resets to baseline and discards {humanDecisions} recorded {humanDecisions === 1 ? "decision" : "decisions"}. Run{" "}
-          {SCENARIOS.find((s) => s.id === confirmScenario)?.title ?? "this scenario"}?
+          This resets to baseline and discards {humanDecisions} recorded {humanDecisions === 1 ? "decision" : "decisions"}.
         </p>
       </Modal>
     </Shell>
@@ -898,7 +936,7 @@ function SubmitBar({
 }) {
   return (
     <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[12px] border hairline bg-panel-cool px-5 py-3">
-      <div className="min-w-[320px] flex-1 text-[13.5px] text-ink-2">
+      <div className="min-w-[240px] flex-1 text-[13.5px] text-ink-2">
         {isMock ? (
           scenarioUpload ? (
             <>
@@ -906,8 +944,13 @@ function SubmitBar({
             </>
           ) : (
             <>
-              <span className="font-medium text-ink">Mock mode.</span> Submitting plays <span className="mono">architecture.md</span> v3 from the
-              fixture into the mock Box folder.
+              <span className="hidden xl:inline">
+                <span className="font-medium text-ink">Mock mode.</span> Submitting plays <span className="mono">architecture.md</span> v3 from the
+                fixture into the mock Box folder.
+              </span>
+              <span className="xl:hidden">
+                <span className="font-medium text-ink">Mock:</span> plays <span className="mono">architecture.md</span> v3 into the mock Box folder
+              </span>
             </>
           )
         ) : (
@@ -931,7 +974,7 @@ function SubmitBar({
             Reset to baseline
           </button>
         ) : null}
-        <button className="btn btn-primary !h-10 !px-4" onClick={onSubmit} disabled={running || submitting || locked}>
+        <button className="btn btn-primary !h-10 !px-4 w-[318px]" onClick={onSubmit} disabled={running || submitting || locked}>
           {running ? (
             <>
               <span className="h-1.5 w-1.5 rounded-full bg-white pulse" /> Re-check running
@@ -966,7 +1009,7 @@ function ReplayControl({ disabled, onReplay }: { disabled: boolean; onReplay: (r
         .runs()
         .then((r) => {
           setRuns(r);
-          setPick((p) => p || r[0]?.run_id || "");
+          setPick((p) => p || r.find((x) => x.has_outcome !== false)?.run_id || "");
         })
         .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
     }
@@ -1000,13 +1043,17 @@ function ReplayControl({ disabled, onReplay }: { disabled: boolean; onReplay: (r
                   onChange={(e) => setPick(e.target.value)}
                 >
                   {runs.map((r) => (
-                    <option key={r.run_id} value={r.run_id}>
+                    <option key={r.run_id} value={r.run_id} disabled={r.has_outcome === false}>
                       {r.run_id} · {r.prior_snapshot_id ? `${r.prior_snapshot_id}→` : ""}
                       {r.snapshot_id}
                       {r.scenario && r.scenario !== "architecture_v3" ? ` · ${r.scenario}` : ""}
+                      {r.has_outcome === false ? " · no recorded outcome" : ""}
                     </option>
                   ))}
                 </select>
+                {runs.some((r) => r.has_outcome === false) ? (
+                  <p className="mt-1.5 text-[11.5px] text-muted">Runs marked “no recorded outcome” were recorded before outcomes were stored and cannot be replayed.</p>
+                ) : null}
                 <div className="mt-2 flex items-center justify-between">
                   <label className="inline-flex items-center gap-2 text-[12.5px] text-ink-2">
                     <input type="checkbox" checked={fast} onChange={(e) => setFast(e.target.checked)} />
@@ -1014,7 +1061,7 @@ function ReplayControl({ disabled, onReplay }: { disabled: boolean; onReplay: (r
                   </label>
                   <button
                     className="btn btn-secondary btn-sm"
-                    disabled={!pick}
+                    disabled={!pick || runs.find((x) => x.run_id === pick)?.has_outcome === false}
                     onClick={() => {
                       setOpen(false);
                       onReplay(pick, fast ? 2 : 1);

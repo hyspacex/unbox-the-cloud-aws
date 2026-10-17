@@ -126,7 +126,13 @@ export function LedgerScreen() {
                 aria-pressed={unchangedOnly}
               >
                 {unchangedOnly ? "Showing evaluations that changed nothing" : "Show evaluations that changed nothing"}
-                <span className={`tabular-nums ${unchangedOnly ? "text-white/70" : "text-faint"}`}>{scoped.filter((e) => changedNothing(e, events)).length}</span>
+                <span className={`tabular-nums ${unchangedOnly ? "text-white/70" : "text-faint"}`}>
+                  {(() => {
+                    const ev = scoped.filter((e) => changedNothing(e, events));
+                    const ctl = new Set(ev.map((e) => e.control_id).filter(Boolean)).size;
+                    return `${ev.length} ${ev.length === 1 ? "event" : "events"} · ${ctl} ${ctl === 1 ? "control" : "controls"}`;
+                  })()}
+                </span>
               </button>
             </>
           ) : (
@@ -352,6 +358,12 @@ export function ExportPanel({ manifest, error }: { manifest: ExportManifest | nu
         <h2 className="text-[14px] font-semibold text-ink">Export</h2>
         {manifest ? <span className="text-[12px] text-muted">generated {utc(manifest.exported_at)}</span> : null}
       </div>
+      {!manifest && !error ? (
+        <div className="mt-2 space-y-1.5" aria-busy="true">
+          <div className="shimmer h-3.5 w-[92%] rounded" />
+          <div className="shimmer h-3.5 w-[70%] rounded" />
+        </div>
+      ) : (
       <p className="mt-1.5 text-[12.5px] leading-[1.5] text-ink-2">
         Observed revisions, evaluations and human responses in this ledger: seed fixture
         {manifest?.run_ids.length ? (
@@ -364,11 +376,29 @@ export function ExportPanel({ manifest, error }: { manifest: ExportManifest | nu
         )}
         . {LIMITATION}
       </p>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         {manifest?.run_ids.length ? (
-          <a className="btn btn-secondary btn-sm" href="/api/export?part=csv&phase=live" download="keel-ledger-this-run.csv">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            title="Downloads the CSV of this run's events and its matching manifest"
+            onClick={() => {
+              // C8: the run-only CSV comes with the manifest that covers exactly those events.
+              const dl = (href: string, name: string) => {
+                const a = document.createElement("a");
+                a.href = href;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+              };
+              dl("/api/export?part=csv&phase=live", "keel-ledger-this-run.csv");
+              setTimeout(() => dl("/api/export?part=manifest&phase=live", "keel-manifest-this-run.json"), 300);
+            }}
+          >
             Export this run only
-          </a>
+          </button>
         ) : null}
         <a className="btn btn-secondary btn-sm" href={api.exportCsvUrl} download="keel-ledger-export.csv">
           Download CSV

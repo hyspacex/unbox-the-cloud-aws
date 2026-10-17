@@ -21,6 +21,7 @@ export function ControlRows({
   ordering = "attention",
   holdsDefaultOpen,
   preserveOrder = false,
+  awaiting,
 }: {
   rows: ControlRow[];
   onOpen?: (row: ControlRow) => void;
@@ -31,6 +32,8 @@ export function ControlRows({
   holdsDefaultOpen?: boolean;
   /** Rows arrive already in display order (the parent controls the reveal order). */
   preserveOrder?: boolean;
+  /** Control ids with a Box AI author draft awaiting approval (badge only; the notice lives in the card rail). */
+  awaiting?: string[];
 }) {
   const ordered = preserveOrder ? rows : ordering === "id" ? orderById(rows) : orderByAttention(rows);
   const holds = ordered.filter(isHold);
@@ -54,7 +57,7 @@ export function ControlRows({
           <span role="columnheader" className="sr-only">Machine detail</span>
         </div>
         {others.map((row, i) => (
-          <Row key={row.control_id} row={row} last={i === others.length - 1 && holds.length === 0} onOpen={onOpen} selected={sel(row)} />
+          <Row key={row.control_id} row={row} last={i === others.length - 1 && holds.length === 0} onOpen={onOpen} selected={sel(row)} awaitingDraft={awaiting?.includes(row.control_id)} />
         ))}
         {holds.length ? <HoldsGroup key={groupKey} holds={holds} defaultOpen={defaultOpen} onOpen={onOpen} sel={sel} /> : null}
       </div>
@@ -116,11 +119,13 @@ function Row({
   last,
   onOpen,
   selected,
+  awaitingDraft = false,
 }: {
   row: ControlRow;
   last: boolean;
   onOpen?: (row: ControlRow) => void;
   selected: boolean;
+  awaitingDraft?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const clickable = Boolean(onOpen);
@@ -132,6 +137,7 @@ function Row({
     ) : row.status.severity ? (
       critical ? (
         <span className="tag !border-[var(--amber-dot)] !text-amber-ink font-semibold" title="Severity: control tier by application tier">
+          <span className="font-normal opacity-75 mr-1">Severity</span>
           Critical
         </span>
       ) : (
@@ -151,7 +157,7 @@ function Row({
       style={critical ? { boxShadow: "inset 3px 0 0 var(--amber-dot)" } : undefined}
     >
       <div
-        className={`${GRID} px-5 py-3 items-start ${clickable ? "cursor-pointer hover:bg-paper/70 transition-colors" : ""}`}
+        className={`${GRID} px-5 py-2.5 xl:py-3 items-start ${clickable ? "cursor-pointer hover:bg-paper/70 transition-colors" : ""}`}
         onClick={() => onOpen?.(row)}
         onKeyDown={(e) => {
           // Only the row itself activates; Enter on a nested control keeps that control's behaviour.
@@ -174,8 +180,16 @@ function Row({
         <div role="cell" className="min-w-0 col-start-1 md:col-start-auto">
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={row.status} showSeverity={false} />
-            {sevTag}
-            <RuleLink rule={row.status.rule} />
+            {/* One chip grammar per row; the chip and its rule link stay together, the pill wraps first. */}
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              {sevTag}
+              <RuleLink rule={row.status.rule} />
+              {awaitingDraft ? (
+                <span className="tag !border-blue-line !text-blue-ink" title="A Box AI author-task draft is awaiting the reviewer's approval">
+                  Draft awaiting approval
+                </span>
+              ) : null}
+            </span>
           </div>
           {(row.status as { detail?: string }).detail ? (
             <div className="mt-1 text-[12.5px] leading-[1.45] text-ink-2">{(row.status as { detail?: string }).detail}</div>
@@ -197,7 +211,7 @@ function Row({
                     {sec.rest.map((p) => (
                       <span key={p}>
                         <span className="mx-1.5 text-faint">·</span>
-                        <span className={/^\d{4}/.test(p) ? "tabular-nums" : ""}>{p}</span>
+                        <span className="whitespace-nowrap tabular-nums">{p}</span>
                       </span>
                     ))}
                   </>
@@ -218,7 +232,6 @@ function Row({
                 <span className="xl:hidden">{midTruncate(row.evidencing.fileName, 22)}</span>
                 <span className="hidden xl:inline">{row.evidencing.fileName}</span>{" "}
                 <span className="text-muted">{row.evidencing.versionLabel ?? ""}</span>
-                {(row.evidencing as { quarantined?: boolean }).quarantined ? <span className="text-muted"> (quarantined)</span> : null}
               </div>
               {row.evidencing.section ? <div className="text-muted text-[12.5px] truncate">{row.evidencing.section}</div> : null}
             </>

@@ -29,6 +29,8 @@ export function EvidencePair({ card }: { card: FindingCard }) {
   const same = prior && newQuote && norm(prior.quote) === norm(newQuote);
 
   if (!prior && !newQuote) return null;
+  // C13: other verified sentences that also left the section (the hero's AES-256 sentence).
+  const moreRemoved = (card.removed_sentences ?? []).filter((r) => !prior || norm(r.quote) !== norm(prior.quote));
   return (
     <section aria-label="Reviewed and submitted sentence" className="grid gap-3 md:grid-cols-2">
       <Block
@@ -37,14 +39,22 @@ export function EvidencePair({ card }: { card: FindingCard }) {
         sub={prior?.verified_by ? `verified by ${prior.verified_by}` : undefined}
       >
         {prior ? (
-          <p className="text-[17px] leading-[1.6] text-ink">
-            <mark className="quote-mark bg-transparent text-ink">{prior.quote}</mark>
-          </p>
+          <>
+            <p className="text-[17px] leading-[1.6] text-ink">
+              <mark className="quote-mark bg-transparent text-ink">{prior.quote}</mark>
+            </p>
+            {moreRemoved.length ? (
+              <p className="mt-2 text-[12.5px] text-muted">
+                +{moreRemoved.length} more verified {moreRemoved.length === 1 ? "sentence" : "sentences"} removed (
+                {moreRemoved.map((r) => r.label ?? r.supported_clauses.join(", ")).join("; ")})
+              </p>
+            ) : null}
+          </>
         ) : (
           <p className="text-[14px] text-muted">No prior verified sentence for this control.</p>
         )}
       </Block>
-      <Block title="Submitted version" where={newLabel} sub={moved ? "the same sentence, bound to another file" : same ? "unchanged" : undefined}>
+      <Block title={moved ? "Current binding" : "Submitted version"} where={newLabel} sub={moved ? "the same sentence, bound to another file" : same ? "unchanged" : undefined}>
         {newQuote ? (
           prior && !same && !moved ? (
             <p className="text-[17px] leading-[1.6] text-ink">

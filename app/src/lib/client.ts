@@ -87,6 +87,8 @@ export type RunSummary = {
   compressed_timing?: boolean;
   scenario?: string;
   error?: string;
+  /** False for older runs recorded without their final rows: they cannot replay to an outcome. */
+  has_outcome?: boolean;
 };
 
 export type DraftAuthorMessage = { text: string; drafted_by: "box_ai_text_gen" | "template" | string };

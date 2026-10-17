@@ -72,9 +72,11 @@ export function DispositionBlock({
     <div className="rounded-lg border border-blue-line bg-blue-bg/50 px-3 py-2.5 text-[13px]">
       <div className="font-medium text-blue-ink">Box AI draft awaiting your approval</div>
       <p className="mt-0.5 text-[12px] text-ink-2">
-        The return is recorded{pendingDraft.reason ? <>: <q>{pendingDraft.reason}</q></> : null}. The author task is created only after you approve the
-        message.
+        Your reason is recorded as the Box task response. Returned to author is recorded when you approve the Box AI draft.
       </p>
+      {pendingDraft.reason ? (
+        <blockquote className="mt-1.5 border-l-2 border-blue-line pl-2 text-[12px] text-muted line-clamp-3">{pendingDraft.reason}</blockquote>
+      ) : null}
       <button className="btn btn-human btn-sm mt-2 w-full justify-between" onClick={openRta}>
         <span>Review draft and send</span>
         <ArrowIcon />
@@ -576,7 +578,8 @@ function VerifyModal({
             <span className="mono">
               {binding.fileName} {binding.versionLabel ?? binding.versionId}
             </span>
-            {binding.section ? <>, {binding.section}</> : null}, snapshot <span className="mono">{card.finding.snapshot_id}</span>.
+            {card.binding_sections?.length ? <>, {card.binding_sections.join(", ")}</> : binding.section ? <>, {binding.section}</> : null}, snapshot{" "}
+            <span className="mono">{card.finding.snapshot_id}</span>.
           </p>
         ) : null}
         <ul className="space-y-1.5">

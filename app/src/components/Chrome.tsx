@@ -18,11 +18,9 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-40 border-b hairline bg-[color-mix(in_srgb,var(--paper)_88%,transparent)] backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-[1360px] items-center gap-6 px-6 lg:px-10">
-        <Link href="/" className="flex items-baseline gap-3 min-w-0">
+        <Link href="/" className="flex flex-col xl:flex-row xl:items-baseline xl:gap-3 min-w-0 leading-tight">
           <Wordmark />
-          <span className="hidden xl:inline text-[13px] text-muted truncate">
-            Know what changed, and who reviewed that exact evidence.
-          </span>
+          <span className="text-[12px] xl:text-[13px] text-muted truncate">Know what changed, and who reviewed that exact evidence.</span>
         </Link>
         <Suspense fallback={<nav className="ml-auto" />}>
           <Nav />

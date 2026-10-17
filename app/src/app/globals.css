@@ -416,17 +416,18 @@ body {
 /* Box file table: Name keeps 260 px; as the page narrows (panel open) Actions, then Size, then Updated drop. */
 .box-table { container-type: inline-size; }
 .box-bar { container-type: inline-size; }
-.box-grid { display: grid; grid-template-columns: minmax(260px, 1fr) 120px 96px 96px 100px; }
+.box-grid { display: grid; grid-template-columns: minmax(260px, 1fr) 200px 96px 96px 100px; }
 .box-grid .col-progress { grid-column: 2 / -1; }
-@container (max-width: 671px) {
-  .box-grid { grid-template-columns: minmax(260px, 1fr) 120px 96px 96px; }
+@container (max-width: 751px) {
+  .box-grid { grid-template-columns: minmax(260px, 1fr) 200px 96px 96px; }
   .box-grid .col-actions { display: none; }
 }
-@container (max-width: 571px) {
-  .box-grid { grid-template-columns: minmax(260px, 1fr) 120px 96px; }
+@container (max-width: 651px) {
+  /* Updated narrows to 112 px (the uploader truncates, full text in the tooltip). */
+  .box-grid { grid-template-columns: minmax(260px, 1fr) 112px 96px; }
   .box-grid .col-size { display: none; }
 }
-@container (max-width: 475px) {
+@container (max-width: 467px) {
   .box-grid { grid-template-columns: minmax(260px, 1fr) 96px; }
   .box-grid .col-updated { display: none; }
 }

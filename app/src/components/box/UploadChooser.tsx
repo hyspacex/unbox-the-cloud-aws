@@ -24,6 +24,8 @@ function toBase64(file: File): Promise<string> {
 /** A small Box modal: choose the file that becomes the new version, then Upload. */
 export function UploadChooser(props: {
   open: boolean;
+  /** Live: the file preselected as the one that receives the version (from a row's ⋯ menu). */
+  initialTarget?: string;
   isMock: boolean;
   files: PackageFile[];
   onClose: () => void;
@@ -38,14 +40,16 @@ function ChooserDialog({
   files,
   onClose,
   onUpload,
+  initialTarget,
 }: {
+  initialTarget?: string;
   isMock: boolean;
   files: PackageFile[];
   onClose: () => void;
   onUpload: (req: UploadVersionRequest) => void;
 }) {
   const [picked, setPicked] = useState(true);
-  const [target, setTarget] = useState<string>("architecture.md");
+  const [target, setTarget] = useState<string>(initialTarget ?? "architecture.md");
   const [file, setFile] = useState<File | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const firstRef = useRef<HTMLInputElement>(null);

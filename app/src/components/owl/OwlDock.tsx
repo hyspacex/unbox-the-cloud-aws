@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { PUSH_QUERY } from "@/components/box/BoxShell";
 import { useKeelState, type KeelState } from "@/components/KeelStateProvider";
@@ -38,7 +38,26 @@ export function OwlDock() {
   const right = s.panel.open && pushing ? 420 + 24 : 24;
   const [settledAt, setSettledAt] = useState(right);
   const settled = settledAt === right;
-  const bubbleText = !s.panel.open && settled && s.bubble ? s.bubble.text : null;
+  // The bubble shows whenever the owl is on screen and still: with the panel closed, or pushed beside it.
+  const bubbleText = settled && s.bubble ? s.bubble.text : null;
+  const title = s.pkg?.decision_summary ? `Keel: ${s.pkg.decision_summary}` : owlLabel(s);
+  const { openPanel } = s;
+  const panelOpen = s.panel.open;
+
+  // "k" opens Keel from anywhere on the Box page (not while typing).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "k" || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (panelOpen || document.querySelector('[aria-modal="true"]')) return;
+      e.preventDefault();
+      owlRef.current?.focus();
+      openPanel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openPanel, owlRef, panelOpen]);
   const badgeShown = s.badge > 0 && (s.owl === "attention" || s.owl === "quarantine");
 
   return (
@@ -61,6 +80,8 @@ export function OwlDock() {
               ref={owlRef}
               type="button"
               aria-label={owlLabel(s)}
+              aria-keyshortcuts="k"
+              title={title}
               data-testid="owl"
               data-state={s.owl}
               onClick={() => s.openPanel()}

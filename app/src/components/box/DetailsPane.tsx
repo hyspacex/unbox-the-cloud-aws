@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import type { PackageView } from "@/lib/types";
+import { decodeLastHumanReview } from "@/lib/engine/projection";
 import { boxDate } from "./format";
 import { IconClose } from "./icons";
 
@@ -10,13 +11,23 @@ export function DetailsPane({ pkg, folderName, onClose }: { pkg: PackageView | n
   const p = pkg?.projection ?? null;
   const files = pkg?.files ?? [];
   const latest = files.map((f) => f.updated_at).filter(Boolean).sort().pop();
-  const fields: { label: string; value: string }[] = p
+  // Enum codes read as the engine's own label for that control's row (raw code as the tooltip). The UI never
+  // composes a status: when the row's current code differs from the projected one, the code itself is shown.
+  const labelFor = (id: string, code: string) => {
+    const row = pkg?.rows.find((r) => r.control_id === id);
+    return row && row.status.projection_code === code ? row.status.label : code;
+  };
+  const last = decodeLastHumanReview(p?.keel_last_human_review);
+  const lastText = last
+    ? [last.name, last.role, last.controlId, last.snapshotId, last.utc ? `${last.utc.slice(11, 16)}Z` : ""].filter(Boolean).join(" · ")
+    : "";
+  const fields: { label: string; value: string; raw?: string }[] = p
     ? [
         { label: "Keel snapshot id", value: p.keel_snapshot_id },
         ...Object.keys(p.statuses)
           .sort()
-          .map((id) => ({ label: `Keel status ${id}`, value: p.statuses[id] })),
-        { label: "Keel last human review", value: p.keel_last_human_review ?? "" },
+          .map((id) => ({ label: `Keel status ${id}`, value: labelFor(id, p.statuses[id]), raw: p.statuses[id] })),
+        { label: "Keel last human review", value: lastText, raw: p.keel_last_human_review ?? undefined },
         { label: "Keel record URL", value: p.keel_record_url },
       ]
     : [];
@@ -57,7 +68,7 @@ export function DetailsPane({ pkg, folderName, onClose }: { pkg: PackageView | n
               </div>
               <dl className="space-y-3 px-4 py-3">
                 {fields.map((f) => (
-                  <Field key={f.label} label={f.label} value={f.value} mono={f.label.startsWith("Keel status") || f.label === "Keel snapshot id"} />
+                  <Field key={f.label} label={f.label} value={f.value} raw={f.raw} />
                 ))}
               </dl>
             </div>
@@ -70,11 +81,13 @@ export function DetailsPane({ pkg, folderName, onClose }: { pkg: PackageView | n
   );
 }
 
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Field({ label, value, raw }: { label: string; value: string; raw?: string }) {
   return (
     <div>
       <dt className="text-[12px] text-[#767676]">{label}</dt>
-      <dd className={`mt-0.5 break-words text-[14px] text-[#222222] ${mono ? "tabular-nums" : ""}`}>{value || "—"}</dd>
+      <dd className="mt-0.5 break-words text-[14px] text-[#222222]" title={raw && raw !== value ? raw : undefined} data-raw={raw}>
+        {value || "—"}
+      </dd>
     </div>
   );
 }

@@ -73,6 +73,9 @@ export type KeelState = {
 const LEVEL1: PanelView = { kind: "level1" };
 const BUBBLE_FADE_MS = 4000;
 const BUBBLE_MIN_MS = 650;
+/** After the run is done, the queue drains within about this long; lines are shortened to BUBBLE_FAST_MS, never dropped. */
+const BUBBLE_DRAIN_BUDGET_MS = 3000;
+const BUBBLE_FAST_MS = 400;
 const MOCK_UPLOAD_MS = 1200;
 const IDLE_POLL_MS = 5000;
 const OFFLINE_TEXT = "I can't reach Keel.";
@@ -99,7 +102,7 @@ function postUploadVersion(body: UploadVersionRequest): Promise<SubmitResponse> 
 function uploadErrorText(e: unknown): string {
   if (e instanceof ApiError) {
     const code = e.body && typeof e.body === "object" ? (e.body as { error?: { code?: string } }).error?.code : undefined;
-    if (code === "PACKAGE_BUSY" || (e.status === 409 && !code)) return "A re-check is already running on this folder.";
+    if (code === "PACKAGE_BUSY" || code === "RUN_ACTIVE" || (e.status === 409 && !code)) return "A re-check is already running on this folder.";
     // The mock fixture's version was already uploaded: say what to do in the UI's terms, not the route's.
     if (code === "ALREADY_SUBMITTED") return "This version is already uploaded. Reset the demo from the Keel menu to upload it again.";
     return e.message;
@@ -109,6 +112,8 @@ function uploadErrorText(e: unknown): string {
 
 /** A stuck request never leaves the row on the progress bar. */
 const UPLOAD_TIMEOUT_MS = 30000;
+/** The row's cells fade in over this long after the upload; the first bubble waits for it. */
+const UPLOAD_SETTLE_MS = 300;
 
 const Ctx = createContext<KeelState | null>(null);
 
@@ -155,12 +160,23 @@ export function KeelStateProvider({ children }: { children: React.ReactNode }) {
   const pumpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastShownAt = useRef(0);
   const pumpRef = useRef<() => void>(() => {});
+  /** When the run's last step arrived; the remaining queue is compressed to drain inside the budget. */
+  const doneAtRef = useRef<number | null>(null);
+  /** Lines wait until the uploaded row shows its new version (Infinity while the upload finishes). */
+  const holdUntilRef = useRef(0);
 
   const pump = useCallback(() => {
     if (pumpTimer.current) return;
     const next = queueRef.current[0];
     if (!next) return;
-    const wait = Math.max(0, lastShownAt.current + BUBBLE_MIN_MS - Date.now());
+    const now = Date.now();
+    if (holdUntilRef.current === Infinity) return; // released by the upload, which pumps again
+    let dwell = BUBBLE_MIN_MS;
+    if (doneAtRef.current !== null) {
+      const left = BUBBLE_DRAIN_BUDGET_MS - (now - doneAtRef.current);
+      if (queueRef.current.length * BUBBLE_MIN_MS > left) dwell = BUBBLE_FAST_MS;
+    }
+    const wait = Math.max(0, lastShownAt.current + dwell - now, holdUntilRef.current - now);
     pumpTimer.current = setTimeout(() => {
       pumpTimer.current = null;
       const item = queueRef.current.shift();
@@ -171,6 +187,7 @@ export function KeelStateProvider({ children }: { children: React.ReactNode }) {
       // An empty item ends the step lines without a summary.
       setBubble(item.text ? item : null);
       if (item.text && !item.sticky) bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_FADE_MS);
+      if (!item.sticky) doneAtRef.current = null;
       pumpRef.current();
     }, wait);
   }, []);
@@ -181,13 +198,8 @@ export function KeelStateProvider({ children }: { children: React.ReactNode }) {
   const showBubble = useCallback(
     (text: string | undefined | null, sticky: boolean) => {
       if (!text) return;
+      // Every step line is kept, in order; the queue drains at BUBBLE_MIN_MS per line.
       queueRef.current.push({ text, sticky });
-      // A long backlog drops its oldest step lines so the bubble never trails the run by more than ~2 s.
-      while (queueRef.current.length > 3) {
-        const i = queueRef.current.findIndex((q) => q.sticky);
-        if (i < 0 || i === queueRef.current.length - 1) break;
-        queueRef.current.splice(i, 1);
-      }
       pump();
     },
     [pump],
@@ -196,6 +208,7 @@ export function KeelStateProvider({ children }: { children: React.ReactNode }) {
   const endSteps = useCallback(
     (summary: string | undefined | null) => {
       queueRef.current.push({ text: summary ?? "", sticky: false });
+      doneAtRef.current = Date.now();
       pump();
     },
     [pump],
@@ -207,6 +220,8 @@ export function KeelStateProvider({ children }: { children: React.ReactNode }) {
     if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
     bubbleTimer.current = null;
     lastShownAt.current = 0;
+    doneAtRef.current = null;
+    holdUntilRef.current = 0;
     setBubble(null);
   }, []);
 
@@ -554,7 +569,8 @@ export function KeelStateProvider({ children }: { children: React.ReactNode }) {
         const body = mock ? { file_name: req.file_name, file_id: req.file_id, scenario: req.scenario ?? "architecture_v3" } : req;
         const res = await Promise.race([postUploadVersion(body), timeout]);
         setUpload({ file_name: req.file_name, phase: "done", durationMs: 0, startedAt });
-        // Follow at once so the first step's line shows as soon as the run id is back.
+        // Follow at once; the step lines queue up and are released once the row reads the new version.
+        holdUntilRef.current = Infinity;
         startFollowing(res.run_id);
         // In parallel, the row picks up the new version. The snapshot pointer moves just after the POST returns,
         // so read until the package reports the run's snapshot (bounded). The bar stays until the row has it.
@@ -569,9 +585,15 @@ export function KeelStateProvider({ children }: { children: React.ReactNode }) {
           }
           // Only apply if the run has not already moved the package on.
           if (v && gen === genRef.current && pkgRef.current?.snapshot.snapshot_id !== res.snapshot_id) applyPkg(v);
-          setTimeout(clearMine, 200);
+          // "Upload complete" for 200 ms, then the row's cells show the new version; the first line follows.
+          setTimeout(() => {
+            clearMine();
+            holdUntilRef.current = Date.now() + UPLOAD_SETTLE_MS;
+            pumpRef.current();
+          }, 200);
         })();
       } catch (e) {
+        holdUntilRef.current = 0;
         // Any failure: the bar stops, the row shows the current version again, Upload is enabled, a toast explains.
         clearMine();
         setUploadError(uploadErrorText(e));

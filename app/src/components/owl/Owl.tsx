@@ -37,9 +37,10 @@ export function Owl({ state, size = 56, still = false }: { state: OwlState; size
     ? { duration: 0.8, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
     : { duration: 0.2 };
 
-  const eyeScale = state === "attention" ? [1, 1.16, 1] : 1;
-  const capRotate = state === "attention" ? [0, -16, 0] : 0;
-  const headY = state === "clear" ? [0, 2.5, 0] : 0;
+  // One-shot gestures are skipped under reduced motion; the state still shows (badge, lids, colour).
+  const eyeScale = !reduce && state === "attention" ? [1, 1.16, 1] : 1;
+  const capRotate = !reduce && state === "attention" ? [0, -16, 0] : 0;
+  const headY = !reduce && state === "clear" ? [0, 2.5, 0] : 0;
 
   return (
     <motion.svg
@@ -80,7 +81,7 @@ export function Owl({ state, size = 56, still = false }: { state: OwlState; size
                 rx="6.9"
                 ry="6.9"
                 fill={NAVY}
-                initial={false}
+                initial={{ scaleY: 0 }}
                 animate={{ scaleY: lidTop }}
                 transition={lidTopT}
                 style={{ transformBox: "fill-box", transformOrigin: "50% 0%" }}

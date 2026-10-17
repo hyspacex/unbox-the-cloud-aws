@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { PackageFile } from "@/lib/types";
 import { useKeelState, type UploadState } from "@/components/KeelStateProvider";
 import { DetailsPane } from "./DetailsPane";
@@ -10,7 +10,7 @@ import { BoxDropdown, UploadMenu } from "./UploadMenu";
 import { UploadChooser } from "./UploadChooser";
 import { boxDate, boxSize } from "./format";
 import { Toast } from "./Toast";
-import { FileTypeIcon, IconChevronRight, IconInfo, IconMore } from "./icons";
+import { FileTypeIcon, IconChevronRight, IconInfo, IconMore, IconNewVersion } from "./icons";
 
 const CRUMBS = ["All Files", "Project Lantern"];
 const FOLDER = "Security Review Package";
@@ -20,7 +20,8 @@ const COLS = "box-grid";
 /** The Box folder list: breadcrumb, toolbar, and the file table driven by GET /api/package `files`. */
 export function FolderTable() {
   const { pkg, pkgError, busy, isMock, uploadVersion, upload, uploadError, dismissUploadError } = useKeelState();
-  const [chooser, setChooser] = useState(false);
+  /** The chooser is open for this target file (null closed). */
+  const [chooser, setChooser] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
   const files = pkg?.files;
 
@@ -43,7 +44,7 @@ export function FolderTable() {
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <BoxDropdown label="New" variant="primary" items={[{ label: "Folder" }, { label: "Box Note" }, { label: "Box Canvas" }]} />
-            <UploadMenu disabled={busy || !files} onNewVersion={() => setChooser(true)} />
+            <UploadMenu disabled={busy || !files} onNewVersion={() => setChooser("architecture.md")} />
             <button
               type="button"
               aria-label="Details"
@@ -77,7 +78,16 @@ export function FolderTable() {
             </span>
           </div>
           {files ? (
-            files.map((f) => <FileRow key={f.file_id} file={f} upload={upload?.file_name === f.file_name ? upload : null} />)
+            files.map((f) => (
+              <FileRow
+                key={f.file_id}
+                file={f}
+                upload={upload?.file_name === f.file_name ? upload : null}
+                // Mock: only architecture.md has a prepared new version. Live: every file can take one.
+                canUploadVersion={!busy && (!isMock || f.file_name === "architecture.md")}
+                onUploadVersion={() => setChooser(f.file_name)}
+              />
+            ))
           ) : pkgError ? (
             <p className="py-6 text-[14px] text-[#767676]">This folder could not be loaded. Try again in a moment.</p>
           ) : (
@@ -92,12 +102,13 @@ export function FolderTable() {
       </AnimatePresence>
 
       <UploadChooser
-        open={chooser}
+        open={chooser !== null}
+        initialTarget={chooser ?? undefined}
         isMock={isMock}
         files={files ?? []}
-        onClose={() => setChooser(false)}
+        onClose={() => setChooser(null)}
         onUpload={(req) => {
-          setChooser(false);
+          setChooser(null);
           uploadVersion(req);
         }}
       />
@@ -131,7 +142,31 @@ function dotTitle(f: PackageFile): string | null {
   return null;
 }
 
-function FileRow({ file: f, upload }: { file: PackageFile; upload: UploadState }) {
+/** "approved-services-and-exceptions.md" truncates on the stem and keeps ".md". */
+function FileName({ name }: { name: string }) {
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  return (
+    <span className="flex min-w-0" title={name}>
+      <span className="truncate">{stem}</span>
+      <span className="shrink-0">{ext}</span>
+    </span>
+  );
+}
+
+function FileRow({
+  file: f,
+  upload,
+  canUploadVersion,
+  onUploadVersion,
+}: {
+  file: PackageFile;
+  upload: UploadState;
+  canUploadVersion: boolean;
+  onUploadVersion: () => void;
+}) {
+  const reduce = useReducedMotion();
   const tone = f.open_decisions > 0 ? "amber" : f.recorded_decisions > 0 ? "blue" : null;
   const title = dotTitle(f);
   const uploading = upload?.phase === "uploading";
@@ -144,8 +179,8 @@ function FileRow({ file: f, upload }: { file: PackageFile; upload: UploadState }
     >
       <span role="cell" className="flex min-w-0 items-center gap-3 pl-3 pr-4">
         <FileTypeIcon size={32} />
-        <Link href="/" onClick={(e) => e.preventDefault()} className="truncate text-[14px] font-bold text-[#222222] hover:text-[#0061D5] hover:underline">
-          {f.file_name}
+        <Link href="/" onClick={(e) => e.preventDefault()} className="flex min-w-0 text-[14px] font-bold text-[#222222] hover:text-[#0061D5] hover:underline">
+          <FileName name={f.file_name} />
         </Link>
         <AnimatePresence>
           {tone ? (
@@ -159,7 +194,7 @@ function FileRow({ file: f, upload }: { file: PackageFile; upload: UploadState }
               initial={{ scale: 0 }}
               animate={{ scale: 1, backgroundColor: tone === "amber" ? "#F59E0B" : "#1D4ED8" }}
               exit={{ scale: 0 }}
-              transition={{ scale: { duration: 0.2 }, backgroundColor: { duration: 0.3 } }}
+              transition={{ scale: { duration: reduce ? 0 : 0.2 }, backgroundColor: { duration: reduce ? 0 : 0.3 } }}
               className="h-2 w-2 shrink-0 cursor-default rounded-full"
             />
           ) : null}
@@ -180,8 +215,11 @@ function FileRow({ file: f, upload }: { file: PackageFile; upload: UploadState }
         </span>
       ) : (
         <>
-          <span role="cell" className="col-updated text-[14px] text-[#767676]">
-            <Fade k={f.updated_at ?? ""}>{boxDate(f.updated_at)}</Fade>
+          <span role="cell" className="col-updated min-w-0 truncate pr-3 text-[14px] text-[#767676]" title={f.uploader ? `${boxDate(f.updated_at)} by ${f.uploader}` : undefined}>
+            <Fade k={`${f.updated_at ?? ""}|${f.uploader ?? ""}`} className="block truncate">
+              {boxDate(f.updated_at)}
+              {f.uploader ? ` by ${f.uploader}` : ""}
+            </Fade>
           </span>
           <span role="cell" className="text-[14px] text-[#222222]">
             <Fade k={f.version_label ?? f.version_id}>{f.version_label ?? ""}</Fade>
@@ -196,19 +234,27 @@ function FileRow({ file: f, upload }: { file: PackageFile; upload: UploadState }
         <button type="button" className="box-btn box-btn-secondary h-8 px-3 text-[13px]">
           Share
         </button>
-        <button type="button" aria-label={`More options for ${f.file_name}`} className="box-icon-btn h-8 w-8">
-          <IconMore size={18} />
-        </button>
+        <BoxDropdown
+          label="More options"
+          variant="icon"
+          icon={<IconMore size={18} />}
+          ariaLabel={`More options for ${f.file_name}`}
+          testId={`row-menu-${f.file_name}`}
+          items={[
+            { label: "Download" },
+            { label: "Upload new version", icon: <IconNewVersion />, onSelect: onUploadVersion, disabled: !canUploadVersion, testId: `row-upload-version-${f.file_name}` },
+          ]}
+        />
       </span>
     </div>
   );
 }
 
 /** Version text crossfades when the value changes. */
-function Fade({ k, children }: { k: string; children: React.ReactNode }) {
+function Fade({ k, children, className = "inline-block" }: { k: string; children: React.ReactNode; className?: string }) {
   return (
     <AnimatePresence mode="popLayout" initial={false}>
-      <motion.span key={k} className="inline-block" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+      <motion.span key={k} className={className} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
         {children}
       </motion.span>
     </AnimatePresence>

@@ -11,12 +11,17 @@ export function BoxDropdown({
   disabled,
   items,
   testId,
+  icon,
+  ariaLabel,
 }: {
   label: string;
-  variant: "primary" | "secondary";
+  variant: "primary" | "secondary" | "icon";
   disabled?: boolean;
-  items: ({ label: string; icon?: React.ReactNode; onSelect?: () => void; separatorBefore?: boolean; testId?: string })[];
+  items: ({ label: string; icon?: React.ReactNode; onSelect?: () => void; separatorBefore?: boolean; testId?: string; disabled?: boolean })[];
   testId?: string;
+  /** For variant "icon": the trigger's glyph; `label` is then only the accessible name. */
+  icon?: React.ReactNode;
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -51,11 +56,18 @@ export function BoxDropdown({
         aria-haspopup="menu"
         aria-expanded={open}
         data-testid={testId}
+        aria-label={ariaLabel}
         onClick={() => setOpen((o) => !o)}
-        className={`box-btn ${variant === "primary" ? "box-btn-primary" : "box-btn-secondary"}`}
+        className={variant === "icon" ? "box-icon-btn h-8 w-8" : `box-btn ${variant === "primary" ? "box-btn-primary" : "box-btn-secondary"}`}
       >
-        {label}
-        <IconChevronDown size={12} />
+        {variant === "icon" ? (
+          icon
+        ) : (
+          <>
+            {label}
+            <IconChevronDown size={12} />
+          </>
+        )}
       </button>
       <AnimatePresence>
         {open ? (
@@ -74,7 +86,8 @@ export function BoxDropdown({
                   type="button"
                   role="menuitem"
                   data-testid={it.testId}
-                  className="box-menu-item"
+                  disabled={it.disabled}
+                  className="box-menu-item disabled:cursor-not-allowed disabled:text-[#A7A7A7]"
                   onClick={() => {
                     setOpen(false);
                     it.onSelect?.();

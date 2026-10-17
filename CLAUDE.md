@@ -17,6 +17,13 @@ Read, in order: `docs/research/30-design-v3.md` (spec v3.4, the source of truth)
 - `motion` for UI animation. `vitest` for the engine's acceptance cases.
 - State: `app/data/store.json` (gitignored). No database.
 
+## UI
+- The UI is a Box folder replica plus the owl plus one side panel (`docs/research/50-ui-v4-box-owl.md`). The old
+  `/ledger`, `/rules`, `/architecture` routes stay as deep links; the panel's ⋯ menu opens the same screens inline.
+- Copy budget: owl bubble at most 12 words, panel level 1 at most 60 words visible, level 2 first screen at most 120.
+  The UI never composes machine text. It renders `bubble`, `short`, `verdict_line`, `receipt` and `decision_summary`
+  from the API.
+
 ## Mock mode is the default
 `MOCK_MODE=true` (default) needs zero credentials and serves `demo-data/lantern/`. Only the integration laptop
 sets `MOCK_MODE=false`. Never commit `.env.local`. The mock path runs the same deterministic engine as the live

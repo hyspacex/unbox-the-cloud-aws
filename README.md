@@ -40,6 +40,35 @@ A hash says the page changed. A reviewer needs to know which control lost which 
 **A person**
 - Only the human response handler writes a disposition. A named reviewer decides, and the decision is bound to the evidence on screen.
 
+## What you see
+
+The reviewer never leaves Box. The app is one page with three things on it.
+
+- **The Box page.** A replica of the Box folder list for Project Lantern's Security Review Package: left nav, search, the five files with a Version column, and Box's own **Upload** menu. File names, versions, dates and sizes come from the current snapshot through `GET /api/package`. A dot on a file row means Keel has decisions on that file: amber while one is open, blue once every decision on it is recorded. The **ⓘ** button opens Box's details pane with the folder's `keelReview` metadata fields.
+- **The owl.** Keel's agent, at the bottom right. It blinks when idle, its pupils sweep while a run works, and it speaks one short line at a time. During a run the bubble shows each step, such as "Re-checking 8 controls on Bedrock…". After the run it shows the summary, such as "1 Critical needs your decision. 2 more to look at.", with a badge counting open decisions. Clicking it opens the panel.
+- **The panel.** One 420 px side panel with two levels. Level 1 lists the rows under NEEDS YOUR DECISION, ACKNOWLEDGE and RECORDED, with the verifications that hold collapsed. Level 2 is one control: the reviewed sentence and the current sentence, one computed verdict line, and the buttons the engine enables. Return to author, Verify and Acknowledge expand inline. Each recorded decision shows a three-line receipt, and **Show the record** expands its ledger events and the hash-chain check.
+
+The panel's **⋯** menu holds everything else: How it works, Status rules, Full record, How it was checked, Other scenarios, Replay a run, Reset demo (mock only) and the mode line. The older full-page routes `/ledger`, `/rules` and `/architecture` remain as deep links with their own header. They are no longer in the navigation, and the same screens open inside the panel from the menu.
+
+The UI never writes machine text. The owl's lines, row lines, verdict lines and receipts all come from the API, and the status labels come from the engine's display rules.
+
+### Screens to capture
+
+Rehearsal captures live locally under `app/.review/v4/` (gitignored). The set that tells the story:
+
+1. Baseline at 1440: the Box page on snapshot S3, five files, owl idle.
+2. The Upload menu with **Upload new version**, then the chooser with the v3 draft.
+3. The owl working, with a step line in its bubble.
+4. After the run: badge 3, the summary bubble, amber dots.
+5. Level 1 after the run.
+6. Level 2 for SEC-ARCH-07: the WAS and NOW quotes and the verdict line.
+7. The Box AI draft for the author, then the "Returned to author by Dana Okafor" receipt.
+8. SEC-ARCH-22 with the Verify checklist ticked, then the green "Verified by Dana Okafor" receipt.
+9. **Show the record** expanded with the chain line.
+10. The Box details pane with the Keel review metadata.
+11. **⋯** → How it works.
+12. Level 1 at 1024x768, where the panel overlays the page.
+
 ## The review transaction
 
 1. **Intake.** A submitted document version lands in the Box package folder.
@@ -58,7 +87,7 @@ A hash says the page changed. A reviewer needs to know which control lost which 
 
 ## Status model
 
-The rules are published in the app at `/rules`. They live in `app/src/lib/engine/display.ts`. First match wins.
+The rules are published in the app under **⋯** → Status rules in the panel, and at `/rules`. They live in `app/src/lib/engine/display.ts`. First match wins.
 
 1. Evaluation pending: **Re-check pending**
 2. Evaluation error or `not_evaluated`: **Not evaluated**, with reason
@@ -99,7 +128,9 @@ npm test             # Vitest, including acceptance cases 1 to 20 from the spec
 npm run typecheck
 ```
 
-On the package view, press **Submit rewritten architecture document** to run the review. Press **Reset to baseline** to start over. The presenter script is in `docs/demo.md`.
+On the Box page, choose **Upload ▾** → **Upload new version** → **Upload** to submit the rewritten architecture document and start the run. Click the owl to open the panel. To start over, open the panel's **⋯** menu and press **Reset demo**. The presenter script is in `docs/demo.md`.
+
+For a demo, run production mode instead: `npm run build && npm run start`.
 
 ## Go live
 
@@ -125,6 +156,7 @@ Set `MOCK_MODE=false` in `app/.env.local` (copy from `app/.env.example`, never c
 | Path | Contents |
 | --- | --- |
 | `app/` | Next.js app: engine, ledger, store, Box adapter, Strands agent, API routes and UI |
+| `app/src/components/box/`, `owl/`, `panel/` | The v4 experience layer: Box page replica, the owl, the Keel panel |
 | `demo-data/lantern/` | Synthetic fixture: five files, eight controls, snapshots S1 to S4, hash-chained seed ledger, expected findings |
 | `demo/keel.html` | Standalone explainer page |
 | `docs/research/` | Design history: spec v3.4 in `30-design-v3.md`, with the Codex and persona review rounds for each version |
@@ -144,7 +176,7 @@ Set `MOCK_MODE=false` in `app/.env.local` (copy from `app/.env.example`, never c
 - Box AI text generation for the author task message.
 - Deterministic layer: prior-quote diff, quote validation, coverage check, staleness and materiality, display rules, hash-chained JSON ledger, disposition handler with re-apply logic.
 - Box writes: folder metadata, a reviewer task per finding, an author task on return, task polling with identity capture.
-- Package view, finding card, ledger with export, and a live trace.
+- A Box folder replica with the owl and one side panel: the review list, the evidence pair, inline Return to author, Verify and Acknowledge, receipts with the record, and a menu for the rules, the full ledger with export, the run trace, replay and reset.
 
 **Proposed, not built**
 - Box webhook to a Lambda URL with signature verification, EventBridge, and SQS FIFO per folder.

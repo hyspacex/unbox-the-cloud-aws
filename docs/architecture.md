@@ -46,6 +46,17 @@ flowchart LR
 
 In mock mode the Box, Bedrock, Box AI and Decider adapters are swapped for fixture-backed ones. The engine, ledger and store are the same code in both modes.
 
+## Experience layer (UI v4)
+
+The UI was rebuilt as a replica of the Box folder page with the Keel owl and one side panel
+(`docs/research/50-ui-v4-box-owl.md`). The reviewer never leaves the Box page: the owl reports the run step by step,
+and the panel lists what needs a decision, shows one control's evidence pair, and records Return to author, Verify or
+Acknowledge inline. Only the experience layer changed. The engine, the ledger, the store and the diagrams below are
+the same, and the UI renders only text the API computes (`bubble`, `short`, `verdict_line`, `receipt`,
+`decision_summary`). One additive route, `POST /api/upload-version`, backs the Box Upload menu. The older `/ledger`,
+`/rules` and `/architecture` pages remain as deep links, and their screens also open inside the panel menu. The "UI"
+box in the component diagram is this layer.
+
 ## Built and proposed
 
 | Built on Saturday | Proposed, not built |
@@ -58,7 +69,7 @@ In mock mode the Box, Bedrock, Box AI and Decider adapters are swapped for fixtu
 | Box AI text generation for the author task message | ServiceNow IRM for exceptions and evidence attachment |
 | Deterministic engine and JSON ledger with hash chain | Jira for author work |
 | Folder metadata, reviewer and author tasks, task polling | Box Automate calling Keel as its judgment step, untested |
-| Package view, finding card, ledger with export, live trace | Batch shadow evaluation over historical package versions |
+| Box page replica, owl and panel; ledger with export, run trace, rules | Batch shadow evaluation over historical package versions |
 
 Disposition enforcement stays in the application layer in the proposed design too.
 

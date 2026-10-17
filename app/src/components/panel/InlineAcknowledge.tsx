@@ -48,7 +48,7 @@ export function InlineAcknowledge({ card, disabled, onFinal }: { card: FindingCa
       </label>
       <div className="mt-2.5 flex justify-end">
         <button type="button" className={btnPrimary} disabled={disabled || busy} onClick={ack}>
-          {busy ? "Recording…" : "Acknowledge"}
+          {busy ? "Recording…" : "Confirm acknowledgment"}
         </button>
       </div>
       <ErrorLine text={err} />

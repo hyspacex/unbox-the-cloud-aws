@@ -9,25 +9,12 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useKeelState, type PanelView } from "@/components/KeelStateProvider";
 import { useFocusTrap } from "@/lib/ui/useFocusTrap";
+import { OwlMark } from "@/components/owl";
 import { Level1 } from "./Level1";
 import { Level2 } from "./Level2";
 import { MENU_TITLES, MenuScreenView } from "./MenuScreens";
 import { PanelMenu } from "./PanelMenu";
 import { C, Chevron, DUR, EASE_OUT } from "./parts";
-
-/** Static 20 px owl mark (placeholder until lane A exports one): navy body, cream face, Box-blue cap. */
-function OwlGlyph() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden className="flex-none">
-      <path d="M4 3.2 10 1.2l6 2v1.6H4z" fill="#0061D5" />
-      <ellipse cx="10" cy="12" rx="7" ry="7.4" fill="#1F2A44" />
-      <ellipse cx="10" cy="11" rx="5.2" ry="4.4" fill="#FFF4D6" />
-      <circle cx="7.6" cy="10.6" r="1.5" fill="#1F2A44" />
-      <circle cx="12.4" cy="10.6" r="1.5" fill="#1F2A44" />
-      <path d="M9.2 13h1.6L10 14.4z" fill="#F59E0B" />
-    </svg>
-  );
-}
 
 const viewKey = (v: PanelView) => (v.kind === "level1" ? "level1" : v.kind === "control" ? `control:${v.controlId}` : `menu:${v.screen}`);
 
@@ -116,7 +103,7 @@ export function Panel() {
           <header className="relative flex h-14 flex-none items-center gap-2 border-b px-3" style={{ borderColor: C.border }}>
             {view.kind === "level1" ? (
               <span className="flex items-center gap-2 pl-1">
-                <OwlGlyph />
+                <OwlMark />
                 <span className="text-[15px] font-bold">Keel</span>
               </span>
             ) : (

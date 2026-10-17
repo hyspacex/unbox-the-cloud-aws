@@ -13,7 +13,7 @@ import { RecordList } from "./RecordList";
 import { InlineReturn } from "./InlineReturn";
 import { InlineVerify } from "./InlineVerify";
 import { InlineAcknowledge } from "./InlineAcknowledge";
-import { C, CheckIcon, Chevron, DUR, EASE_OUT, RowChip, stableSeverity, btnPrimary, btnSecondary, errorText, prose, toneColor } from "./parts";
+import { C, CheckIcon, Chevron, DUR, EASE_OUT, RowChip, stableSeverity, btnOpen, btnPrimary, btnSecondary, errorText, prose, toneColor } from "./parts";
 
 type Inline = "return" | "verify" | "ack" | null;
 type Disclosure = "clauses" | "versions" | "record" | null;
@@ -138,8 +138,9 @@ export function Level2({ controlId }: { controlId: string }) {
           </div>
         ) : ack ? (
           <>
-            <button type="button" className={btnPrimary} disabled={locked} aria-expanded={inline === "ack"} onClick={() => toggle("ack")}>
+            <button type="button" className={inline === "ack" ? btnOpen : btnPrimary} disabled={locked} aria-expanded={inline === "ack"} onClick={() => toggle("ack")}>
               Acknowledge
+              {inline === "ack" ? <Chevron dir="up" size={12} /> : null}
             </button>
             <AnimatePresence initial={false}>{inline === "ack" ? <InlineAcknowledge key="ack" card={card} disabled={locked} onFinal={onFinal} /> : null}</AnimatePresence>
           </>
@@ -148,21 +149,23 @@ export function Level2({ controlId }: { controlId: string }) {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                className={verifyPrimary ? btnSecondary : btnPrimary}
+                className={inline === "return" ? btnOpen : verifyPrimary ? btnSecondary : btnPrimary}
                 disabled={locked || !rta.enabled}
                 aria-expanded={inline === "return"}
                 onClick={() => toggle("return")}
               >
                 {card.pending_author_draft ? "Review Box AI draft" : "Return to author"}
+                {inline === "return" ? <Chevron dir="up" size={12} /> : null}
               </button>
               <button
                 type="button"
-                className={verifyPrimary ? btnPrimary : btnSecondary}
+                className={inline === "verify" ? btnOpen : verifyPrimary ? btnPrimary : btnSecondary}
                 disabled={locked || !verify.enabled}
                 aria-expanded={inline === "verify"}
                 onClick={() => toggle("verify")}
               >
                 Verify
+                {inline === "verify" ? <Chevron dir="up" size={12} /> : null}
               </button>
             </div>
             {!rta.enabled && rta.reason ? (

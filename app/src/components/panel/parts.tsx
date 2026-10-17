@@ -170,6 +170,9 @@ export const btnPrimary =
   "inline-flex h-9 items-center justify-center gap-1.5 rounded-[4px] px-4 text-[14px] font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 bg-[#0061D5] hover:bg-[#0053B8] disabled:hover:bg-[#0061D5]";
 export const btnSecondary =
   "inline-flex h-9 items-center justify-center gap-1.5 rounded-[4px] border px-4 text-[14px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 border-[#C9C9C9] bg-white text-[#222222] hover:bg-[#F4F6FA] disabled:hover:bg-white";
+/** An action whose inline form is open: outlined in Box blue, so the form's confirm is the only primary button. */
+export const btnOpen =
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-[4px] border px-4 text-[14px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 border-[#0061D5] bg-[#E8F0FE] text-[#0061D5] hover:bg-[#DCE8FD]";
 export const btnSmall =
   "inline-flex h-7 items-center justify-center gap-1 rounded-[4px] border px-2.5 text-[12.5px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 border-[#C9C9C9] bg-white text-[#222222] hover:bg-[#F4F6FA]";
 export const fieldClass =

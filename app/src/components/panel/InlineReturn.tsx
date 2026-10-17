@@ -121,8 +121,8 @@ export function InlineReturn({
                 Your reason. Recorded as the Box task response, in your words.
               </span>
               <textarea
-                className={`${fieldClass} mt-1.5`}
-                rows={3}
+                className={`${fieldClass} mt-1.5 max-h-[110px]`}
+                rows={4}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 aria-label="Your reason"
@@ -161,9 +161,9 @@ export function InlineReturn({
               </span>
             </div>
             {editing ? (
-              <textarea className={`${fieldClass} mt-1.5`} rows={6} value={message} onChange={(e) => setMessage(e.target.value)} aria-label="Author task message" />
+              <textarea className={`${fieldClass} mt-1.5 max-h-[110px]`} rows={5} value={message} onChange={(e) => setMessage(e.target.value)} aria-label="Author task message" />
             ) : (
-              <blockquote className="mt-1.5 max-h-[150px] overflow-y-auto border-l-[3px] pl-3 text-[13px] leading-[1.5] whitespace-pre-wrap" style={{ borderColor: C.border, color: C.text }}>
+              <blockquote className="mt-1.5 max-h-[110px] overflow-y-auto border-l-[3px] pl-3 text-[13px] leading-[1.5] whitespace-pre-wrap" style={{ borderColor: C.border, color: C.text }}>
                 {message}
               </blockquote>
             )}

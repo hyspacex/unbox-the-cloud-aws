@@ -795,9 +795,9 @@ describe("Round 4 finding 7: RealBoxAdapter.findTaskByMessage reconciles an ambi
       ct = o.cancellationToken;
       return { entries: [entry("T3", "KEEL-2026-0405 (snapshot S4): review", "2026-10-17T15:31:00Z"), entry("T2", "KEEL-2026-0405 (snapshot S4): review", "2026-10-17T15:30:00Z"), entry("T9", "KEEL-2026-0405 (snapshot S4): review ", "2026-10-17T15:29:00Z")] };
     });
-    const box = adapterWith({ tasks: { getFileTasks } });
-    // DateTime wrapper stub: dateTimeToString reads .value
-    expect(await box.findTaskByMessage("F", "KEEL-2026-0405 (snapshot S4): review")).toEqual({ task_id: "T2" });
+    const box = adapterWith({ tasks: { getFileTasks }, taskAssignments: { getTaskAssignments: async (id: string) => ({ entries: [{ id: `A-${id}` }] }) } });
+    // Exact match preferred (T2, oldest exact) over the older substring match T9 ("... review ").
+    expect(await box.findTaskByMessage("F", "KEEL-2026-0405 (snapshot S4): review")).toEqual({ task_id: "T2", assignment_ids: ["A-T2"] });
     expect(await box.findTaskByMessage("F", "something else")).toBeNull();
     expect(getFileTasks.mock.calls[0][0]).toBe("F");
     expect(ct).toBeInstanceOf(AbortSignal);
@@ -841,5 +841,79 @@ describe("Round 4 NEW-1: the gate's task round trip checks the configured review
   it("FAIL when findTaskByMessage cannot find the task it just created", async () => {
     const m = mk("dana.okafor@meridiantrust.example", "none");
     expect(await taskRoundTrip(m.box as never, f, "dana.okafor@meridiantrust.example", 1)).toMatchObject({ status: "FAIL", reason: expect.stringMatching(/could not be reconciled/) });
+  });
+});
+
+describe("Lead request: findTaskByMessage by marker, with assignment ids; optional on BoxAdapter", () => {
+  const entry = (id: string, message: string, createdAt: string, asg?: string[]) => ({
+    id,
+    message,
+    createdAt: { value: new Date(createdAt) },
+    ...(asg ? { taskAssignmentCollection: { entries: asg.map((a) => ({ id: a })) } } : {}),
+  });
+
+  it("returns the first task whose message contains the marker, with assignment ids from the task", async () => {
+    const getTaskAssignments = vi.fn();
+    const box = adapterWith({
+      tasks: {
+        getFileTasks: async () => ({
+          entries: [
+            entry("T7", "KEEL-2026-0404 (snapshot S4): SEC-ARCH-05 Acknowledge", "2026-10-17T15:30:00Z", ["A7"]),
+            entry("T5", "KEEL-2026-0405 (snapshot S4): SEC-ARCH-07 Encryption at rest needs review.", "2026-10-17T15:30:05Z", ["A5"]),
+          ],
+        }),
+      },
+      taskAssignments: { getTaskAssignments },
+    });
+    expect(await box.findTaskByMessage("F", "KEEL-2026-0405 (snapshot S4)")).toEqual({ task_id: "T5", assignment_ids: ["A5"] });
+    expect(getTaskAssignments).not.toHaveBeenCalled();
+    expect(await box.findTaskByMessage("F", "KEEL-2026-0499")).toBeNull();
+    expect(await box.findTaskByMessage("F", "")).toBeNull();
+  });
+
+  it("fetches assignment ids when Box omits task_assignment_collection", async () => {
+    const box = adapterWith({
+      tasks: { getFileTasks: async () => ({ entries: [entry("T5", "KEEL-2026-0405 (snapshot S4): review", "2026-10-17T15:30:05Z")] }) },
+      taskAssignments: { getTaskAssignments: async () => ({ entries: [{ id: "A5" }, { id: "A6" }] }) },
+    });
+    expect(await box.findTaskByMessage("F", "KEEL-2026-0405")).toEqual({ task_id: "T5", assignment_ids: ["A5", "A6"] });
+  });
+
+  it("is an optional BoxAdapter method (mock adapters without it still type-check)", () => {
+    const real: BoxAdapter = adapterWith({});
+    expect(typeof real.findTaskByMessage).toBe("function");
+    const minimal: BoxAdapter = searchBox({ current: () => "x" });
+    expect(minimal.findTaskByMessage).toBeUndefined();
+  });
+});
+
+describe("Lead request: evaluate's fourth argument reaches Strands invoke and the search tool's Box requests", () => {
+  it("a bare AbortSignal as the fourth argument cancels with RUN_TIMEOUT", async () => {
+    const search = { search: (_q: string, _e?: string, signal?: AbortSignal) => waitForAbort(signal, 5000) };
+    const model = new ScriptedModel([[{ name: "search_snapshot", input: { query: "AES-256" } }]]);
+    const ctl = new AbortController();
+    setTimeout(() => ctl.abort(), 40);
+    await expect(new BedrockEvaluator({ timeoutMs: 60_000 }, { model }).evaluate(minimalInput(), { search }, undefined, ctl.signal)).rejects.toMatchObject({ code: "RUN_TIMEOUT" });
+  });
+
+  it("end to end: the run signal aborts the Box AI request made through makeSearchSnapshotTool", async () => {
+    const scopedSignals: AbortSignal[] = [];
+    const base = searchBox({ current: () => "x" });
+    const box = {
+      ...base,
+      withSignal: (sig: AbortSignal) => {
+        scopedSignals.push(sig);
+        return { ...base, aiAsk: () => waitForAbort(sig, 5000) };
+      },
+    } as unknown as BoxAdapter;
+    const tool = makeSearchSnapshotTool(box, snapshot, texts);
+    const model = new ScriptedModel([[{ name: "search_snapshot", input: { query: "RTO", exclude_file: "architecture.md" } }]]);
+    const ctl = new AbortController();
+    setTimeout(() => ctl.abort(), 40);
+    const t = Date.now();
+    await expect(new BedrockEvaluator({ timeoutMs: 60_000 }, { model }).evaluate(minimalInput(), { search: tool }, undefined, { signal: ctl.signal })).rejects.toMatchObject({ code: "RUN_TIMEOUT" });
+    expect(Date.now() - t).toBeLessThan(1500);
+    expect(scopedSignals).toHaveLength(1);
+    expect(scopedSignals[0].aborted).toBe(true); // the Box AI request's signal derives from the run signal
   });
 });

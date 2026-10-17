@@ -96,7 +96,8 @@ export class MockEvaluator implements Evaluator {
   readonly kind = "mock" as const;
   constructor(private readonly o: MockEvaluatorOptions) {}
 
-  async evaluate(input: EvaluatorInput, tools: { search: SearchSnapshotTool }, onStep?: (s: TraceStep) => void): Promise<EvaluatorResult> {
+  async evaluate(input: EvaluatorInput, tools: { search: SearchSnapshotTool }, onStep?: (s: TraceStep) => void, opts: { signal?: AbortSignal } = {}): Promise<EvaluatorResult> {
+    if (opts.signal?.aborted) throw new Error("evaluation aborted before it started");
     const scale = this.o.timeScale ?? 0;
     const t0 = Date.now();
     const steps: TraceStep[] = [];

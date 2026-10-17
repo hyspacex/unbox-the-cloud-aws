@@ -686,18 +686,28 @@ export class RealBoxAdapter implements BoxAdapter {
   }
 
   /**
-   * Reconcile an ambiguous createTask (engine Codex finding 7): the task on `fileId` whose message is
-   * exactly `message`, or null when Box has none. Box returns all of a file's tasks in one page
-   * (GET /files/{id}/tasks has no pagination). When several match, the oldest wins, so retries
-   * converge on the first created task. A failed lookup throws: the caller must not create blindly.
+   * Reconcile an ambiguous createTask (engine Codex finding 7): the first task on `fileId` whose
+   * message contains `marker`, with its assignment ids, or null. Exact message matches win over
+   * substring matches, and the oldest wins within each, so retries converge on the first created
+   * task. GET /files/{id}/tasks returns all of a file's tasks in one page. Assignment ids come from
+   * the task's task_assignment_collection, or from GET /tasks/{id}/assignments when Box omits it.
+   * A failed lookup throws: the caller must not create blindly.
    */
-  async findTaskByMessage(fileId: string, message: string): Promise<{ task_id: string } | null> {
+  async findTaskByMessage(fileId: string, marker: string): Promise<{ task_id: string; assignment_ids: string[] } | null> {
+    if (!marker) return null;
     try {
-      const res = await this.client().tasks.getFileTasks(fileId, { cancellationToken: this.ct() });
-      const hits = (res.entries ?? [])
-        .filter((t) => t.id && t.message === message)
-        .sort((a, b) => (iso(a.createdAt) ?? "").localeCompare(iso(b.createdAt) ?? ""));
-      return hits.length ? { task_id: hits[0].id! } : null;
+      const client = this.client();
+      const res = await client.tasks.getFileTasks(fileId, { cancellationToken: this.ct() });
+      const byAge = (a: { createdAt?: DT }, b: { createdAt?: DT }) => (iso(a.createdAt) ?? "").localeCompare(iso(b.createdAt) ?? "");
+      const tasks = (res.entries ?? []).filter((t) => t.id && typeof t.message === "string");
+      const hit = tasks.filter((t) => t.message === marker).sort(byAge)[0] ?? tasks.filter((t) => t.message!.includes(marker)).sort(byAge)[0];
+      if (!hit) return null;
+      let assignment_ids = (hit.taskAssignmentCollection?.entries ?? []).map((a) => a.id ?? "").filter(Boolean);
+      if (!assignment_ids.length) {
+        const a = await client.taskAssignments.getTaskAssignments(hit.id!, { cancellationToken: this.ct() });
+        assignment_ids = (a.entries ?? []).map((x) => x.id ?? "").filter(Boolean);
+      }
+      return { task_id: hit.id!, assignment_ids };
     } catch (e) {
       const m = mapBoxError(e);
       throw new BoxAdapterError(m.code, `findTaskByMessage(file ${fileId}): ${m.message}`, m.status);

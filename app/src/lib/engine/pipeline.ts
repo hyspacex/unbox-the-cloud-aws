@@ -644,8 +644,7 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
   let evalError: { code: string; message: string } | null = null;
   try {
     // The abort signal is passed as an optional fourth argument; evaluators that accept it cancel the model call.
-    const evaluate = evaluator.evaluate.bind(evaluator) as (i: EvaluatorInput, t: { search: SearchSnapshotTool }, s: (st: TraceStep) => void, o?: { signal?: AbortSignal }) => Promise<EvaluatorResult>;
-    evalResult = await evaluate(
+    evalResult = await evaluator.evaluate(
       input,
       { search: { search: (q, ex, sig) => search.search(q, ex, sig ?? ctx.signal) } },
       (s) => {

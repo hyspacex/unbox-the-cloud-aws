@@ -105,7 +105,14 @@ export class BedrockEvaluator implements Evaluator {
     this.modelOverride = opts.model;
   }
 
-  async evaluate(input: EvaluatorInput, tools: { search: SearchSnapshotTool }, onStep?: (step: TraceStep) => void, opts: { signal?: AbortSignal } = {}): Promise<EvaluatorResult> {
+  /**
+   * The optional fourth argument is the run's abort signal, given either as `{ signal }` (what the
+   * pipeline passes) or as a bare AbortSignal. It is combined with KEEL_EVAL_TIMEOUT_MS via
+   * AbortSignal.any into the Strands invoke cancelSignal; Strands derives each tool call's
+   * cancelSignal from it, and search_snapshot passes that to the search tool's Box requests.
+   */
+  async evaluate(input: EvaluatorInput, tools: { search: SearchSnapshotTool }, onStep?: (step: TraceStep) => void, runSignal?: AbortSignal | { signal?: AbortSignal }): Promise<EvaluatorResult> {
+    const opts = { signal: runSignal instanceof AbortSignal ? runSignal : runSignal?.signal };
     const cfg = this.config;
     const { Agent, AfterModelCallEvent, BedrockModel, BeforeModelCallEvent, tool } = await loadStrands();
     const t0 = Date.now();

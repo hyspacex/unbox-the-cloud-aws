@@ -61,6 +61,11 @@ export interface BoxAdapter {
   listTaskAssignments(taskId: string): Promise<BoxTaskAssignmentView[]>;
   aiAsk(fileIds: string[], prompt: string, opts: { citations: true }): Promise<BoxAiAskResponse>;
   aiTextGen(fileIds: string[], prompt: string): Promise<BoxAiTextGenResponse>;
+  /**
+   * Optional (additive): reconcile an ambiguous task creation. The task on `fileId` whose message
+   * contains `marker` (an exact message match is preferred), with its assignment ids, or null.
+   */
+  findTaskByMessage?(fileId: string, marker: string): Promise<{ task_id: string; assignment_ids?: string[] } | null>;
   /** Identity Box reports for the configured service account; used to label the human step. */
   currentUser(): Promise<BoxIdentity>;
 }

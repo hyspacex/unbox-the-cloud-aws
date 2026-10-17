@@ -375,3 +375,33 @@ describe("NEW-3: tasks attach to a remaining file when the evidencing file is re
 void AbsentInputGate;
 void ingestTaskResponse;
 void ({} as InputGateResult);
+
+describe("7 (adapter round): a failed task lookup leaves the response retryable", () => {
+  it("lookup throws during an ambiguous creation: no Confirm-finding fallback; the next attempt reconciles", async () => {
+    const h = harness();
+    await h.run("architecture_v3");
+    const create = h.box.createTask.bind(h.box);
+    let ambiguous = true;
+    h.box.createTask = async (...a: Parameters<typeof create>) => {
+      const r = await create(...a);
+      if (a[2] === "complete" && ambiguous) {
+        ambiguous = false;
+        throw new Error("Box timed out after creating the task");
+      }
+      return r;
+    };
+    const find = h.box.findTaskByMessage.bind(h.box);
+    let lookupDown = true;
+    h.box.findTaskByMessage = async (...a: Parameters<typeof find>) => {
+      if (lookupDown) throw Object.assign(new Error("Box 503 on GET /files/tasks"), { code: "BOX_UNAVAILABLE" });
+      return find(...a);
+    };
+    await expect(h.respond("SEC-ARCH-07", "rejected", DANA_REASON)).rejects.toThrow(/503/);
+    expect(Object.values(h.store.data.processing)[0].stage).toBe("author_task_creating");
+    expect(h.eventsOf("acknowledgment_recorded", "S4")).toHaveLength(0);
+    lookupDown = false;
+    const r = await h.respond("SEC-ARCH-07", "rejected", DANA_REASON, { replay: true, taskId: "box-task-77120931" });
+    expect(r.mapped_action).toBe("returned_to_author");
+    expect(h.box.tasks().filter((t) => t.action === "complete")).toHaveLength(1);
+  });
+});

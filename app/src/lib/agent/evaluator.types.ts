@@ -56,7 +56,8 @@ export interface EvaluatorResult {
 
 export interface Evaluator {
   readonly kind: "bedrock" | "mock";
-  evaluate(input: EvaluatorInput, tools: { search: SearchSnapshotTool }, onStep?: (step: TraceStep) => void): Promise<EvaluatorResult>;
+  /** opts.signal: the review transaction's deadline; evaluators abort the model call when it fires. */
+  evaluate(input: EvaluatorInput, tools: { search: SearchSnapshotTool }, onStep?: (step: TraceStep) => void, opts?: { signal?: AbortSignal }): Promise<EvaluatorResult>;
 }
 
 export interface InputGate {

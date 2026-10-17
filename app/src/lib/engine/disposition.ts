@@ -492,14 +492,15 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
     : (snapFiles.find((f) => control.evidence.some((e) => e.toLowerCase().includes(f.fileName.replace(/\.[^.]+$/, "").toLowerCase()))) ?? snapFiles[0])?.fileId ?? wantFile;
   let authorTask: StoredTask | null = proc?.author_task_id ? store.data.tasks.find((t) => t.task_id === proc.author_task_id) ?? null : null;
   if (!authorTask) {
+    const finder = (box as { findTaskByMessage?: (fileId: string, message: string) => Promise<{ task_id: string } | null> }).findTaskByMessage;
+    // Resume: the author task may already exist in Box from an interrupted attempt (Codex finding 7).
+    // Outside the try: if this lookup itself fails, the response stays unfinished and is retried later,
+    // rather than falling back to Confirm finding while a task may exist.
+    let existingId = store.data.processing[dedup_key]?.author_task_id;
+    if (!existingId && store.data.processing[dedup_key]?.stage === "author_task_creating" && finder) {
+      existingId = (await finder.call(box, authorFileId, authorMessage))?.task_id;
+    }
     try {
-      // Resume: the author task may already exist in Box from an interrupted attempt (Codex finding 7).
-      let existingId = store.data.processing[dedup_key]?.author_task_id;
-      if (!existingId && store.data.processing[dedup_key]?.stage === "author_task_creating") {
-        // Ambiguous: the previous attempt may have created the task before crashing. Look it up first.
-        const finder = (box as { findTaskByMessage?: (fileId: string, message: string) => Promise<{ task_id: string } | null> }).findTaskByMessage;
-        existingId = finder ? (await finder.call(box, authorFileId, authorMessage))?.task_id : undefined;
-      }
       if (!existingId) setStage("author_task_creating", { due_at }); // intent persisted before the Box side effect
       const task_id = existingId ?? (await box.createTask(authorFileId, authorMessage, "complete", due_at)).task_id;
       if (!existingId) setStage("author_task_created", { author_task_id: task_id, due_at }); // persisted before anything else can fail
@@ -526,8 +527,8 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
     } catch (err) {
       if (store.data.processing[dedup_key]?.author_task_id) throw err; // assignment failed after creation: retry resumes
       // Ambiguous failure: Box may have created the task before the error. Reconcile before falling back.
-      const finder = (box as { findTaskByMessage?: (fileId: string, message: string) => Promise<{ task_id: string } | null> }).findTaskByMessage;
-      const found = finder ? await finder.call(box, authorFileId, authorMessage).catch(() => null) : null;
+      // A failed lookup propagates (stage stays author_task_creating; the next poll or action retries).
+      const found = finder ? await finder.call(box, authorFileId, authorMessage) : null;
       if (found) {
         setStage("author_task_created", { author_task_id: found.task_id, due_at });
         return ingestLocked(deps, input); // resume with the reconciled task id

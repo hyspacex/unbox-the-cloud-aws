@@ -719,7 +719,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
         error: { code: o.reason.code, message: o.reason.message },
         basis: o.basis,
         finding_id: o.findingId,
-        projection: { box_metadata: "pending" },
+        projection: { box_metadata: "n/a" },
         ...(validation.findings.get(o.control.id)?.invalid ? { rejected_output: validation.findings.get(o.control.id)!.raw } : {}),
       });
       continue;
@@ -751,7 +751,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
       finding_id: o.findingId,
       model_basis: o.model_basis,
       ...(o.wording.length ? { wording_filter: o.wording } : {}),
-      projection: { box_metadata: "pending" },
+      projection: { box_metadata: "n/a" },
     });
   }
   for (const o of outcomes) {

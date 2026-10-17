@@ -388,7 +388,7 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
     response_times: { box_completed_at: view.completed_at, keel_ingested_at: ingested_at },
     dedup_key,
     freshness_check: { ...freshness_check, result: freshness === "applied" ? "pass" : "reapplied" },
-    projection: { box_metadata: "pending" as const },
+    projection: { box_metadata: "n/a" as const }, // only box_metadata_written/_failed events carry a projection result
   };
   /** Revalidate after an await: the pointer and the binding must still be the ones decided on. */
   const stillFresh = () => store.data.current_snapshot_id === current && bindingsEqual(deriveControlState(store, control, snap).binding, b);

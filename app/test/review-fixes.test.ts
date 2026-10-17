@@ -491,3 +491,53 @@ describe("also in this round", () => {
     delete process.env.KEEL_GATE_INJECTION_THRESHOLD;
   });
 });
+
+describe("judge A1: no half-applied state is visible to the API during a run", () => {
+  it("every package read mid-run is pending with the prior label struck and prior evidencing, header and count line on one snapshot", async () => {
+    const { resetConfigCache } = await import("../src/lib/config");
+    process.env.KEEL_MOCK_TIME_SCALE = "0.1"; // about 0.8 s of real wall clock through the mock adapters
+    resetConfigCache();
+    vi.resetModules();
+    const svc = await import("../src/lib/service");
+    svc.reset();
+    const sub = await svc.submit({ scenario: "architecture_v3" });
+    const samples: ReturnType<typeof svc.getPackageView>[] = [];
+    let finished = false;
+    void sub.done!.then(() => (finished = true));
+    while (!finished) {
+      samples.push(svc.getPackageView());
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    const run = svc.getRun(sub.run_id);
+    const applied = run.steps.find((s) => s.kind === "findings_applied")!;
+    expect(samples.length).toBeGreaterThan(10);
+    for (const pv of samples) {
+      // Header snapshot and count line always come from the same read.
+      expect(pv.count_line.startsWith(`8 controls on snapshot ${pv.snapshot.snapshot_id}:`)).toBe(true);
+      if (pv.snapshot.snapshot_id !== "S4") continue;
+      if (pv.evaluation_state === "pending") {
+        expect(pv.count_line).toBe("8 controls on snapshot S4: 8 Re-check pending");
+        for (const r of pv.rows) {
+          expect(r.status.kind).toBe("pending_recheck");
+          expect(r.status.struck).toBe("Verified, holds");
+          expect(r.evidencing?.versionId).not.toBe("1801102233"); // still the prior evidencing file version
+        }
+      } else {
+        expect(pv.count_line).toBe(fixture.expected().expected_count_line_before);
+      }
+    }
+    const pendingSamples = samples.filter((s) => s.snapshot.snapshot_id === "S4" && s.evaluation_state === "pending").length;
+    expect(pendingSamples).toBeGreaterThan(5);
+    // Final statuses appear only once the evaluation events and findings are written.
+    const completedAt = svc.getLedger().events.find((e) => e.event_type === "evaluation_completed" && e.snapshot_id === "S4");
+    expect(completedAt).toBeTruthy();
+    expect(applied).toBeTruthy();
+    // Machine and human events that do not project carry "n/a"; only metadata events carry ok/failed.
+    for (const e of svc.getLedger().events.filter((x) => x.phase === "live")) {
+      if (e.event_type.startsWith("box_metadata")) expect(["ok", "failed", "ambiguous", "deferred"]).toContain(e.projection.box_metadata);
+      else expect(e.projection.box_metadata, e.event_type).toBe("n/a");
+    }
+    delete process.env.KEEL_MOCK_TIME_SCALE;
+    resetConfigCache();
+  });
+});

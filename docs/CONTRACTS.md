@@ -95,3 +95,34 @@ service then ingests it through the same handler the live poller uses.
 5. `POST /api/reset` returns to step 1.
 
 Expected labels at each step are in `expected-findings.json` (`expected_display`, `expected_count_line_before`, `expected_count_line_after`). Those are test oracles, never inputs.
+
+## Round 2 additions (engine review fixes, Oct 17)
+
+Additive only; nothing above is renamed or removed.
+
+| Route | Method | Response |
+| --- | --- | --- |
+| `/api/poll` | POST | `{ poll, tasks, open, completed, awaiting_drafts }`. Live: polls every open Box review task and ingests resolved assignments through the disposition handler (serialized per package); failures land in `poll.errors`, never thrown. Mock: no-op returning the task list. |
+| `/api/runs` | GET | `{ runs: [{ run_id, mode_label, snapshot_id, prior_snapshot_id, started_at, total_duration_ms, status, step_count, compressed_timing, scenario?, error? }] }`, newest first. Replay a stored trace read-only with `GET /api/run/[id]` (spec 7 fallback: labelled replay with its run id). |
+
+`GET /api/tasks` now also returns `awaiting_drafts`, and in live mode polls first and returns `poll`.
+
+**New action.** `POST /api/action { action: "approve_author_draft", finding_id, control_id, author_message }`: the reviewer approves the author-task draft. A Return to author that arrived from Box without an approved draft is recorded as Confirm finding with `awaiting_draft` and resumes here: author task first, then `returned_to_author`. In mock mode, `return_to_author` in Keel approves `author_message` (or the fresh Box AI draft) itself.
+
+**State rules.** The finding, control and decision snapshot come from the immutable task mapping only; a client `decision_snapshot_id` is recorded as `client_snapshot_id` for the notice. Rows stay `pending_recheck` (prior label struck through, prior evidencing kept) until `evaluation_completed`. Events that do not project carry `projection.box_metadata: "n/a"`.
+
+**New error codes.** 400 `FINDING_CONTROL_MISMATCH`, 409 `NO_AWAITING_DRAFT`, 409 `LIVE_RESPOND_IN_BOX`, 400 `DRAFT_REQUIRED`, 503 `STORE_UNREADABLE` (the store exists but fails structure or chain validation; Keel fails closed and leaves the file untouched; mock `/api/reset` moves it to `*.unreadable-<ts>` and reseeds). All errors are `{ error: { code, message } }`.
+
+**Optional fields added to `types.ts`.**
+- `AppConfig.decider.kind`: `"mock" | "decider" | "absent"`.
+- `ActionRequest.action` gains `"approve_author_draft"`.
+- `PackageView.poll`: `{ at, ok, ingested, errors }`, live only.
+- `PackageView.awaiting_drafts`: `[{ finding_id, control_id, task_id, target_snapshot_id, updated_at }]`.
+- `FindingCard.opened_at`, `FindingCard.pending_author_draft`: `{ reason, draft?, drafted_by?, task_id, snapshot_id? }`.
+- `FindingCard.actions.return_to_author.suggested_reason`.
+
+**Ledger fields added.** `wording_filter` (machine text withheld by the banned-word filter); `removed: true` on `file_version_observed`; `attempt` N on retries of the same `evaluation_id`; `client_snapshot_id` in `freshness_check`; `orphaned_author_task_id` on `action_rejected_stale`; `late_result_recorded` with `superseded_by`; `RUN_INTERRUPTED` on restart recovery.
+
+**Store files.** Mock: `app/data/store.json`. Live: `app/data/runs/store-live.json` (gitignored), so flipping `MOCK_MODE` never overwrites the other ledger. `KEEL_STORE_PATH` overrides either. New persisted keys: `gate_decisions` (quarantine by file version), `processing` (human-response stages for resume), `approved_drafts`.
+
+**Env vars.** `KEEL_POLL_INTERVAL_MS` (default 5000; live only; the poller starts lazily on the first `/api/package`; 0 disables). Gate threshold: `DECIDER_INJECTION_THRESHOLD` (preferred), else `KEEL_GATE_INJECTION_THRESHOLD`, default 0.5; `config.ts` is the single source and passes it to `DeciderGate`. Identities: `KEEL_REVIEWER_BOX_USER_ID` and `KEEL_AUTHOR_BOX_USER_ID`; when unset in live mode, tasks are assigned by login.

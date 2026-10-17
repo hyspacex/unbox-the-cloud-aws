@@ -160,6 +160,43 @@ export function getFindingCard(idOrControlId: string): FindingCard {
   return buildFindingCard(s, profile(), getConfig(), resolveFinding(s, idOrControlId));
 }
 
+export interface RunSummary {
+  run_id: string;
+  mode_label: RunRecord["mode_label"];
+  snapshot_id: string;
+  prior_snapshot_id?: string;
+  started_at: string;
+  total_duration_ms: number;
+  status: RunRecord["status"];
+  step_count: number;
+  compressed_timing: boolean;
+  scenario?: string;
+  error?: string;
+}
+
+/** Recorded runs, newest first. Read-only: replaying one is GET /api/run/[id], which never changes state. */
+export function listRuns(): { runs: RunSummary[] } {
+  const s = store();
+  const runs = [...s.data.run_order].reverse().flatMap((id) => {
+    const r = s.data.runs[id];
+    if (!r) return [];
+    return [{
+      run_id: r.run_id,
+      mode_label: r.mode_label,
+      snapshot_id: r.snapshot_id,
+      prior_snapshot_id: r.prior_snapshot_id,
+      started_at: r.started_at,
+      total_duration_ms: r.total_duration_ms,
+      status: r.status,
+      step_count: r.steps.length,
+      compressed_timing: r.compressed_timing,
+      scenario: r.scenario,
+      error: r.error,
+    }];
+  });
+  return { runs };
+}
+
 export function getRun(runId: string): RunRecord {
   const r = store().data.runs[runId];
   if (!r) throw new ServiceError("NOT_FOUND", `no run ${runId}`, 404);

@@ -56,3 +56,23 @@ describe("service facade, mock state machine (CONTRACTS.md)", () => {
     expect(svc.reset().count_line).toBe("8 controls on snapshot S3: 8 Verified holds");
   });
 });
+
+describe("GET /api/runs and read-only replay", () => {
+  it("lists runs newest first; a stored trace keeps its steps and timings and survives a restart", async () => {
+    const { forgetStore } = await import("../src/lib/store");
+    svc.reset();
+    const sub = await svc.submit({ scenario: "architecture_v3" }, { wait: true });
+    const before = svc.getRun(sub.run_id);
+    const { runs } = svc.listRuns();
+    expect(runs[0]).toMatchObject({ run_id: sub.run_id, mode_label: "Mock", snapshot_id: "S4", prior_snapshot_id: "S3", status: "done", step_count: before.steps.length });
+    expect(runs[0].total_duration_ms).toBe(before.total_duration_ms);
+    const eventsBefore = svc.getLedger().events.length;
+    forgetStore(); // simulate a restart: the next read loads app/data from disk
+    const after = svc.getRun(sub.run_id);
+    expect(after.steps).toEqual(before.steps);
+    expect(after.total_duration_ms).toBe(before.total_duration_ms);
+    expect(after.done).toBe(true);
+    expect(svc.getLedger().events.length).toBe(eventsBefore); // replay reads never change state
+    svc.reset();
+  });
+});

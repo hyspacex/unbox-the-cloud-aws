@@ -65,7 +65,11 @@ The first request at a new input length compiles shapes. Run `decider-smoke.ts` 
 
 It reads the result back and prints FAIL if the restore did not take. The template check validates field types and all twelve enum codes. With `--write`, it adds missing codes with `addEnumOption`.
 
-**Task identity check (spec 3 step 11).** Run the gate with `--write`. It creates and assigns a probe task, then deletes it. Then have the reviewer approve one real task in Box while logged in as themselves. Confirm the assignment's `assigned_to` is the reviewer, not the service account. If it is not, label the human step simulated.
+**Task identity check (spec 3 step 11).** Run the gate with `--write`. It creates a probe task, assigns it to `KEEL_REVIEWER_LOGIN`, and checks two things before deleting it:
+- Box resolves the assignee to that login, compared case-insensitively. Live authorization compares logins the same way, unless `KEEL_REVIEWER_BOX_USER_ID` is set.
+- `findTaskByMessage` finds the same task. The engine uses that lookup to reconcile an ambiguous task creation instead of creating a duplicate.
+
+Either mismatch is a FAIL. Then have the reviewer approve one real task in Box while logged in as themselves. Confirm the assignment's `assigned_to` is the reviewer, not the service account. If it is not, label the human step simulated.
 
 ## 4. Fixture ids to Box ids: `app/data/box-map.json`
 

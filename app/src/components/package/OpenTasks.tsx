@@ -47,9 +47,22 @@ export function OpenTasks({ tasks, loading, error }: { tasks: TaskItem[]; loadin
                 </span>
               </div>
               <div className="mt-0.5 text-muted">
-                {t.kind === "author" || String(t.kind).startsWith("author") ? "Author task" : "Review task"} ·{" "}
-                <span className="text-blue-ink">{t.assignee}</span> · {t.action} ·{" "}
-                <span className="mono">{t.control_id}</span> · <span className="mono">{t.finding_id}</span>
+                {(t as TaskItem & { label?: string }).label ? (
+                  // Quarantine tasks name the file and every control they block (judge3 B5).
+                  <>
+                    {(t as TaskItem & { label?: string }).label} · <span className="text-blue-ink">{t.assignee}</span>
+                    {(t as TaskItem & { control_ids?: string[] }).control_ids?.length &&
+                    !(t as TaskItem & { control_ids?: string[] }).control_ids!.every((c) => ((t as TaskItem & { label?: string }).label ?? "").includes(c)) ? (
+                      <> · <span className="mono">{(t as TaskItem & { control_ids?: string[] }).control_ids!.join(", ")}</span></>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    {t.kind === "author" || String(t.kind).startsWith("author") ? "Author task" : "Review task"} ·{" "}
+                    <span className="text-blue-ink">{t.assignee}</span> · {t.action} ·{" "}
+                    <span className="mono">{t.control_id}</span> · <span className="mono">{t.finding_id}</span>
+                  </>
+                )}
                 {t.due_at ? <> · due <span className="mono">{utc(t.due_at)}</span></> : null}
               </div>
             </motion.li>

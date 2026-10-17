@@ -127,8 +127,76 @@ export function notEvaluatedCategory(code: string | undefined, state?: DisplayIn
   return "evaluation error";
 }
 
+/** At most `n` words; a longer string is cut at a word boundary and ends with an ellipsis. */
+export function capWords(text: string, n: number): string {
+  const w = text.trim().split(/\s+/).filter(Boolean);
+  if (w.length <= n) return w.join(" ");
+  return w.slice(0, n).join(" ").replace(/[,;:.]+$/, "") + "…";
+}
+
+export const SHORT_MAX_WORDS = 10;
+const cap1 = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+/**
+ * UI v4: the row's secondary line in the panel, at most ten words, derived deterministically from
+ * the status kind, label and detail. Severity is a separate chip, so it is not repeated here.
+ * `evidencingFile` names the current evidencing file for a moved binding ("Same sentence, now in runbook.md").
+ */
+export function shortStatus(s: Pick<DisplayedStatus, "kind" | "label" | "detail" | "secondary">, evidencingFile?: string): string {
+  const tail = s.label.includes(": ") ? s.label.slice(s.label.indexOf(": ") + 2) : s.label;
+  const who = (re: RegExp) => re.exec(s.secondary ?? "")?.[1];
+  let out: string;
+  switch (s.kind) {
+    case "pending_recheck":
+      out = "Re-checking against the new snapshot";
+      break;
+    case "not_evaluated":
+      out = cap1(tail);
+      break;
+    case "verified_holds":
+      out = "Verified sentence unchanged";
+      break;
+    case "verified": {
+      const n = who(/^Verified by ([^,]+)/);
+      out = n ? `Verified by ${n} on this snapshot` : "Verified on this snapshot";
+      break;
+    }
+    case "returned_to_author": {
+      const n = who(/^Returned by ([^,]+)/);
+      out = n ? `Returned by ${n}, awaiting the author` : "Returned, awaiting the author";
+      break;
+    }
+    case "acknowledge":
+      out = /section/.test(s.label) ? "Section changed, quote unchanged" : "File changed, quote unchanged";
+      break;
+    case "needs_review_binding":
+      out = evidencingFile ? `Same sentence, now in ${evidencingFile}` : "Same sentence, now in another file";
+      break;
+    case "needs_review_weakened":
+      out = cap1(tail);
+      break;
+    case "needs_review_absent":
+      out = "Verified evidence no longer found";
+      break;
+    case "needs_review_conflict":
+      out = "Another file conflicts with the evidence";
+      break;
+    case "pending_review":
+      out = "Evidence found, not yet reviewed";
+      break;
+    default:
+      out = s.label;
+  }
+  return capWords(out, SHORT_MAX_WORDS);
+}
+
 /** Spec 4, the sixteen ordered rules. First match wins. */
 export function displayStatus(i: DisplayInputs, o: DisplayOptions = {}): DisplayedStatus {
+  const s = displayStatusRule(i, o);
+  return { ...s, short: shortStatus(s, i.current_binding?.fileName) };
+}
+
+function displayStatusRule(i: DisplayInputs, o: DisplayOptions = {}): DisplayedStatus {
   const mk = (rule: number, kind: DisplayKind, label: string, projection_code: ProjectionCode, tone: DisplayedStatus["tone"], extra: Partial<DisplayedStatus> = {}): DisplayedStatus => ({
     rule,
     kind,

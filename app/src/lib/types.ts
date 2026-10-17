@@ -317,6 +317,8 @@ export interface DisplayedStatus {
   detail?: string;
   /** Who, visually: machine-grey, human-blue, needs-review amber, human-verified green. */
   tone: "grey" | "blue" | "amber" | "green" | "red" | "teal"; // "teal" added: Verified, holds (rule 10)
+  /** Added (UI v4): <= 10 words, the row's secondary line in the panel. Computed in display.ts. */
+  short?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -545,6 +547,8 @@ export interface TraceStep {
   prompt_version?: string;
   prompt_hash?: string;
   mrm_model_id?: string;
+  /** Added (UI v4): <= 12 words for the owl bubble, computed from kind + detail (engine/bubble.ts). */
+  bubble?: string;
 }
 
 export interface Trace {
@@ -565,6 +569,10 @@ export interface Trace {
     recorded_at?: string;
     /** The replayed snapshot (manifest and captured_at) for the header chip. */
     snapshot?: Snapshot;
+    /** Added (UI v4): open decisions in the recorded rows (the replay badge). */
+    open_decisions?: number;
+    /** Added (UI v4): the owl's summary sentence for the recorded rows. */
+    decision_summary?: string;
   };
   /** Added: for the trace's Done line ("6 re-checked, 2 not evaluated"). */
   summary?: { evaluated: number; not_evaluated: number };
@@ -626,6 +634,24 @@ export interface ControlRow {
   current_disposition: HumanDisposition;
   prior_verification: PriorVerification | null;
   open_task_id?: string;
+  /** Added (UI v4): the row waits for a human decision on its snapshot (counts toward the owl badge). */
+  needs_decision?: boolean;
+  /** Added (UI v4): a human decision is recorded on the row's snapshot (disposition, or an acknowledgment that leaves the label unchanged). */
+  decision_recorded?: boolean;
+}
+
+/** Added (UI v4): one file of the current snapshot, for the Box file list. */
+export interface PackageFile {
+  file_id: string;
+  file_name: string;
+  version_id: string;
+  version_label?: string; // "v3"
+  updated_at?: string; // ISO, from the version's createdAt / fixture
+  size_bytes?: number; // Box size; mock: byte length of the pinned text
+  uploader?: string; // display name or login
+  control_ids: string[]; // controls whose current evidencing file is this file
+  open_decisions: number; // rows on this file whose displayed status needs a human
+  recorded_decisions: number; // rows on this file with a human disposition on the current snapshot
 }
 
 export interface PackageView {
@@ -651,6 +677,12 @@ export interface PackageView {
   poll?: { at: string; ok: boolean; ingested: number; errors: { task_id: string; message: string }[] };
   /** Added: returns to author whose author task waits for the reviewer to approve the draft. */
   awaiting_drafts?: { finding_id: string; control_id: string; task_id: string; target_snapshot_id?: string; updated_at: string }[];
+  /** Added (UI v4): the current snapshot's files with per-file decision counts. */
+  files?: PackageFile[];
+  /** Added (UI v4): total rows needing a human decision; the owl badge. */
+  open_decisions?: number;
+  /** Added (UI v4): computed sentence for the owl bubble, <= 12 words. */
+  decision_summary?: string;
 }
 
 export interface FindingCard {
@@ -700,6 +732,19 @@ export interface FindingCard {
   opened_at?: string;
   /** Added: a reviewer's return to author waiting for draft approval (action approve_author_draft). */
   pending_author_draft?: { reason: string; draft?: string; drafted_by?: string; task_id: string; snapshot_id?: string };
+  /** Added (UI v4): one computed sentence for level 2; passes the wording filter. */
+  verdict_line?: string;
+  /** Added (UI v4): present once a human disposition exists on the current snapshot. */
+  receipt?: FindingReceipt | null;
+}
+
+/** Added (UI v4). */
+export interface FindingReceipt {
+  line1: string;
+  line2: string;
+  line3: string;
+  event_ids: string[];
+  tone: "green" | "blue" | "grey";
 }
 
 // ---------------------------------------------------------------------------

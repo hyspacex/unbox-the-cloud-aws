@@ -117,6 +117,9 @@ export const api = {
     return c;
   },
   submit: (body: SubmitRequest) => post<SubmitResponse>("/api/submit", body),
+  /** UI v4: Upload new version. Mock: submit architecture_v3 (or `scenario`). Live: Box upload, then submit. */
+  uploadVersion: (body: { file_name: string; file_id?: string; scenario?: SubmitRequest["scenario"]; content_base64?: string }) =>
+    post<SubmitResponse>("/api/upload-version", body),
   run: (runId: string, signal?: AbortSignal) => req<RunState>(`/api/run/${encodeURIComponent(runId)}`, { signal }),
   runs: async (signal?: AbortSignal): Promise<RunSummary[]> => {
     const b = await req<{ runs?: RunSummary[] } | RunSummary[]>("/api/runs", { signal });

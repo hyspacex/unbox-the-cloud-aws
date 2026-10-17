@@ -8,6 +8,8 @@
  * The same code runs in mock and live mode; only the adapters differ. Every step is recorded as a
  * TraceStep with real timestamps and durations, tagged by source (app, box, decider, agent, boxai).
  */
+import { bubbleFor } from "./bubble";
+import { decisionFlags, decisionSummary, needsDecision } from "./summary";
 import type { BoxAdapter } from "../box/adapter";
 import type { DiffHint, Evaluator, EvaluatorInput, EvaluatorResult, InputGate, SearchSnapshotTool } from "../agent/evaluator.types";
 import type { KeelConfig } from "../config";
@@ -37,7 +39,7 @@ import { findQuote, hasTerm, norm, NORMALIZATION, quoteValid, sectionText, sente
 import { searchPrompt } from "../agent/search-tool";
 import { APP_ACTOR, eventOpts, publishProjection } from "./publish";
 import { stalenessEventType, verificationHolds, type StalenessResult } from "./staleness";
-import { buildRows, deriveControlState, latestVerification, priorEvaluation, publicRow, verificationBinding } from "./state";
+import { buildRows, deriveControlState, latestVerification, priorEvaluation, publicRow, snapshotEvaluationState, verificationBinding } from "./state";
 import { countLine } from "./display";
 import { createReviewTasks, suggestedAction } from "./tasks";
 import { validateFindingSet, type PinnedFile } from "./validate";
@@ -196,6 +198,7 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
 
   const emit = (s: Omit<TraceStep, "seq">): TraceStep => {
     const step: TraceStep = { seq: steps.length + 1, ts: new Date(t0 + s.startMs).toISOString(), ...s };
+    step.bubble = bubbleFor(step); // UI v4: the owl's line for this step, computed from kind + detail
     steps.push(step);
     ctx.onStep?.(step);
     return step;
@@ -298,7 +301,16 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
       pending_count_line: `${n} controls on snapshot ${snapshotId}: ${n} Re-check pending`,
       ...(final ? (() => {
         const rows = buildRows(store, profile, snapshotId, { withPrior: false });
-        return { count_line: countLine(rows, snapshotId), rows: rows.map(publicRow), recorded_at: utcNow(), snapshot: store.snapshot(snapshotId) };
+        const evalState = snapshotEvaluationState(store.events, snapshotId).state;
+        return {
+          count_line: countLine(rows, snapshotId),
+          // UI v4: row flags, badge count and owl sentence of the recorded outcome, so a replay never counts rows.
+          rows: rows.map((r) => ({ ...publicRow(r), ...decisionFlags(store, r) })),
+          open_decisions: evalState === "pending" ? 0 : rows.filter((r) => needsDecision(store, r)).length,
+          decision_summary: decisionSummary(store, rows, snapshotId, evalState),
+          recorded_at: utcNow(),
+          snapshot: store.snapshot(snapshotId),
+        };
       })() : {}),
     };
   };

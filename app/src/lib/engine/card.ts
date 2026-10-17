@@ -13,6 +13,9 @@ import { addBusinessDays, REVIEWER_IDENTITY_SOURCE } from "./disposition";
 import { NORMALIZATION, quoteValid, sectionByLabel, sectionContaining } from "./normalize";
 import { buildRows, latestVerification, publicRow, verificationBinding, type ControlState, type RowWithState } from "./state";
 import { suggestedAction } from "./tasks";
+import { isSearchStep } from "./bubble";
+import { receiptFor } from "./summary";
+import { bannedWords } from "./wording";
 
 /** A Finding for a control evaluated before this run (seed snapshots), built from its ledger event. */
 export function findingFromState(store: Store, profile: ControlProfile, config: KeelConfig, row: RowWithState): StoredFinding {
@@ -120,6 +123,53 @@ export function suggestedReason(store: Store, finding: Finding, control: { stand
   return `${whereLabel.replace(/\s+/g, " ").trim()} ${lost.length ? "no longer states" : "does not state"} ${listJoin(nouns, "or")}; no other file in the package does either. ${short(control.standard)} requires ${COUNT_WORDS[n] ?? `all ${n}`}. Restore ${one ? "it" : "them"} or cite where ${one ? "it is" : "they are"} now documented.`;
 }
 
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * UI v4 level-2 verdict: one or two short computed sentences from the clause support counts, the
+ * Box AI (or string-search) citation count and the number of files asked. Never evaluative; passes
+ * the wording filter. Hero: "4 of 5 clauses unsupported in every file of this snapshot. Box AI found
+ * 0 citations across the other 4 files."
+ */
+export function verdictLine(
+  row: RowWithState,
+  finding: Finding,
+  searchSteps: TraceStep[],
+  newLocation: { fileName: string; versionLabel?: string; section?: string } | null,
+  filesAsked: (step: TraceStep) => number | undefined,
+): string {
+  const st = row.state;
+  const kind = row.status.kind;
+  const clauses = finding.clause_support.length ? finding.clause_support : st.clause_support;
+  const n = clauses.length;
+  const u = clauses.filter((c) => c.support !== "supported").length;
+  let out: string;
+  if (kind === "pending_recheck") out = `Re-check in progress on ${st.snapshot_id}.`;
+  else if (kind === "not_evaluated") out = `${row.status.label} on ${st.snapshot_id}. No clause was checked.`;
+  else if (st.change_classification === "moved" && newLocation) {
+    const where = `${newLocation.fileName}${newLocation.versionLabel ? ` ${newLocation.versionLabel}` : ""}${newLocation.section ? ` ${newLocation.section.split(" ")[0]}` : ""}`;
+    out = `The same sentence is now in ${where}.`;
+  } else if (st.machine_assessment === "evidence_contradicted") out = "Another quote in this snapshot conflicts with the verified evidence.";
+  else if (st.machine_assessment === "evidence_weakened" || st.machine_assessment === "evidence_absent") {
+    const cited = searchSteps.reduce((a, s) => a + (Number((s.result as { cited_statements?: number } | undefined)?.cited_statements) || 0), 0);
+    const files = Math.max(0, ...searchSteps.map((s) => filesAsked(s) ?? 0));
+    const fallback = searchSteps.length > 0 && searchSteps.every((s) => s.tool === "string_search" || (s.args as { mode?: string } | undefined)?.mode === "string_search");
+    const first = `${u} of ${plural(n, "clause")} unsupported ${searchSteps.length ? "in every file of this snapshot" : `on ${st.snapshot_id}`}.`;
+    const second = !searchSteps.length
+      ? ""
+      : fallback
+        ? ` A text search found ${plural(cited, "match", "matches")}${files ? ` across the other ${plural(files, "file")}` : ""}.`
+        : ` Box AI found ${plural(cited, "citation")}${files ? ` across the other ${plural(files, "file")}` : ""}.`;
+    out = first + second;
+  } else if (st.change_classification === "unchanged" && st.acknowledgment_required) {
+    out = st.acknowledgment_reason === "evidencing section changed"
+      ? "The section around the verified sentence was rewritten. The sentence is unchanged."
+      : "The file holding the verified sentence changed. The sentence is unchanged.";
+  } else if (st.change_classification === "unchanged" && (st.prior_verification || finding.prior_evidence.length)) out = "The verified sentence is unchanged.";
+  else out = n ? `All ${plural(n, "clause")} have a validated quote on ${st.snapshot_id}.` : `Evidence found on ${st.snapshot_id}.`;
+  return bannedWords(out).length ? "See the clauses below." : out;
+}
+
 export function buildFindingCard(store: Store, profile: ControlProfile, config: KeelConfig, finding: Finding & { run_id?: string }): FindingCard {
   const control = profile.controls.find((c) => c.id === finding.control_id)!;
   const currentId = store.data.current_snapshot_id ?? finding.snapshot_id;
@@ -206,7 +256,19 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
     removedMap.set(c.quote.quote, r);
   }
   const verifiedText = [...removedMap.keys()].join(" ");
+  // UI v4: the verdict sentence and the receipt.
+  const searchSteps = (run?.steps ?? []).filter((s) => isSearchStep(s) && (s.args as { control_id?: string } | undefined)?.control_id === control.id);
+  const filesAsked = (s: TraceStep) => {
+    const q = (s.args as { query?: string } | undefined)?.query;
+    const ask = q ? run?.box_ai_asks?.find((a) => a.query === q) : undefined;
+    return ask?.files_asked.length ?? (Number(/over (\d+) files?/.exec(s.label)?.[1]) || undefined);
+  };
+  const newLocation = moved && newFile && binding ? { fileName: newFile.fileName, versionLabel: newFile.versionLabel ?? newInfo?.label, section: binding.section } : null;
+  const verdict_line = verdictLine(row, finding, searchSteps, newLocation, filesAsked);
+  const receipt = currentId === st.snapshot_id ? receiptFor(store, row) : null;
   return {
+    verdict_line,
+    receipt,
     opened_at: opened?.ts,
     binding_sections,
     // A moved binding kept its support in another file: listing the old sentence would read as lost support.

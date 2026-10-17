@@ -135,3 +135,55 @@ Additive only; nothing above is renamed or removed.
 - `return_to_author` without `author_message` waits for `approve_author_draft` in mock mode too.
 
 **Env vars.** `KEEL_POLL_INTERVAL_MS` (default 5000; live only; the poller starts lazily on the first `/api/package`; 0 disables). Gate threshold: `DECIDER_INJECTION_THRESHOLD` (preferred), else `KEEL_GATE_INJECTION_THRESHOLD`, default 0.5; `config.ts` is the single source and passes it to `DeciderGate`. Identities: `KEEL_REVIEWER_BOX_USER_ID` and `KEEL_AUTHOR_BOX_USER_ID`; when unset in live mode, tasks are assigned by login.
+
+## Round 5 (UI v4: the Box page, the owl, one panel)
+
+Additive only. Design: `docs/research/50-ui-v4-box-owl.md`. All strings below are computed by the engine and
+pass the banned-word filter; the UI renders them and never composes a label, count or sentence.
+
+**New route.** `POST /api/upload-version { file_name, file_id?, scenario?, content_base64? }` returns `SubmitResponse` (202).
+- Mock: the same as `POST /api/submit { scenario: scenario ?? "architecture_v3" }`. A second v3 upload returns 409 `ALREADY_SUBMITTED`.
+- Live: uploads `content_base64` as a new version of `file_name` in `BOX_FOLDER_ID` through `src/lib/box/upload.ts`, then submits.
+  Without `content_base64`, `architecture.md` uploads the fixture v3 text, which is the demo beat. Any other file uploads nothing and only submits.
+- Errors: 400 `FILE_NAME_REQUIRED`, 400 `BAD_SCENARIO`, 400 `BAD_CONTENT`, 409 `RUN_ACTIVE`, 502 `UPLOAD_FAILED`.
+- Client: `api.uploadVersion(body)` in `src/lib/client.ts`.
+- `scripts/upload-v3.ts` keeps its CLI and its `uploadV3` export. It now wraps `uploadNewVersion` from `src/lib/box/upload.ts`.
+
+**PackageView.**
+- `files?: PackageFile[]` lists the current snapshot's files in snapshot order. Each entry has `file_id`, `file_name`, `version_id` and `version_label`.
+  It also has `updated_at` (version createdAt), `size_bytes` and `uploader`. Size comes from the Box folder items in live mode and from the pinned text's UTF-8 byte length in mock mode.
+  `control_ids` lists the controls whose current binding is on this file. A not-evaluated control is listed under the file its evaluation event names.
+  `open_decisions` and `recorded_decisions` count those rows.
+- `open_decisions?: number` counts rows that need a human, for the owl badge. It is 0 while the snapshot is pending.
+  A row counts when its kind is `needs_review_*`, `acknowledge`, `pending_review` or `not_evaluated` and no decision is recorded on the snapshot.
+  An `acknowledge` row stops counting once a human acknowledgment is recorded, even though its label does not change.
+- `decision_summary?: string` is at most 12 words:
+  - pending: "Re-checking 8 controls on S4…"
+  - quarantine: "I did not read runbook.md v3. It carried instructions."
+  - open decisions: "1 Critical needs your decision. 2 more to look at." The most severe open severity is named first.
+  - not evaluated only: "1 control was not evaluated. It needs you."
+  - all recorded: "All 8 recorded on S4."
+  - baseline: "8 verifications hold."
+  - error: "The check on S4 stopped. Nothing was decided."
+
+**TraceStep.bubble?: string** is at most 12 words. It comes from `bubbleFor(step)` in `src/lib/engine/bubble.ts` and is computed from the step's kind and its detail, label, args and result.
+- It is set at emit time in the pipeline and in the service's `onStep`.
+- It is added again on read by `getRun`, which feeds `/api/run/[id]` and its SSE stream. Runs recorded before Round 5 therefore replay with bubbles.
+- Box AI substeps get "Asking Box AI across 4 files…". These are `kind: "tool_call"` with `tool: "box_ai_ask"`, `tool: "string_search"` or `args.agent_tool: "search_snapshot"`.
+
+**DisplayedStatus.short?: string** is at most 10 words. It comes from `shortStatus()` in `display.ts`, is set by `displayStatus`, and is added on read to recorded run outcome rows.
+Examples: "Key-management evidence missing", "Same sentence, now in runbook.md", "Section changed, quote unchanged", "Verified sentence unchanged", "Input quarantined".
+
+**FindingCard.**
+- `verdict_line?: string` comes from `verdictLine()` in `card.ts`. It describes the machine evidence, not the disposition.
+  - Weakened or absent: "4 of 5 clauses unsupported in every file of this snapshot. Box AI found 0 citations across the other 4 files."
+  - Moved: "The same sentence is now in runbook.md v2 §3."
+  - Acknowledge (section changed): "The section around the verified sentence was rewritten. The sentence is unchanged."
+  - Holds: "The verified sentence is unchanged."
+  - Not evaluated: "Not evaluated: file unreadable on S4. No clause was checked."
+- `receipt?: FindingReceipt | null`, where `FindingReceipt` is `{ line1, line2, line3, event_ids, tone: "green" | "blue" | "grey" }`. It comes from `receiptFor()` in `src/lib/engine/summary.ts`.
+  It is null until a human decision is recorded on the current snapshot.
+  - Verified (green): "Verified by Dana Okafor" / "on runbook.md v2 §3 · snapshot S4" / "Box task 77120932 approved · 16:45Z"
+  - Returned (blue): "Returned to author by Dana Okafor" / "Box task 77120934 for J. Park (Eng) · due Oct 23" / "on architecture.md v3 · snapshot S4"
+  - Acknowledged (blue): "Acknowledged by Dana Okafor" / "on architecture.md v3 §4.2 · snapshot S4" / "Box task 77120933 completed · 16:45Z"
+  - `event_ids` are listed newest first. They are the disposition or acknowledgment event, the author `box_task_created` event (returns only), the `box_task_response_ingested` event, and the `control_evaluated` event.

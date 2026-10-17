@@ -27,12 +27,14 @@ import { MockEvaluator } from "./agent/mock-evaluator";
 import { AbsentInputGate, MockInputGate } from "./agent/mock-gate";
 import { runReview } from "./engine/pipeline";
 import { buildRows, publicRow, snapshotEvaluationState } from "./engine/state";
-import { countLine, displayedCounts } from "./engine/display";
+import { countLine, displayedCounts, shortStatus } from "./engine/display";
 import { currentProjection, projectionInFlight } from "./engine/publish";
 import { approveDraft, awaitingDrafts, draftAuthorMessage as draftMessage, ingestTaskResponse, pollAssignments as pollAll, type IngestResult } from "./engine/disposition";
 import { buildFindingCard, findingFromState } from "./engine/card";
 import { canonicalJSON, CHAIN_ALGORITHM, sha256Hex, utcNow, verifyChain } from "./engine/ledger";
 import { createLiveAdapters } from "./live-adapters";
+import { withBubble } from "./engine/bubble";
+import { decisionSummary, needsDecision, packageFiles, type FolderItemInfo } from "./engine/summary";
 
 export class ServiceError extends Error {
   constructor(
@@ -120,6 +122,8 @@ export function getPackageView(): PackageView {
   const snap = s.currentSnapshot;
   if (!snap) throw new ServiceError("NO_SNAPSHOT", "no snapshot yet; submit the package folder to capture the baseline", 404);
   const rows = buildRows(s, p, snap.snapshot_id);
+  const evalState = snapshotEvaluationState(s.events, snap.snapshot_id).state;
+  if (!c.mockMode) refreshFolderItems(c.box.folderId); // live: Box sizes for the file table, refreshed in the background
   const run = latestRunFor(s, snap.snapshot_id);
   const gateEvent = [...s.events].reverse().find((e) => e.event_type === "input_gate" && e.snapshot_id === snap.snapshot_id);
   const gate = run?.gate ?? (gateEvent ? { ran: true, label: String(gateEvent.note ?? "Decider 2B") } : { ran: false, label: `no input gate on ${snap.snapshot_id} (recorded before the gate was wired)` });
@@ -144,7 +148,29 @@ export function getPackageView(): PackageView {
       : {}),
     projection_in_flight: projectionInFlight.has(snap.snapshot_id),
     awaiting_drafts: awaitingDrafts(s).map((w) => ({ finding_id: w.finding_id, control_id: w.control_id, task_id: w.task_id, target_snapshot_id: w.target_snapshot_id, updated_at: w.updated_at })),
+    // UI v4: the Box file table, the owl badge and the owl's summary line, all computed.
+    files: packageFiles(s, snap, rows, c.mockMode ? [] : (FI.__keelFolderItems?.items ?? [])),
+    open_decisions: evalState === "pending" ? 0 : rows.filter((r) => needsDecision(s, r)).length,
+    decision_summary: decisionSummary(s, rows, snap.snapshot_id, evalState),
   };
+}
+
+const FI = globalThis as unknown as { __keelFolderItems?: { at: number; items: FolderItemInfo[] }; __keelFolderItemsInFlight?: boolean };
+
+/** Live only: refresh the Box folder item list (sizes) at most every 30 s, without blocking the read. */
+function refreshFolderItems(folderId: string, force = false): void {
+  if (FI.__keelFolderItemsInFlight) return;
+  if (!force && FI.__keelFolderItems && Date.now() - FI.__keelFolderItems.at < 30_000) return;
+  FI.__keelFolderItemsInFlight = true;
+  void adapters()
+    .then((a) => a.box.listFolderItems(folderId))
+    .then((items) => {
+      FI.__keelFolderItems = { at: Date.now(), items: items.map((i) => ({ fileId: i.fileId, size: i.size })) };
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      FI.__keelFolderItemsInFlight = false;
+    });
 }
 
 function resolveFinding(s: Store, idOrControl: string): StoredFinding {
@@ -200,17 +226,24 @@ export function listRuns(): { runs: RunSummary[] } {
       compressed_timing: r.compressed_timing,
       scenario: r.scenario,
       error: r.error,
-      outcome: r.outcome,
+      outcome: outcomeWithShort(r.outcome),
       has_outcome: !!r.outcome?.rows,
     }];
   });
   return { runs };
 }
 
+/** Recorded outcome rows from before UI v4 get their computed short line on read. */
+function outcomeWithShort(o: RunRecord["outcome"]): RunRecord["outcome"] {
+  if (!o?.rows) return o;
+  return { ...o, rows: o.rows.map((row) => (row.status.short ? row : { ...row, status: { ...row.status, short: shortStatus(row.status, row.evidencing?.fileName) } })) };
+}
+
+/** A stored run with every step's owl bubble computed (UI v4), so runs recorded before bubbles replay with them. */
 export function getRun(runId: string): RunRecord {
   const r = store().data.runs[runId];
   if (!r) throw new ServiceError("NOT_FOUND", `no run ${runId}`, 404);
-  return r;
+  return { ...r, steps: r.steps.map(withBubble), outcome: outcomeWithShort(r.outcome) };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -313,8 +346,8 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
   const t0 = Date.now();
   const onStep = (step: TraceStep) => {
     const i = run.steps.findIndex((x) => x.seq === step.seq);
-    if (i >= 0) run.steps[i] = { ...step };
-    else run.steps.push({ ...step });
+    if (i >= 0) run.steps[i] = withBubble(step);
+    else run.steps.push(withBubble(step));
     run.total_duration_ms = Date.now() - t0;
     s.save();
   };
@@ -352,6 +385,63 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
   await known; // the snapshot id (new capture or retried snapshot) is known after intake, well before the run ends
   if (o.wait) await done;
   return { run_id: runId, snapshot_id: snapshotId, evaluation_state: "pending", done };
+}
+
+// ------------------------------------------------------------------------------------------------
+// Upload a new version, then submit (UI v4, POST /api/upload-version)
+// ------------------------------------------------------------------------------------------------
+
+export interface UploadVersionRequest {
+  file_name: string;
+  file_id?: string;
+  scenario?: SubmitRequest["scenario"];
+  /** Live: the new version's bytes, base64. Absent: the demo's fixture text for architecture.md v3, else no upload. */
+  content_base64?: string;
+}
+
+/** Version notes for the fixture uploads (the demo's v3 beat uses the script's note). */
+const FIXTURE_UPLOAD_NOTE: Record<string, string> = { "architecture.md": "Section 4 rewrite for clarity" };
+
+/** Live without content: the demo's architecture.md v3 fixture text; any other file uploads nothing (it is already in Box). */
+function fixtureUploadText(fileName: string, scenario?: string): string | null {
+  return fileName === "architecture.md" && (!scenario || scenario === "architecture_v3") ? fixture.text(FIXTURE_EXTRA.architectureV3) : null;
+}
+
+/**
+ * Mock: an alias for submit with `scenario ?? "architecture_v3"` (the mock Box receives the fixture upload).
+ * Live: upload the content as a new version of `file_name` in the package folder through the Box adapter
+ * (the shared logic of scripts/upload-v3.ts), then submit. Refuses an upload while a run is active.
+ */
+export async function uploadVersion(req: UploadVersionRequest, o: SubmitOptions = {}): Promise<SubmitResponse & { done?: Promise<RunRecord>; upload?: { uploaded: boolean; fileId: string; versionId?: string } }> {
+  const c = getConfig();
+  if (!req.file_name || typeof req.file_name !== "string") throw new ServiceError("FILE_NAME_REQUIRED", "upload-version needs file_name", 400);
+  if (c.mockMode) return submit({ scenario: req.scenario ?? "architecture_v3", fileName: req.file_name, fileId: req.file_id }, o);
+  const s = store();
+  const active = Object.values(s.data.runs).find((r) => !r.done);
+  if (active) throw new ServiceError("RUN_ACTIVE", `run ${active.run_id} is still running`, 409);
+  const text = req.content_base64 !== undefined ? Buffer.from(req.content_base64, "base64").toString("utf8") : fixtureUploadText(req.file_name, req.scenario);
+  let upload: { uploaded: boolean; fileId: string; versionId?: string } | undefined;
+  if (text !== null) {
+    const a = await adapters();
+    const box = a.box as unknown as import("./box/upload").UploadBox;
+    if (typeof (box as { uploadFileVersion?: unknown }).uploadFileVersion !== "function") throw new ServiceError("UPLOAD_UNSUPPORTED", "the live Box adapter cannot upload file versions", 500);
+    const { uploadNewVersion, readBoxMapFile, writeBoxMapFile } = await import("./box/upload");
+    try {
+      const r = await uploadNewVersion(box, c.box.folderId, req.file_name, readBoxMapFile(), {
+        text,
+        note: FIXTURE_UPLOAD_NOTE[req.file_name] ?? "Uploaded from Keel",
+        saveMap: (m) => writeBoxMapFile(m),
+        fileId: req.file_id,
+        ...(req.file_name === "architecture.md" && req.content_base64 === undefined ? { fixtureVersionId: "1801102233" } : {}),
+      });
+      upload = { uploaded: r.uploaded, fileId: r.fileId, versionId: r.versionId };
+    } catch (err) {
+      throw new ServiceError("UPLOAD_FAILED", err instanceof Error ? err.message : String(err), 502);
+    }
+    refreshFolderItems(c.box.folderId, true);
+  }
+  const res = await submit({ fileId: upload?.fileId ?? req.file_id, fileName: req.file_name }, o);
+  return { ...res, ...(upload ? { upload } : {}) };
 }
 
 // ------------------------------------------------------------------------------------------------

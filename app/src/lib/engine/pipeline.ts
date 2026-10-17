@@ -150,7 +150,19 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   // ------------------------------------------------------------------ 1. Intake: compare complete manifests
   const prior = store.currentSnapshot;
   let start = Date.now();
-  const items = await box.listFolderItems(config.box.folderId);
+  // Intake failures (folder listing, version history) are recorded, never a crashed run; no snapshot is captured.
+  const intakeFailed = (stage: string, err: unknown, fileName?: string) => {
+    const error = { code: (err as { code?: string })?.code ?? "BOX_INTAKE_FAILED", message: `${stage}${fileName ? ` for ${fileName}` : ""} failed: ${err instanceof Error ? err.message : String(err)}` };
+    append({ event_type: "evaluation_error", actor: APP_ACTOR, snapshot_id: null, error, note: "intake failed before a snapshot was captured; the current snapshot and its statuses are unchanged; submit again to retry" });
+    emit({ source: "box", kind: "intake_failed", label: `Intake failed: ${error.message}`, ...since(start), detail: error });
+    return result("error", prior?.snapshot_id ?? null, "error", { error });
+  };
+  let items: Awaited<ReturnType<BoxAdapter["listFolderItems"]>>;
+  try {
+    items = await box.listFolderItems(config.box.folderId);
+  } catch (err) {
+    return intakeFailed("listing the package folder", err);
+  }
   const changed = items.filter((it) => prior?.files.find((f) => f.fileId === it.fileId)?.versionId !== it.currentVersionId);
   const removed = (prior?.files ?? []).filter((f) => !items.some((it) => it.fileId === f.fileId));
   // Same version set: re-run only when the snapshot's last evaluation or its side effects did not finish.
@@ -161,7 +173,12 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   }
   const labels = new Map<string, string>();
   for (const it of items) {
-    const versions = await box.listFileVersions(it.fileId);
+    let versions: Awaited<ReturnType<BoxAdapter["listFileVersions"]>>;
+    try {
+      versions = await box.listFileVersions(it.fileId);
+    } catch (err) {
+      return intakeFailed("reading the version history", err, it.fileName);
+    }
     versions.forEach((v, i) => {
       const label = v.label ?? `v${i + 1}`;
       labels.set(v.versionId, label);
@@ -327,7 +344,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
       fileName: p.fileName,
       versionId: p.versionId,
       contentHash: p.contentHash,
-      detail: { injection: g.injection, material_change: g.material_change, options: g.options, latency_ms: g.latency_ms },
+      detail: { injection: g.injection, material_change: g.material_change, options: g.options, latency_ms: g.latency_ms, ...((g as { coverage?: unknown }).coverage ? { coverage: (g as { coverage?: unknown }).coverage } : {}) },
       quarantined: isQ,
       threshold: config.gateInjectionThreshold,
       note: isQ ? "quarantined above the injection threshold; text withheld from the evaluator on this and every later evaluation of this version; gate never writes a status" : "gate result recorded; never writes a status",
@@ -435,13 +452,15 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   });
 
   const search: SearchSnapshotTool = {
-    search: async (query, excludeFileName) => {
+    search: async (query, excludeFileName, signal) => {
       const s0 = Date.now();
       const targets = given.filter((p) => p.fileName !== excludeFileName);
       const rec: BoxAiAskRecord = { query, files_asked: targets.map((t) => t.fileName), cited_statements: 0, rejected_citations: [], citations: [], fallback: false, label: "", elapsed_ms: 0 };
       const terms = query.split(/\s+OR\s+/i).map((t) => t.trim()).filter(Boolean);
       // A bounded question for Box AI (spec 3 step 6); the trailing query line keeps the recorded query exact.
-      const ans = await box.aiAsk(targets.map((t) => t.fileId), `${searchPrompt(query)}\nquery: ${query}`, { citations: true });
+      // A cancelled evaluation cancels its Box AI request too (scoped adapter); an abort returns "unavailable".
+      const b = (signal && (box as { withSignal?: (s: AbortSignal) => BoxAdapter }).withSignal?.(signal)) || box;
+      const ans = await b.aiAsk(targets.map((t) => t.fileId), `${searchPrompt(query)}\nquery: ${query}`, { citations: true });
       let raw: { fileId: string; versionId?: string; content: string }[];
       const answer = "unavailable" in ans && ans.unavailable ? "" : ((ans as { answer?: string }).answer ?? "");
       if ("unavailable" in ans && ans.unavailable) {

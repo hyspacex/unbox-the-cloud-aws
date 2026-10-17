@@ -121,7 +121,7 @@ const normQ = (q?: string) => norm(q ?? "");
 export function notEvaluatedCategory(code: string | undefined, state?: DisplayInputs["evaluation_state"]): string {
   if (code === "input_gate") return "input quarantined";
   if (code && /^QUOTE_/.test(code)) return "quote not found";
-  if (code && /(UNREADABLE|NOT_READY|VERSION_NOT_FOUND|READ|DOWNLOAD)/.test(code)) return "file unreadable";
+  if (code && /(UNREADABLE|NOT_READY|VERSION_NOT_FOUND|TEXT_REPRESENTATION|EXTRACTION|READ|DOWNLOAD)/.test(code)) return "file unreadable";
   void state;
   return "evaluation error";
 }

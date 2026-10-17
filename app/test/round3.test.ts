@@ -131,3 +131,47 @@ describe("B11: short Not evaluated labels, quarantined evidencing, run summary",
     expect(fixture.expected().findings).toHaveLength(8);
   });
 });
+
+describe("integration round: intake failures, search cancellation, unreadable codes", () => {
+  it("a version-history failure is a recorded error, not a crashed run; nothing is captured", async () => {
+    const h = harness();
+    h.box.uploadVersion("architecture.md", fixture.text("architecture-v3.md"), { versionId: "1801102233" });
+    const orig = h.box.listFileVersions.bind(h.box);
+    h.box.listFileVersions = async (id: string) => {
+      if (id === "1650233403") throw Object.assign(new Error("Box 500 on /files/1650233403/versions"), { code: "BOX_VERSIONS_FAILED" });
+      return orig(id);
+    };
+    const r = await h.run();
+    expect(r.outcome).toBe("error");
+    expect(r.error).toMatchObject({ code: "BOX_VERSIONS_FAILED" });
+    expect(r.error!.message).toMatch(/reading the version history for runbook\.md failed/);
+    expect(h.store.data.current_snapshot_id).toBe("S3");
+    expect(h.store.events.at(-1)).toMatchObject({ event_type: "evaluation_error", snapshot_id: null });
+    expect(h.countLine()).toBe("8 controls on snapshot S3: 8 Verified holds");
+    h.box.listFileVersions = orig;
+    expect((await h.run()).snapshot_id).toBe("S4"); // the next submit captures normally
+  });
+
+  it("the search tool scopes Box AI to the evaluation's abort signal", async () => {
+    const h = harness();
+    const seen: (AbortSignal | undefined)[] = [];
+    (h.box as unknown as { withSignal: (s: AbortSignal) => typeof h.box }).withSignal = (s) => {
+      seen.push(s);
+      return h.box;
+    };
+    const ac = new AbortController();
+    const { MockEvaluator } = await import("../src/lib/agent/mock-evaluator");
+    const inner = new MockEvaluator({ modelId: "m", inferenceProfile: "p", promptVersion: "v3", promptHash: "h", timeScale: 0 });
+    await h.run("architecture_v3", {
+      kind: "mock",
+      evaluate: (i, tools, s) => inner.evaluate(i, { search: { search: (q, ex) => tools.search.search(q, ex, ac.signal) } }, s),
+    });
+    expect(seen).toEqual([ac.signal, ac.signal]);
+  });
+
+  it("binary-extraction read errors are labelled file unreadable", async () => {
+    const { notEvaluatedCategory } = await import("../src/lib/engine/display");
+    expect(notEvaluatedCategory("TEXT_REPRESENTATION_CURRENT_ONLY")).toBe("file unreadable");
+    expect(notEvaluatedCategory("VERSION_CHANGED_DURING_EXTRACTION")).toBe("file unreadable");
+  });
+});

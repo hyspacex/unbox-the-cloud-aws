@@ -148,10 +148,12 @@ const FLOW: Node[] = [
 
 function FlowStrip() {
   return (
-    <section aria-label="Architecture flow" className="mt-6 panel px-6 pt-6 pb-5 overflow-x-auto">
-      <div className="flex items-start gap-0 min-w-[1080px]">
+    <section aria-label="Architecture flow" className="mt-6 panel px-6 pt-6 pb-5">
+      <div className="flex flex-wrap xl:flex-nowrap items-start gap-y-6">
         {FLOW.map((n, i) => (
-          <div key={n.title} className="flex items-start">
+          <div key={n.title} className="contents">
+          {i === 3 ? <div className="basis-full h-0 xl:hidden" aria-hidden /> : null}
+          <div className="flex items-start">
             <div className="flex flex-col w-[166px]">
               <div className="rounded-[10px] border border-line-strong bg-white px-3.5 py-3 min-h-[118px]" style={{ boxShadow: `inset 0 3px 0 ${n.color}` }}>
                 <div className="text-[14px] font-semibold text-ink leading-snug">{n.title}</div>
@@ -169,12 +171,13 @@ function FlowStrip() {
                 </div>
               ) : null}
               {n.proposed ? (
-                <div className="mt-2 rounded-[8px] border border-dashed border-line-strong px-2.5 py-1.5 text-[11px] leading-[1.35] text-faint">
+                <div className="mt-2 rounded-[8px] border border-dashed border-line-strong px-2.5 py-1.5 text-[12.5px] leading-[1.4] text-muted">
                   <span className="font-semibold uppercase tracking-[0.06em]">proposed</span> {n.proposed}
                 </div>
               ) : null}
             </div>
-            {i < FLOW.length - 1 ? <Arrow /> : null}
+            {i < FLOW.length - 1 && i !== 2 ? <Arrow /> : i === 2 ? <span className="xl:contents hidden"><Arrow /></span> : null}
+          </div>
           </div>
         ))}
         <Arrow label="asks" />
@@ -194,7 +197,7 @@ function FlowStrip() {
           </div>
         </div>
       </div>
-      <p className="mt-3 text-[12px] text-muted">Solid: built in this build. Dashed: proposed, not built. The ledger is local in this build.</p>
+      <p className="mt-4 text-[12px] text-muted">Solid: built in this build. Dashed: proposed, not built. The ledger is local in this build.</p>
     </section>
   );
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ActionResponse, BoxTask, ControlRow, FindingCard as Card, RunMode } from "@/lib/types";
 import { StatusChip, SeverityTag } from "@/components/ui/StatusChip";
-import { SecondaryLine } from "@/components/package/ControlRows";
+import { RuleLink, SecondaryLine } from "@/components/package/ControlRows";
 import { utc } from "@/lib/ui/format";
 import { T_BASE } from "@/lib/ui/motion";
 import { ClauseSummary, ControlBlock } from "./Clauses";
@@ -63,6 +63,7 @@ export function FindingCardView({
               <h2 className="mono text-[22px] font-semibold tracking-[-0.02em] text-ink">{card.finding.finding_id}</h2>
               {card.finding.severity ? <SeverityTag severity={card.finding.severity} /> : null}
               <StatusChip status={status} showSeverity={false} />
+              <RuleLink rule={status.rule} />
             </div>
             {status.secondary ? (
               <p className="mt-1.5 text-[12.5px] text-muted">
@@ -71,7 +72,7 @@ export function FindingCardView({
             ) : null}
           </div>
           {onClose ? (
-            <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close finding card">
+            <button className="btn btn-ghost btn-sm" onClick={onClose} aria-label="Close finding card" data-autofocus>
               <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
                 <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
@@ -93,7 +94,7 @@ export function FindingCardView({
           <EvidencePair card={card} />
           <ClauseSummary clauses={card.finding.clause_support} />
           <ControlBlock control={card.control} profileVersion={card.profile_version} />
-          <VersionColumns prior={card.prior_version} next={card.new_version} />
+          <VersionColumns prior={card.prior_version} next={card.new_version} oldLocation={card.old_location} />
           <MachineBlock finding={card.finding} traceSteps={card.trace_steps} />
           <div id={threadId} className="scroll-mt-[150px]">
             <Thread events={card.thread} authorTask={authorTask} />

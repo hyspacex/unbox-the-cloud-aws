@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { fromLocalInput, listJoin, toLocalInput, utc, utcDate, utcInText } from "@/lib/ui/format";
 import { compactSecondary } from "@/lib/ui/secondary";
 import { clauseNoun } from "@/lib/engine/display";
+import { attestationPresent } from "@/lib/engine/wording";
 import { T_BASE } from "@/lib/ui/motion";
 import { authorTaskFromThread } from "./Thread";
 import { useKeel } from "@/components/AppProvider";
@@ -116,6 +117,7 @@ export function DispositionBlock({
         <p className="mt-0.5 text-[12px] text-muted" title={`${reviewer.source}${reviewer.box_user_id ? ` · Box user ${reviewer.box_user_id}` : ""}`}>
           {isMock ? "Identity from the Box task · simulated in mock" : "Identity from the Box task"}
         </p>
+        <p className="mt-0.5 text-[11.5px] text-faint">Demo tenant has one reviewer identity; routing by reviewer role is a pilot gate.</p>
       </div>
 
       <div className="px-4 py-3.5 space-y-3">
@@ -349,7 +351,7 @@ function ReturnToAuthorModal({
                 <ul className="text-[13px] text-ink-2 list-disc pl-5 space-y-0.5">
                   {unsupported.map((c) => (
                     <li key={c.clause_id}>
-                      {c.clause} <span className="mono text-[11.5px] text-faint">{c.clause_id}</span>
+                      {c.clause} <span className="mono text-[11.5px] text-faint whitespace-nowrap">{c.clause_id}</span>
                     </li>
                   ))}
                 </ul>
@@ -445,7 +447,7 @@ function VerifyModal({
 
   const allSupported = card.finding.clause_support.every((c) => c.support === "supported");
   const notContradicted = card.finding.machine_assessment !== "evidence_contradicted";
-  const hasPhrase = message.includes(phrase);
+  const hasPhrase = attestationPresent(message, phrase);
   const binding = card.row.evidencing;
 
   const checks: [string, boolean | null][] = [

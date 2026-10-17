@@ -20,6 +20,13 @@ const ENFORCED = [
   "A response whose binding is no longer current is recorded; re-applied if the binding is unchanged, rejected with explanation otherwise.",
 ];
 
+/** Turn the engine's terse writer notes into a sentence (C5). */
+function writerText(w: string): string {
+  if (/model proposes,\s*code validates/i.test(w)) return "Proposed by the model, validated by code.";
+  const t = w.replace(/^the /i, "");
+  return `Written by ${t}${/[.]$/.test(t) ? "" : "."}`;
+}
+
 export function RulesPage() {
   return (
     <div className="mx-auto max-w-[1100px] px-6 lg:px-10 pt-8 pb-16">
@@ -32,7 +39,7 @@ export function RulesPage() {
 
       <ol className="mt-6 panel divide-y divide-[var(--line)]">
         {RULES.map((r) => (
-          <li key={r.rule} className="grid grid-cols-[40px_minmax(0,1fr)] md:grid-cols-[40px_minmax(0,1fr)_minmax(0,1.1fr)] gap-x-4 gap-y-1 px-5 py-3 items-start">
+          <li key={r.rule} id={`rule-${r.rule}`} className="scroll-mt-24 target:bg-amber-bg/60 transition-colors grid grid-cols-[40px_minmax(0,1fr)] md:grid-cols-[40px_minmax(0,1fr)_minmax(0,1.1fr)] gap-x-4 gap-y-1 px-5 py-3 items-start">
             <span className="mono text-[13px] text-faint pt-0.5 tabular-nums">{String(r.rule).padStart(2, "0")}</span>
             <span className="text-[14px] text-ink-2">
               {r.condition}
@@ -86,7 +93,7 @@ export function RulesPage() {
               <dd className="text-ink-2">
                 <span className="text-muted">{f.scope}. </span>
                 <span className="mono text-[12.5px]">{f.values.join(" · ")}</span>
-                <span className="block text-[12px] text-muted mt-0.5">Written by {f.writer}.</span>
+                <span className="block text-[12px] text-muted mt-0.5">{writerText(f.writer)}</span>
               </dd>
             </div>
           ))}

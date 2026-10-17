@@ -20,7 +20,7 @@ export function Drawer({
   label?: string;
 }) {
   const panelRef = useRef<HTMLElement>(null);
-  useFocusTrap(panelRef, open);
+  useFocusTrap(panelRef, open, "[data-autofocus]");
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

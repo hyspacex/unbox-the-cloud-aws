@@ -3,24 +3,28 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ActionResponse, ControlRow, DisplayedStatus, PackageView, SubmitRequest, TraceStep } from "@/lib/types";
-import { api, followRun, type RunSummary, type TaskItem } from "@/lib/client";
+import { api, clearFindingCache, followRun, prefetchFindings, type RunSummary, type TaskItem } from "@/lib/client";
 import { useKeel } from "@/components/AppProvider";
 import { CountLine } from "@/components/ui/CountLine";
 import { ErrorBlock, LoadingBlock } from "@/components/ui/States";
 import { Drawer } from "@/components/ui/Drawer";
 import { Disclosure } from "@/components/ui/Disclosure";
+import { Modal } from "@/components/ui/Modal";
 import { FindingContainer } from "@/components/finding/FindingContainer";
 import { T_BASE, T_SLOW } from "@/lib/ui/motion";
-import { orderByAttention, orderById } from "@/lib/ui/order";
+import { isHold, orderByAttention, orderById } from "@/lib/ui/order";
+import { useMedia } from "@/lib/ui/useMedia";
 import { PackageHeader } from "./PackageHeader";
 import { ControlRows } from "./ControlRows";
-import { TraceEmpty, TracePanel, TraceSummary, type TraceMeta } from "./TracePanel";
+import { TraceEmpty, TraceLine, TracePanel, TraceSummary, type RunSummaryCounts, type TraceMeta } from "./TracePanel";
 import { FolderProjection } from "./FolderProjection";
 import { OpenTasks } from "./OpenTasks";
 
 type RunUi = { runId: string; steps: TraceStep[]; meta: TraceMeta; running: boolean };
+type Snap = { view: PackageView; rows: ControlRow[]; countLine: string };
 
 const STAGGER_MS = 80;
+const IDLE_POLL_MS = 5000;
 
 /** Rule 1 while a re-check runs: the prior label stays visible, struck through. */
 function pendingOf(r: ControlRow): ControlRow {
@@ -38,38 +42,75 @@ function pendingOf(r: ControlRow): ControlRow {
 
 const allHold = (rows: ControlRow[]) => rows.length > 0 && rows.every((r) => r.status.kind === "verified_holds");
 const anyPending = (v: PackageView) => v.evaluation_state === "pending" || v.rows.some((r) => r.status.kind === "pending_recheck");
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Wall clock for replays (called from event handlers only). */
+const wallNow = () => Date.now();
 
-const SCENARIOS: { id: NonNullable<SubmitRequest["scenario"]> | string; title: string; what: string }[] = [
-  { id: "fabricated_quote", title: "Fabricated quote", what: "The model cites a sentence that is not in the pinned text. Code rejects the quote and the control reads Not evaluated." },
-  { id: "injection", title: "Injected instructions", what: "A runbook upload tells AI agents to mark everything satisfied. Decider quarantines it before Bedrock sees it." },
-  { id: "unreadable", title: "Unreadable file", what: "One file cannot be read. Coverage drops and the controls that depend on it read Not evaluated." },
-  { id: "contradiction", title: "Conflicting evidence", what: "A vendor summary contradicts a supporting quote. The control reads Needs review: conflicting evidence and Verify is blocked." },
-  { id: "missing_finding", title: "Missing finding", what: "The model returns seven findings for eight controls. Code rejects the whole evaluation; nothing partial is applied." },
+const SCENARIOS: { id: string; title: string; what: string; upload: string }[] = [
+  {
+    id: "fabricated_quote",
+    title: "Fabricated quote",
+    what: "The model cites a sentence that is not in the pinned text. Code rejects the quote and the control reads Not evaluated.",
+    upload: "architecture.md v3, with the mock model citing a sentence that v3 no longer contains",
+  },
+  {
+    id: "injection",
+    title: "Injected instructions",
+    what: "A runbook upload tells AI agents to mark everything satisfied. Decider quarantines it before Bedrock sees it.",
+    upload: "a new runbook.md version with a note addressed to AI agents",
+  },
+  {
+    id: "unreadable",
+    title: "Unreadable file",
+    what: "One file cannot be read. Coverage drops and the controls that depend on it read Not evaluated.",
+    upload: "a new approved-services-and-exceptions.md version that Box cannot return as text",
+  },
+  {
+    id: "contradiction",
+    title: "Conflicting evidence",
+    what: "A vendor summary contradicts a supporting quote. The control reads Needs review: conflicting evidence and Verify is blocked.",
+    upload: "a new vendor-contract-summary.md version whose processing addendum conflicts with the architecture",
+  },
+  {
+    id: "missing_finding",
+    title: "Missing finding",
+    what: "The model returns seven findings for eight controls. Code rejects the whole evaluation; nothing partial is applied.",
+    upload: "architecture.md v3, with the mock model omitting one control's finding",
+  },
 ];
 
 export function PackageScreen() {
   const { config, setRun: setRunLabel } = useKeel();
+  const isXl = useMedia("(min-width: 1280px)");
   const [view, setView] = useState<PackageView | null>(null);
   const [rows, setRows] = useState<ControlRow[]>([]);
   const [order, setOrder] = useState<string[] | null>(null);
   const [countLine, setCountLine] = useState<string>("");
+  const [priorCount, setPriorCount] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [tasksErr, setTasksErr] = useState<string | null>(null);
   const [run, setRun] = useState<RunUi | null>(null);
   const [traceOpen, setTraceOpen] = useState(true);
+  const [lineOpen, setLineOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [scenario, setScenario] = useState<string | null>(null);
+  const [confirmScenario, setConfirmScenario] = useState<string | null>(null);
   const [replay, setReplay] = useState<{ run_id: string; started_at?: string; speed: number; clockStart: number } | null>(null);
   const savedRunRef = useRef<RunUi | null>(null);
+  const savedSnapRef = useRef<Snap | null>(null);
   const replayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pushedRef = useRef(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const cancelRunRef = useRef<(() => void) | null>(null);
   const flippedRef = useRef<string | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  /** Attention order is fixed once per snapshot (B3): pills change, positions do not. */
+  const orderRef = useRef<{ snapshot: string; ids: string[] } | null>(null);
+  const viewRef = useRef<PackageView | null>(null);
+  const busyRef = useRef(false);
 
   const mode = view?.mode ?? config?.mode;
   const isMock = mode === "mock";
@@ -79,28 +120,50 @@ export function PackageScreen() {
     timersRef.current = [];
   };
 
-  /** Show a view immediately (load, reset, after an action). */
-  const showView = useCallback((v: PackageView) => {
-    clearTimers();
-    setView(v);
-    setRows(v.rows);
-    setCountLine(v.count_line);
-    setOrder(allHold(v.rows) ? orderById(v.rows).map((r) => r.control_id) : orderByAttention(v.rows).map((r) => r.control_id));
+  const orderFor = useCallback((v: PackageView): string[] => {
+    const ids = v.rows.map((r) => r.control_id);
+    const o = orderRef.current;
+    if (o && o.snapshot === v.snapshot.snapshot_id && o.ids.length === ids.length && ids.every((id) => o.ids.includes(id))) return o.ids;
+    if (anyPending(v)) return (o?.ids.length === ids.length ? o.ids : orderById(v.rows).map((r) => r.control_id));
+    const next = (allHold(v.rows) ? orderById(v.rows) : orderByAttention(v.rows)).map((r) => r.control_id);
+    orderRef.current = { snapshot: v.snapshot.snapshot_id, ids: next };
+    return next;
   }, []);
 
-  /** The end-of-run reveal: header and count flip together, rows flip one by one in attention order. */
-  const revealView = useCallback((v: PackageView) => {
-    clearTimers();
-    const target = allHold(v.rows) ? orderById(v.rows) : orderByAttention(v.rows);
-    setView(v);
-    setCountLine(v.count_line);
-    setOrder(target.map((r) => r.control_id));
-    target.forEach((r, k) => {
-      timersRef.current.push(
-        setTimeout(() => setRows((cur) => cur.map((x) => (x.control_id === r.control_id ? r : x))), k * STAGGER_MS),
-      );
-    });
-  }, []);
+  /** Apply ONE package response whole: header, count line and rows together. */
+  const showView = useCallback(
+    (v: PackageView) => {
+      clearTimers();
+      viewRef.current = v;
+      setView(v);
+      setRows(v.rows);
+      setCountLine(v.count_line);
+      setOrder(orderFor(v));
+      if (!anyPending(v)) setPriorCount(null);
+    },
+    [orderFor],
+  );
+
+  /** End-of-run reveal from one response: header and count flip together, rows flip one by one. */
+  const revealView = useCallback(
+    (v: PackageView) => {
+      clearTimers();
+      viewRef.current = v;
+      const ids = orderFor(v);
+      setView(v);
+      setCountLine(v.count_line);
+      setPriorCount(null);
+      setOrder(ids);
+      ids.forEach((id, k) => {
+        const r = v.rows.find((x) => x.control_id === id);
+        if (!r) return;
+        timersRef.current.push(setTimeout(() => setRows((cur) => cur.map((x) => (x.control_id === id ? r : x))), k * STAGGER_MS));
+      });
+      // B5: the attention rows' cards open filled.
+      prefetchFindings(v.rows.filter((r) => !isHold(r)).map((r) => r.finding_id ?? r.control_id));
+    },
+    [orderFor],
+  );
 
   const loadPackage = useCallback(async () => {
     try {
@@ -122,33 +185,46 @@ export function PackageScreen() {
     }
   }, []);
 
-  /** Fetch the package once findings are applied; retry briefly if the engine is still pending. */
+  /** Fetch the package once findings are applied; retry briefly while the engine still reports pending. */
   const flip = useCallback(
     async (runId: string) => {
       if (flippedRef.current === runId) return;
       flippedRef.current = runId;
-      for (let attempt = 0; attempt < 12; attempt++) {
+      for (let attempt = 0; attempt < 16; attempt++) {
         const v = await loadPackage();
         if (v && !anyPending(v)) {
           revealView(v);
           return;
         }
-        await new Promise((r) => setTimeout(r, 250));
+        await wait(250);
       }
-      const v = await loadPackage();
-      if (v) revealView(v);
     },
     [loadPackage, revealView],
   );
 
   const startFollowing = useCallback(
-    (runId: string, initialMeta: TraceMeta) => {
+    (runId: string, initialMeta: TraceMeta, priorLine?: string) => {
       cancelRunRef.current?.();
       flippedRef.current = null;
+      busyRef.current = true;
+      clearFindingCache();
       setRun({ runId, steps: [], meta: initialMeta, running: true });
       setTraceOpen(true);
-      // Hold every row at "Re-check pending" with its prior label struck through.
+      setLineOpen(false);
+      if (priorLine) setPriorCount(priorLine);
       setRows((cur) => cur.map(pendingOf));
+      // B1: take the engine's pending count line from the same response as its pending rows.
+      (async () => {
+        for (let i = 0; i < 8; i++) {
+          const v = await loadPackage();
+          if (flippedRef.current === runId) return;
+          if (v && anyPending(v)) {
+            showView(v);
+            return;
+          }
+          await wait(150);
+        }
+      })();
       api
         .run(runId)
         .then((m) => {
@@ -200,11 +276,19 @@ export function PackageScreen() {
           setRun((r) => (r && r.runId === runId ? { ...r, running: false, steps: final?.steps?.length ? final.steps : r.steps } : r));
           await flip(runId);
           loadTasks();
-          // The projection and tasks are written after findings are applied. Re-read once the reveal has
-          // finished and apply that ONE response whole (header, count line and rows together).
-          await new Promise((res) => setTimeout(res, STAGGER_MS * 10 + 120));
+          // Projection and tasks land after findings; once the reveal has finished, apply one response whole.
+          await wait(STAGGER_MS * 10 + 120);
           const v = await loadPackage();
           if (v && !anyPending(v)) showView(v);
+          busyRef.current = false;
+        },
+        onGone: async () => {
+          // The run was removed (a reset elsewhere): drop it quietly and show the current package.
+          busyRef.current = false;
+          setRun(null);
+          setRunLabel(null);
+          const v = await loadPackage();
+          if (v) showView(v);
         },
       });
       cancelRunRef.current = cancel;
@@ -212,22 +296,11 @@ export function PackageScreen() {
     [flip, loadPackage, loadTasks, setRunLabel, showView],
   );
 
-  // Initial load; resume a run in progress or show the last run's trace.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const v = await loadPackage();
-      if (!alive || !v) return;
-      showView(v);
-      loadTasks();
-      if (!v.trace_run_id) return;
-      if (anyPending(v)) {
-        startFollowing(v.trace_run_id, { run_id: v.trace_run_id });
-        return;
-      }
+  /** Show a stored trace for a finished run; a missing run is dropped quietly (A5). */
+  const showStoredRun = useCallback(
+    async (runId: string) => {
       try {
-        const t = await api.run(v.trace_run_id);
-        if (!alive) return;
+        const t = await api.run(runId);
         setRun({
           runId: t.run_id,
           steps: t.steps,
@@ -244,16 +317,57 @@ export function PackageScreen() {
         });
         setRunLabel({ run_id: t.run_id, mode_label: t.mode_label });
       } catch {
-        /* no trace available */
+        setRun(null);
       }
+    },
+    [setRunLabel],
+  );
+
+  // Initial load; resume a run in progress or show the last run's trace.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const v = await loadPackage();
+      if (!alive || !v) return;
+      showView(v);
+      loadTasks();
+      if (!v.trace_run_id) return;
+      if (anyPending(v)) startFollowing(v.trace_run_id, { run_id: v.trace_run_id });
+      else await showStoredRun(v.trace_run_id);
     })();
     return () => {
       alive = false;
       cancelRunRef.current?.();
       clearTimers();
+      replayTimersRef.current.forEach(clearTimeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // C1: passive tabs stay in sync. Each poll response is applied whole; a run started elsewhere is followed.
+  useEffect(() => {
+    const t = setInterval(async () => {
+      if (busyRef.current || replay || openId || document.visibilityState !== "visible") return;
+      let v: PackageView;
+      try {
+        v = await api.package();
+      } catch {
+        return;
+      }
+      const cur = viewRef.current;
+      if (anyPending(v) && v.trace_run_id && v.trace_run_id !== run?.runId) {
+        startFollowing(v.trace_run_id, { run_id: v.trace_run_id }, cur?.count_line);
+        return;
+      }
+      if (!cur || JSON.stringify(cur) !== JSON.stringify(v)) {
+        showView(v);
+        loadTasks();
+        if (v.trace_run_id && v.trace_run_id !== run?.runId) showStoredRun(v.trace_run_id);
+        if (!v.trace_run_id && run) setRun(null);
+      }
+    }, IDLE_POLL_MS);
+    return () => clearInterval(t);
+  }, [replay, openId, run, startFollowing, showView, loadTasks, showStoredRun]);
 
   // Drawer is portalled: close it if this route is hidden by Activity.
   useLayoutEffect(() => () => setOpenId(null), []);
@@ -291,7 +405,7 @@ export function PackageScreen() {
     setTimeout(() => el?.focus?.({ preventScroll: false }), 460);
   };
 
-  /** Replay a stored run through the same trace panel on a client clock. Read-only: no state changes. */
+  /** B13: replay a stored run; rows go through Re-check pending and flip on the recorded findings step. Read-only. */
   const startReplay = async (runId: string, speed: number) => {
     replayTimersRef.current.forEach(clearTimeout);
     replayTimersRef.current = [];
@@ -302,7 +416,11 @@ export function PackageScreen() {
       setSubmitErr(e instanceof Error ? e.message : String(e));
       return;
     }
-    if (!replay) savedRunRef.current = run;
+    if (!replay) {
+      savedRunRef.current = run;
+      if (view) savedSnapRef.current = { view, rows, countLine };
+    }
+    const saved = savedSnapRef.current;
     const meta: TraceMeta = {
       run_id: t.run_id,
       mode_label: "Replay",
@@ -312,23 +430,39 @@ export function PackageScreen() {
       prior_snapshot_id: t.prior_snapshot_id,
       compressed_timing: t.compressed_timing,
     };
-    const clockStart = Date.now();
+    const clockStart = wallNow();
+    const key = `replay:${t.run_id}`;
     setReplay({ run_id: t.run_id, started_at: t.started_at, speed, clockStart });
     setRunLabel({ run_id: t.run_id, mode_label: "Replay" });
     setTraceOpen(true);
-    setRun({ runId: `replay:${t.run_id}`, steps: [], meta, running: true });
-    // Emit each step when it completed in the recording (the agent call when it started), in order.
+    setRun({ runId: key, steps: [], meta, running: true });
+    clearTimers();
+    if (saved) {
+      setPriorCount(saved.countLine);
+      setRows(saved.rows.map(pendingOf));
+    }
     let at = 0;
+    let flipped = false;
     t.steps.forEach((s) => {
       const end = s.kind === "agent_evaluation" ? s.startMs : s.startMs + (s.durationMs ?? 0);
       at = Math.max(at, end);
       replayTimersRef.current.push(
-        setTimeout(() => setRun((r) => (r && r.runId === `replay:${t.run_id}` ? { ...r, steps: [...r.steps, s] } : r)), at / speed),
+        setTimeout(() => {
+          setRun((r) => (r && r.runId === key ? { ...r, steps: [...r.steps, s] } : r));
+          if (!flipped && saved && (s.kind === "findings_applied" || s.kind === "evaluation_completed")) {
+            flipped = true;
+            // Flip back to the package as it is now; the replay never changes state.
+            revealView(saved.view);
+          }
+        }, at / speed),
       );
     });
     const total = Math.max(at, t.total_duration_ms ?? 0);
     replayTimersRef.current.push(
-      setTimeout(() => setRun((r) => (r && r.runId === `replay:${t.run_id}` ? { ...r, running: false } : r)), total / speed + 60),
+      setTimeout(() => {
+        setRun((r) => (r && r.runId === key ? { ...r, running: false } : r));
+        if (!flipped && saved) revealView(saved.view);
+      }, total / speed + 60),
     );
   };
 
@@ -340,12 +474,18 @@ export function PackageScreen() {
     savedRunRef.current = null;
     setRun(prev);
     setRunLabel(prev ? { run_id: prev.meta.run_id ?? prev.runId, mode_label: prev.meta.mode_label ?? "Mock" } : null);
+    const snap = savedSnapRef.current;
+    savedSnapRef.current = null;
+    if (snap) showView(snap.view);
   };
+
+  const humanDecisions = (view?.rows ?? []).filter((r) => r.current_disposition !== "unreviewed").length;
 
   const submit = async (sc?: string) => {
     if (replay) endReplay();
     setSubmitting(true);
     setSubmitErr(null);
+    const prior = countLine;
     try {
       if (sc && sc !== "architecture_v3") {
         // Alternate scenarios start from the baseline so each one shows only its own effect.
@@ -355,7 +495,7 @@ export function PackageScreen() {
       }
       setScenario(sc ?? null);
       const res = await api.submit(isMock ? { scenario: (sc ?? "architecture_v3") as SubmitRequest["scenario"] } : {});
-      startFollowing(res.run_id, { run_id: res.run_id, snapshot_id: res.snapshot_id });
+      startFollowing(res.run_id, { run_id: res.run_id, snapshot_id: res.snapshot_id }, sc && sc !== "architecture_v3" ? viewRef.current?.count_line : prior);
     } catch (e) {
       setSubmitErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -363,9 +503,15 @@ export function PackageScreen() {
     }
   };
 
+  const askScenario = (sc: string) => {
+    if (humanDecisions > 0) setConfirmScenario(sc);
+    else submit(sc);
+  };
+
   const reset = async () => {
     if (replay) endReplay();
     cancelRunRef.current?.();
+    busyRef.current = false;
     try {
       await api.reset();
     } catch (e) {
@@ -374,6 +520,8 @@ export function PackageScreen() {
     setRun(null);
     setScenario(null);
     setRunLabel(null);
+    setPriorCount(null);
+    clearFindingCache();
     const v = await loadPackage();
     if (v) showView(v);
     loadTasks();
@@ -409,27 +557,39 @@ export function PackageScreen() {
 
   const running = Boolean(run?.running) && !replay;
   const traceRunning = Boolean(run?.running);
-  const pendingView = running || rows.some((r) => r.status.kind === "pending_recheck");
+  const locked = running || submitting || Boolean(replay);
+  const pendingView = traceRunning || rows.some((r) => r.status.kind === "pending_recheck");
   const orderedRows = order ? order.map((id) => rows.find((r) => r.control_id === id)).filter((r): r is ControlRow => Boolean(r)) : rows;
   const extra = rows.filter((r) => !orderedRows.includes(r));
   const displayRows = [...orderedRows, ...extra];
+  const engineSummary = (run as unknown as { summary?: { re_checked?: number; not_evaluated?: number } } | null)?.summary;
+  const summary: RunSummaryCounts = {
+    total: view.rows.length,
+    notEvaluated: engineSummary?.not_evaluated ?? view.rows.filter((r) => r.status.kind === "not_evaluated").length,
+  };
+  const scen = SCENARIOS.find((s) => s.id === scenario);
 
-  const trace =
+  const panel = run ? (
+    <TracePanel
+      steps={run.steps}
+      meta={run.meta}
+      running={run.running}
+      gate={run.running || replay ? null : view.gate}
+      elapsedMs={run.running || replay ? null : view.elapsed_ms ?? null}
+      controls={view.rows.length}
+      summary={pendingView ? undefined : summary}
+      onCollapse={() => (isXl ? setTraceOpen(false) : setLineOpen(false))}
+      replay={replay}
+      onEndReplay={endReplay}
+      clockStartMs={replay?.clockStart}
+    />
+  ) : null;
+
+  const wideTrace =
     run && (traceOpen || traceRunning) ? (
-      <TracePanel
-        steps={run.steps}
-        meta={run.meta}
-        running={run.running}
-        gate={run.running || replay ? null : view.gate}
-        elapsedMs={run.running || replay ? null : view.elapsed_ms ?? null}
-        controls={view.rows.length}
-        onCollapse={() => setTraceOpen(false)}
-        replay={replay}
-        onEndReplay={endReplay}
-        clockStartMs={replay?.clockStart}
-      />
+      panel
     ) : run ? (
-      <TraceSummary steps={run.steps} meta={run.meta} gate={view.gate} elapsedMs={view.elapsed_ms ?? null} controls={view.rows.length} onExpand={() => setTraceOpen(true)} />
+      <TraceSummary steps={run.steps} meta={run.meta} gate={view.gate} elapsedMs={view.elapsed_ms ?? null} controls={view.rows.length} summary={summary} onExpand={() => setTraceOpen(true)} />
     ) : null;
 
   return (
@@ -440,17 +600,20 @@ export function PackageScreen() {
         isMock={isMock}
         running={running}
         submitting={submitting}
+        locked={locked}
         error={submitErr}
         onSubmit={() => submit()}
         onReset={reset}
-        replayControl={<ReplayControl disabled={running || submitting} onReplay={startReplay} />}
+        scenarioUpload={scen?.upload}
+        scenarioTitle={scen?.title}
+        replayControl={<ReplayControl disabled={running || submitting || Boolean(replay)} onReplay={startReplay} />}
       />
       {isMock ? (
         <Disclosure className="mt-2 ml-1" label="Other scenarios" hint="what if the model fabricates a quote, someone injects instructions, or a file cannot be read">
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             {SCENARIOS.map((s) => (
               <li key={s.id} className={`rounded-[10px] border bg-panel p-3 ${scenario === s.id ? "border-ink-2" : "hairline"}`}>
-                <button className="btn btn-secondary btn-sm w-full" disabled={running || submitting} onClick={() => submit(s.id)}>
+                <button className="btn btn-secondary btn-sm w-full" disabled={locked} onClick={() => askScenario(s.id)}>
                   {s.title}
                 </button>
                 <p className="mt-2 text-[12px] leading-[1.45] text-muted">{s.what}</p>
@@ -462,15 +625,33 @@ export function PackageScreen() {
       ) : null}
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="min-w-0 order-2 xl:order-1">
-          {scenario && scenario !== "architecture_v3" ? (
-            <p className="mb-2 text-[12.5px] text-muted">
-              Scenario: <span className="text-ink-2 font-medium">{SCENARIOS.find((s) => s.id === scenario)?.title ?? scenario}</span>
-            </p>
-          ) : null}
+        <div className="min-w-0">
           <div className="mb-3">
             <CountLine text={countLine} className="text-[18px] leading-snug text-ink tracking-[-0.01em]" />
+            {priorCount && priorCount !== countLine ? <p className="mt-0.5 text-[12.5px] struck">{priorCount}</p> : null}
           </div>
+          {!isXl && run ? (
+            <div className="mb-3">
+              <TraceLine
+                steps={run.steps}
+                meta={run.meta}
+                running={run.running}
+                summary={pendingView ? undefined : summary}
+                elapsedMs={run.running || replay ? null : view.elapsed_ms ?? null}
+                open={lineOpen}
+                onToggle={() => setLineOpen((o) => !o)}
+                clockStartMs={replay?.clockStart}
+                replaySpeed={replay?.speed}
+              />
+              <AnimatePresence initial={false}>
+                {lineOpen ? (
+                  <motion.div key="line-panel" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={T_BASE} style={{ overflow: "hidden" }} className="mt-2">
+                    {panel}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+          ) : null}
           <ControlRows
             rows={displayRows}
             ordering={order ? "attention" : "id"}
@@ -480,7 +661,11 @@ export function PackageScreen() {
             preserveOrder={Boolean(order)}
           />
           <p className="mt-2 text-[12px] text-muted">
-            Select a row to open its finding card. Statuses come from the published display rules; this page renders them.
+            Select a row to open its finding card. Statuses come from the{" "}
+            <a href="/rules" className="link">
+              published display rules
+            </a>
+            ; this page renders them.
           </p>
 
           <div className="mt-8 grid gap-8 2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -492,25 +677,28 @@ export function PackageScreen() {
                 currentSnapshotId={view.snapshot.snapshot_id}
                 defaultOpen={Boolean(run) && !running}
                 folderName={view.header.folderName}
+                writing={running || (Boolean(run) && view.projection != null && view.projection.keel_snapshot_id !== view.snapshot.snapshot_id && view.projection.result === "ok")}
               />
             </div>
             <OpenTasks tasks={tasks} error={tasksErr} />
           </div>
         </div>
 
-        <div className={`min-w-0 order-1 xl:order-2 xl:sticky xl:top-[72px] xl:self-start ${run ? "" : "hidden xl:block"}`}>
-          <AnimatePresence initial={false} mode="wait">
-            {trace ? (
-              <motion.div key={run && (traceOpen || traceRunning) ? `panel-${run.runId}` : "summary"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={T_SLOW}>
-                {trace}
-              </motion.div>
-            ) : (
-              <motion.div key="empty" className="hidden xl:block" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={T_BASE}>
-                <TraceEmpty />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        {isXl ? (
+          <div className="min-w-0 xl:sticky xl:top-[72px] xl:self-start">
+            <AnimatePresence initial={false} mode="wait">
+              {wideTrace ? (
+                <motion.div key={run && (traceOpen || traceRunning) ? `panel-${run.runId}` : "summary"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={T_SLOW}>
+                  {wideTrace}
+                </motion.div>
+              ) : (
+                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={T_BASE}>
+                  <TraceEmpty />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : null}
       </div>
 
       <Drawer open={openId != null} onClose={closeFinding}>
@@ -518,6 +706,36 @@ export function PackageScreen() {
           <FindingContainer key="drawer-card" id={openId} layout="drawer" onClose={closeFinding} onSelect={(id) => openFinding(id, true)} onChanged={onChanged} />
         ) : null}
       </Drawer>
+
+      <Modal
+        open={confirmScenario != null}
+        onClose={() => setConfirmScenario(null)}
+        title={`Run ${SCENARIOS.find((s) => s.id === confirmScenario)?.title ?? "scenario"}?`}
+        eyebrow="Other scenarios"
+        width={520}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button className="btn btn-ghost" onClick={() => setConfirmScenario(null)}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                const sc = confirmScenario;
+                setConfirmScenario(null);
+                if (sc) submit(sc);
+              }}
+            >
+              Reset and run
+            </button>
+          </div>
+        }
+      >
+        <p className="text-[14px] text-ink-2">
+          This resets to baseline and discards {humanDecisions} recorded {humanDecisions === 1 ? "decision" : "decisions"}. Run{" "}
+          {SCENARIOS.find((s) => s.id === confirmScenario)?.title ?? "this scenario"}?
+        </p>
+      </Modal>
     </Shell>
   );
 }
@@ -534,6 +752,9 @@ function SubmitBar({
   onSubmit,
   onReset,
   replayControl,
+  locked,
+  scenarioUpload,
+  scenarioTitle,
 }: {
   isMock: boolean;
   running: boolean;
@@ -542,15 +763,24 @@ function SubmitBar({
   onSubmit: () => void;
   onReset: () => void;
   replayControl?: React.ReactNode;
+  locked?: boolean;
+  scenarioUpload?: string;
+  scenarioTitle?: string;
 }) {
   return (
     <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[12px] border hairline bg-panel-cool px-5 py-3">
       <div className="min-w-[320px] flex-1 text-[13.5px] text-ink-2">
         {isMock ? (
-          <>
-            <span className="font-medium text-ink">Mock mode.</span> Submitting plays <span className="mono">architecture.md</span> v3 from the
-            fixture into the mock Box folder.
-          </>
+          scenarioUpload ? (
+            <>
+              <span className="font-medium text-ink">Mock mode · scenario {scenarioTitle}.</span> Played {scenarioUpload} into the mock Box folder.
+            </>
+          ) : (
+            <>
+              <span className="font-medium text-ink">Mock mode.</span> Submitting plays <span className="mono">architecture.md</span> v3 from the
+              fixture into the mock Box folder.
+            </>
+          )
         ) : (
           <>
             <span className="font-medium text-ink">Upload a new version in Box; Keel observes the folder.</span> Check now to snapshot the
@@ -568,11 +798,11 @@ function SubmitBar({
       <div className="flex items-center gap-3">
         {replayControl}
         {isMock ? (
-          <button className="btn btn-ghost btn-sm text-muted" onClick={onReset} disabled={running || submitting}>
+          <button className="btn btn-ghost btn-sm text-muted" onClick={onReset} disabled={running || submitting || locked}>
             Reset to baseline
           </button>
         ) : null}
-        <button className="btn btn-primary !h-10 !px-4" onClick={onSubmit} disabled={running || submitting}>
+        <button className="btn btn-primary !h-10 !px-4" onClick={onSubmit} disabled={running || submitting || locked}>
           {running ? (
             <>
               <span className="h-1.5 w-1.5 rounded-full bg-white pulse" /> Re-check running

@@ -16,12 +16,15 @@ export function EvidencePair({ card }: { card: FindingCard }) {
   const next = card.new_version;
   const binding = card.finding.evidence[0] ?? null;
   // When the evidence moved to another file, the submitted side shows the new binding.
-  const moved = !next?.quote && binding && prior && binding.fileId !== prior.file.fileId;
-  const newQuote = next?.quote ?? (moved ? binding!.quote : null);
-  const newLabel = moved
+  // Moved: the submitted side is the new binding (engine new_version), or the finding's evidence as a fallback.
+  const nextMoved = Boolean(next && prior && next.file.fileId !== prior.file.fileId);
+  const bindingMoved = !next?.quote && Boolean(binding && prior && binding.fileId !== prior.file.fileId);
+  const moved = nextMoved || bindingMoved;
+  const newQuote = next?.quote ?? (bindingMoved ? binding!.quote : null);
+  const newLabel = bindingMoved
     ? `${binding!.fileName} ${binding!.versionLabel ?? ""} ${shortSection(binding!.section)}`
     : next
-      ? `${prior && next.file.fileId === prior.file.fileId ? "" : next.file.fileName + " "}${next.file.versionLabel ?? ""} ${shortSection(next.section)}`
+      ? `${next.file.fileName} ${next.file.versionLabel ?? ""} ${shortSection(next.section)}`
       : "";
   const same = prior && newQuote && norm(prior.quote) === norm(newQuote);
 

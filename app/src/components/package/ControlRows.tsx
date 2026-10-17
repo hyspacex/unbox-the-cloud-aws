@@ -172,7 +172,11 @@ function Row({
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={row.status} showSeverity={false} />
             {sevTag}
+            <RuleLink rule={row.status.rule} />
           </div>
+          {(row.status as { detail?: string }).detail ? (
+            <div className="mt-1 text-[12.5px] leading-[1.45] text-ink-2">{(row.status as { detail?: string }).detail}</div>
+          ) : null}
           <AnimatePresence initial={false} mode="popLayout">
             {sec ? (
               <motion.div
@@ -205,10 +209,13 @@ function Row({
           {row.evidencing ? (
             <>
               <div
-                className="mono whitespace-nowrap"
+                className="mono whitespace-nowrap overflow-hidden text-ellipsis"
                 title={`${row.evidencing.fileName} ${row.evidencing.versionLabel ?? ""} (version id ${row.evidencing.versionId})`}
               >
-                {midTruncate(row.evidencing.fileName, 22)} <span className="text-muted">{row.evidencing.versionLabel ?? ""}</span>
+                <span className="xl:hidden">{midTruncate(row.evidencing.fileName, 22)}</span>
+                <span className="hidden xl:inline">{row.evidencing.fileName}</span>{" "}
+                <span className="text-muted">{row.evidencing.versionLabel ?? ""}</span>
+                {(row.evidencing as { quarantined?: boolean }).quarantined ? <span className="text-red-ink"> (quarantined)</span> : null}
               </div>
               {row.evidencing.section ? <div className="text-muted text-[12.5px] truncate">{row.evidencing.section}</div> : null}
             </>
@@ -247,6 +254,20 @@ function Row({
         ) : null}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+/** C8: a small link from a status to the published rule that produced it. */
+export function RuleLink({ rule }: { rule: number }) {
+  return (
+    <a
+      href={`/rules#rule-${rule}`}
+      onClick={(e) => e.stopPropagation()}
+      className="text-[11px] text-faint hover:text-ink-2 underline decoration-dotted underline-offset-2 whitespace-nowrap"
+      title={`Display rule ${rule} on the published rules page`}
+    >
+      rule {rule}
+    </a>
   );
 }
 

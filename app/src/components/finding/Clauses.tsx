@@ -35,7 +35,7 @@ export function ClauseChecklist({ clauses }: { clauses: ClauseSupport[] }) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <span className={`text-[14px] ${c.support === "supported" ? "text-ink" : "text-ink font-medium"}`}>{c.clause}</span>
-                <span className="mono text-[11.5px] text-faint">{c.clause_id}</span>
+                <span className="mono text-[11.5px] text-faint whitespace-nowrap">{c.clause_id}</span>
               </div>
               {c.support === "supported" && c.quote ? (
                 <div className="mt-1">

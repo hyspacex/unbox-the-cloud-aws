@@ -10,16 +10,21 @@ export function FolderProjection({
   currentSnapshotId,
   defaultOpen = false,
   folderName,
+  writing = false,
 }: {
   projection: FP | null;
   currentSnapshotId: string;
   defaultOpen?: boolean;
   folderName?: string;
+  /** A run is in progress or its metadata write has not landed yet: show it as in flight, not as a warning. */
+  writing?: boolean;
 }) {
   if (!projection) {
     return <div className="text-[13px] text-muted">In Box: no folder metadata written yet for this package.</div>;
   }
   const stale = projection.keel_snapshot_id !== currentSnapshotId;
+  const failed = projection.result === "failed" || projection.result === "ambiguous" || projection.pointer_check?.matches === false;
+  const inFlight = !failed && (writing || stale);
   const review = projection.keel_last_human_review?.split("|");
   return (
     <Disclosure
@@ -31,11 +36,15 @@ export function FolderProjection({
         </span>
       }
       hint={
-        <span className={projection.result === "ok" && !stale ? "" : "text-red-ink"}>
-          · write {projection.result}
-          {projection.pointer_check ? ` · pointer check ${projection.pointer_check.matches ? "matches" : "does not match"}` : ""}
-          {stale ? ` · Keel is on ${currentSnapshotId}; consumers must not trust these fields` : ""}
-        </span>
+        inFlight ? (
+          <span className="text-muted">· Writing {currentSnapshotId} to Box metadata…</span>
+        ) : (
+          <span className={failed ? "text-red-ink" : ""}>
+            · write {projection.result}
+            {projection.pointer_check ? ` · pointer check ${projection.pointer_check.matches ? "matches" : "does not match"}` : ""}
+            {failed && stale ? ` · Keel is on ${currentSnapshotId}; consumers must not trust these fields` : ""}
+          </span>
+        )
       }
     >
       <div className="max-w-[440px] rounded-[10px] border border-line-strong bg-white overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
@@ -55,9 +64,9 @@ export function FolderProjection({
           ))}
           <Field
             k="Last human review"
-            v={review && review.length >= 5 ? `${review[0]} · ${review[2]} · ${review[3]} · ${utc(review[4])}` : projection.keel_last_human_review ?? "none"}
+            v={review && review.length >= 5 ? [review[0], review[2], review[3], utc(review[4])] : projection.keel_last_human_review ?? "none"}
           />
-          <Field k="Keel record URL" v={projection.keel_record_url} />
+          <Field k="Keel record URL" v={projection.keel_record_url} url />
         </dl>
         <div className="px-4 py-2 border-t hairline text-[11.5px] text-[#6f7782]">
           Mock of the Box sidebar. {projection.written_at ? <>Written {utc(projection.written_at)}. </> : null}
@@ -72,11 +81,20 @@ export function FolderProjection({
   );
 }
 
-function Field({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
+function Field({ k, v, strong, url }: { k: string; v: string | string[]; strong?: boolean; url?: boolean }) {
   return (
     <div className="grid grid-cols-[150px_minmax(0,1fr)] gap-3">
       <dt className="text-[#6f7782]">{k}</dt>
-      <dd className={`mono text-[12px] break-all ${strong ? "font-semibold text-[#222]" : "text-[#222]"}`}>{v}</dd>
+      <dd className={`mono text-[12px] ${url ? "[overflow-wrap:anywhere]" : ""} ${strong ? "font-semibold text-[#222]" : "text-[#222]"}`}>
+        {Array.isArray(v)
+          ? v.map((p, i) => (
+              <span key={i}>
+                {i ? " · " : ""}
+                <span className="whitespace-nowrap">{p}</span>
+              </span>
+            ))
+          : v}
+      </dd>
     </div>
   );
 }

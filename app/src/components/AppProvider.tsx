@@ -23,8 +23,8 @@ const KeelContext = createContext<Ctx>({
   refreshConfig: () => {},
 });
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [config, setConfig] = useState<AppConfig | null>(null);
+export function AppProvider({ children, initialConfig = null }: { children: React.ReactNode; initialConfig?: AppConfig | null }) {
+  const [config, setConfig] = useState<AppConfig | null>(initialConfig);
   const [configError, setConfigError] = useState<string | null>(null);
   const [run, setRun] = useState<RunLabel>(null);
 

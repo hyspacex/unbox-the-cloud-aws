@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ActionResponse, ControlRow, FindingCard } from "@/lib/types";
-import { api } from "@/lib/client";
+import { api, peekFinding } from "@/lib/client";
 import { useKeel } from "@/components/AppProvider";
 import { ErrorBlock, LoadingBlock } from "@/components/ui/States";
 import { FindingCardView } from "./FindingCard";
@@ -56,7 +56,8 @@ export function FindingContainer({
     setTimeout(() => load(), 350);
   };
 
-  const shown = card && (card.finding.finding_id === id || card.finding.control_id === id) ? card : null;
+  // B5: a prefetched card renders at once; the fresh fetch replaces it.
+  const shown = card && (card.finding.finding_id === id || card.finding.control_id === id) ? card : peekFinding(id) ?? null;
 
   const onSelectRelated = (row: ControlRow) => onSelect?.(row.finding_id ?? row.control_id);
 

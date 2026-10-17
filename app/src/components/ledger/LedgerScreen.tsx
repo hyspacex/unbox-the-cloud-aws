@@ -12,16 +12,27 @@ import { actorColor } from "@/lib/ui/tone";
 import { T_BASE } from "@/lib/ui/motion";
 
 export const LIMITATION =
-  "Observed revisions, evaluations, and human responses from this run. Complete-period reconciliation against Box's version list and independent integrity protection are not implemented.";
+  "Complete-period reconciliation against Box's version list and independent integrity protection are not implemented.";
 
 type Phase = "all" | "seed" | "live";
 
 const isLive = (e: LedgerEvent) => e.phase !== "seed";
 
-/** Evaluations that changed nothing: holds, and evaluations whose outcomes were all unchanged. */
-function changedNothing(e: LedgerEvent): boolean {
+const ATTENTION_TYPES = new Set(["verification_requires_acknowledgment", "binding_changed", "box_task_created"]);
+
+/**
+ * Evaluations that changed nothing (B10). Uses the engine's `changed_nothing` flag when present.
+ * Otherwise: a hold, or an unchanged control evaluation whose snapshot raised no acknowledgment,
+ * binding change or review task for that control.
+ */
+function changedNothing(e: LedgerEvent, all: LedgerEvent[]): boolean {
+  const flag = (e as LedgerEvent & { changed_nothing?: boolean }).changed_nothing;
+  if (typeof flag === "boolean") return flag;
   if (e.event_type === "verification_holds") return true;
-  if (e.event_type === "control_evaluated") return e.change_classification === "unchanged";
+  if (e.event_type === "control_evaluated") {
+    if (e.change_classification !== "unchanged") return false;
+    return !all.some((x) => x.control_id === e.control_id && x.snapshot_id === e.snapshot_id && ATTENTION_TYPES.has(x.event_type));
+  }
   if (e.event_type === "evaluation_completed") return Array.isArray(e.outcomes) && e.outcomes.length > 0 && e.outcomes.every((o) => o.change_classification === "unchanged");
   return false;
 }
@@ -42,7 +53,7 @@ export function LedgerScreen() {
   const [manifestErr, setManifestErr] = useState<string | null>(null);
   const [control, setControl] = useState("all");
   const [type, setType] = useState("all");
-  const [phase, setPhase] = useState<Phase>("all");
+  const [phaseChoice, setPhase] = useState<Phase | null>(null);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [unchangedOnly, setUnchangedOnly] = useState(false);
 
@@ -66,6 +77,9 @@ export function LedgerScreen() {
   useEffect(load, [load]);
 
   const events = useMemo(() => ledger?.events ?? [], [ledger]);
+  // B9: default to "This run" when the ledger has one, else All.
+  const phase: Phase = phaseChoice ?? (events.some(isLive) ? "live" : "all");
+  const scoped = useMemo(() => events.filter((e) => phase === "all" || (phase === "live" ? isLive(e) : !isLive(e))), [events, phase]);
   const controls = useMemo(() => [...new Set(events.map((e) => e.control_id).filter(Boolean) as string[])].sort(), [events]);
   const types = useMemo(() => [...new Set(events.map((e) => e.event_type))].sort(), [events]);
   const phaseCounts = useMemo(
@@ -79,7 +93,7 @@ export function LedgerScreen() {
         .filter((e) => control === "all" || e.control_id === control || (control === "package" && !e.control_id))
         .filter((e) => type === "all" || e.event_type === type)
         .filter((e) => phase === "all" || (phase === "live" ? isLive(e) : !isLive(e)))
-        .filter((e) => !unchangedOnly || changedNothing(e))
+        .filter((e) => !unchangedOnly || changedNothing(e, events))
         .slice()
         .reverse(),
     [events, control, type, phase, unchangedOnly],
@@ -105,14 +119,14 @@ export function LedgerScreen() {
                 {ledger.scope ?? "Append-only."} Hash chain:{" "}
                 <span className="text-muted">{ledger.chain.algorithm}</span>, head <Hash value={ledger.chain.head} />.
               </p>
-              <Population events={events} />
+              <Population events={scoped} scope={phase} />
               <button
                 className={`mt-4 btn btn-sm ${unchangedOnly ? "btn-primary" : "btn-secondary"}`}
                 onClick={() => setUnchangedOnly((u) => !u)}
                 aria-pressed={unchangedOnly}
               >
                 {unchangedOnly ? "Showing evaluations that changed nothing" : "Show evaluations that changed nothing"}
-                <span className={`tabular-nums ${unchangedOnly ? "text-white/70" : "text-faint"}`}>{events.filter(changedNothing).length}</span>
+                <span className={`tabular-nums ${unchangedOnly ? "text-white/70" : "text-faint"}`}>{scoped.filter((e) => changedNothing(e, events)).length}</span>
               </button>
             </>
           ) : (
@@ -225,7 +239,7 @@ export function LedgerScreen() {
   );
 }
 
-function Population({ events }: { events: LedgerEvent[] }) {
+function Population({ events, scope }: { events: LedgerEvent[]; scope: Phase }) {
   const n = (f: (e: LedgerEvent) => boolean) => events.filter(f).length;
   const items: [string, number][] = [
     ["controls evaluated", n((e) => e.event_type === "control_evaluated")],
@@ -236,7 +250,9 @@ function Population({ events }: { events: LedgerEvent[] }) {
     ["failed or rejected", n((e) => e.event_type === "evaluation_error" || e.event_type === "box_metadata_write_failed" || e.event_type === "action_rejected_stale")],
   ];
   return (
-    <dl className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 max-w-[640px]">
+    <>
+    <p className="mt-4 text-[12px] text-muted">Counts for {scope === "live" ? "this run" : scope === "seed" ? "the seed fixture" : "the whole ledger"}</p>
+    <dl className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 max-w-[640px]">
       {items.map(([k, v]) => (
         <div key={k}>
           <dt className="text-[12px] text-muted">{k}</dt>
@@ -244,6 +260,7 @@ function Population({ events }: { events: LedgerEvent[] }) {
         </div>
       ))}
     </dl>
+    </>
   );
 }
 
@@ -324,11 +341,24 @@ export function ExportPanel({ manifest, error }: { manifest: ExportManifest | nu
         <h2 className="text-[14px] font-semibold text-ink">Export</h2>
         {manifest ? <span className="text-[12px] text-muted">generated {utc(manifest.exported_at)}</span> : null}
       </div>
-      <p className="mt-1.5 text-[12.5px] leading-[1.5] text-ink-2">{LIMITATION}</p>
-      {manifest && manifest.limitation && manifest.limitation !== LIMITATION ? (
-        <p className="mt-1 text-[12px] text-muted">{manifest.limitation}</p>
-      ) : null}
-      <div className="mt-3 flex gap-2">
+      <p className="mt-1.5 text-[12.5px] leading-[1.5] text-ink-2">
+        Observed revisions, evaluations and human responses in this ledger: seed fixture
+        {manifest?.run_ids.length ? (
+          <>
+            {" "}
+            and run <span className="mono text-[12px]">{manifest.run_ids.join(", ")}</span>
+          </>
+        ) : (
+          " only"
+        )}
+        . {LIMITATION}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {manifest?.run_ids.length ? (
+          <a className="btn btn-secondary btn-sm" href="/api/export?part=csv&phase=live" download="keel-ledger-this-run.csv">
+            Export this run only
+          </a>
+        ) : null}
         <a className="btn btn-secondary btn-sm" href={api.exportCsvUrl} download="keel-ledger-export.csv">
           Download CSV
         </a>

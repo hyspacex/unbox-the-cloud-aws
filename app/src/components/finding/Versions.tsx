@@ -7,16 +7,29 @@ import { Disclosure } from "@/components/ui/Disclosure";
 type Prior = NonNullable<FindingCard["prior_version"]>;
 type Next = NonNullable<FindingCard["new_version"]>;
 
-export function VersionColumns({ prior, next }: { prior: FindingCard["prior_version"]; next: FindingCard["new_version"] }) {
-  const sameFile = prior && next && prior.file.fileId === next.file.fileId;
+type OldLocation = NonNullable<FindingCard["old_location"]>;
+
+export function VersionColumns({
+  prior,
+  next,
+  oldLocation,
+}: {
+  prior: FindingCard["prior_version"];
+  next: FindingCard["new_version"];
+  oldLocation?: FindingCard["old_location"];
+}) {
+  const sameFile = Boolean(prior && next && prior.file.fileId === next.file.fileId);
   return (
     <section aria-label="Reviewed and submitted versions" className="grid gap-4 md:grid-cols-2 items-start">
       <Column title="Reviewed version" sub={prior ? "the evidence a person verified" : undefined}>
         {prior ? <PriorBody v={prior} /> : <p className="text-[13px] text-muted">No prior verified evidence for this control.</p>}
       </Column>
-      <Column title="Submitted version" sub={next ? (sameFile ? "the same file, new version" : "evidence now bound elsewhere") : undefined}>
+      <Column
+        title={next && prior && !sameFile ? "Current binding: a different file" : "Submitted version"}
+        sub={next ? (sameFile ? "the same file, new version" : prior ? "the support moved; it did not disappear" : undefined) : undefined}
+      >
         {next ? (
-          <NextBody v={next} prior={prior} sameFile={Boolean(sameFile)} />
+          <NextBody v={next} prior={prior} sameFile={Boolean(sameFile)} old={oldLocation ?? null} />
         ) : (
           <p className="text-[13px] text-muted">No supporting evidence in the submitted snapshot.</p>
         )}
@@ -103,7 +116,7 @@ function PriorBody({ v }: { v: Prior }) {
   );
 }
 
-function NextBody({ v, prior, sameFile }: { v: Next; prior: FindingCard["prior_version"]; sameFile: boolean }) {
+function NextBody({ v, prior, sameFile, old }: { v: Next; prior: FindingCard["prior_version"]; sameFile: boolean; old: OldLocation | null }) {
   return (
     <>
       <FileLine v={v} />
@@ -115,6 +128,18 @@ function NextBody({ v, prior, sameFile }: { v: Next; prior: FindingCard["prior_v
           ["Box link", v.deep_link ? <DeepLink key="l" href={v.deep_link} /> : <span className="text-faint">none</span>],
         ]}
       />
+      {old ? (
+        <div className="rounded-md border border-dashed border-line-strong px-3 py-2 text-[12.5px] text-muted">
+          {old.note}
+          {prior?.text && old.text ? (
+            <Disclosure className="mt-1.5" label="What happened to the old location">
+              <div className="rounded-md bg-paper/80 border hairline px-3 py-2.5 text-ink-2">
+                <WordDiff before={prior.text} after={old.text} />
+              </div>
+            </Disclosure>
+          ) : null}
+        </div>
+      ) : null}
       {sameFile && prior?.text && v.text ? (
         <Disclosure label="Full section diff" hint="against the reviewed version">
           <div className="rounded-md bg-paper/80 border hairline px-3 py-2.5">

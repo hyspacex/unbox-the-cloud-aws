@@ -58,6 +58,84 @@ function totalOf(steps: TraceStep[], meta: TraceMeta, elapsedMs?: number | null)
 
 const isCompressed = (meta: TraceMeta) => meta.compressed_timing ?? meta.mode_label === "Mock";
 
+export type RunSummaryCounts = { total: number; notEvaluated: number };
+
+export function doneText(summary: RunSummaryCounts | undefined, total?: number): string {
+  const t = total != null ? ` in ${ms(total)}` : "";
+  if (summary && summary.notEvaluated > 0) {
+    return `Done: ${summary.total - summary.notEvaluated} re-checked, ${summary.notEvaluated} not evaluated${t}`;
+  }
+  return `Done: ${summary?.total ?? 8} controls re-checked${t}`;
+}
+
+function LegendTip() {
+  return (
+    <span className="relative group inline-flex">
+      <button type="button" className="inline-flex items-center gap-1 text-[11.5px] text-muted hover:text-ink-2" aria-label="Source legend">
+        <span className="flex -space-x-0.5" aria-hidden>
+          {(["box", "boxai", "agent", "decider", "app"] as TraceSource[]).map((s) => (
+            <SourceSwatch key={s} source={s} size={7} />
+          ))}
+        </span>
+        sources
+      </button>
+      <span className="pointer-events-none absolute right-0 top-full z-20 mt-1.5 w-[260px] rounded-lg border hairline bg-panel p-2.5 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+        <SourceLegend />
+      </span>
+    </span>
+  );
+}
+
+/** Below xl: the whole trace as one line under the count line; expands on click (A4). */
+export function TraceLine({
+  steps,
+  meta,
+  running,
+  summary,
+  elapsedMs,
+  open,
+  onToggle,
+  clockStartMs,
+  replaySpeed,
+}: {
+  steps: TraceStep[];
+  meta: TraceMeta;
+  running: boolean;
+  summary?: RunSummaryCounts;
+  elapsedMs?: number | null;
+  open: boolean;
+  onToggle: () => void;
+  clockStartMs?: number;
+  replaySpeed?: number;
+}) {
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(t);
+  }, [running]);
+  const started = clockStartMs ?? (meta.started_at ? new Date(meta.started_at).getTime() : NaN);
+  const live = running && now && !Number.isNaN(started) ? Math.max(0, now - started) * (replaySpeed ?? 1) : null;
+  const last = steps[steps.length - 1];
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="w-full text-left rounded-[10px] border hairline bg-panel px-4 py-2.5 hover:border-line-strong transition-colors flex items-center gap-2.5 text-[13px] min-w-0"
+    >
+      <Caret open={open} />
+      {running ? <Spinner /> : null}
+      <span className="font-medium text-ink whitespace-nowrap">
+        {running ? (replaySpeed ? "Replaying" : "Re-check running") : doneText(summary, totalOf(steps, meta, elapsedMs))}
+      </span>
+      {running && live != null ? <span className="mono text-[12px] text-muted tabular-nums whitespace-nowrap">· {ms(live)}</span> : null}
+      {running && last ? <span className="text-muted truncate">· {last.label}</span> : null}
+      {!running && meta.run_id ? <span className="mono text-[12px] text-muted truncate">· {meta.run_id}</span> : null}
+    </button>
+  );
+}
+
 /** Placeholder that keeps the trace column reserved so the table never reflows. */
 export function TraceEmpty() {
   return (
@@ -78,6 +156,7 @@ export function TraceSummary({
   gate,
   elapsedMs,
   controls,
+  summary,
   onExpand,
 }: {
   steps: TraceStep[];
@@ -85,6 +164,7 @@ export function TraceSummary({
   gate?: { ran: boolean; label: string } | null;
   elapsedMs?: number | null;
   controls?: number;
+  summary?: RunSummaryCounts;
   onExpand: () => void;
 }) {
   const total = totalOf(steps, meta, elapsedMs);
@@ -96,7 +176,7 @@ export function TraceSummary({
       aria-label="Show run trace"
     >
       <span className="flex items-center gap-2 font-medium text-ink">
-        <Caret open={false} /> Done: {controls ?? 8} controls re-checked{total != null ? ` in ${ms(total)}` : ""}
+        <Caret open={false} /> {doneText(summary ?? (controls != null ? { total: controls, notEvaluated: 0 } : undefined), total)}
         {isCompressed(meta) ? <span className="font-normal text-muted">(compressed timing)</span> : null}
       </span>
       <span className="mt-1 block text-muted">
@@ -119,6 +199,7 @@ export function TracePanel({
   replay,
   onEndReplay,
   clockStartMs,
+  summary,
 }: {
   steps: TraceStep[];
   meta: TraceMeta;
@@ -134,9 +215,19 @@ export function TracePanel({
   onEndReplay?: () => void;
   /** Wall-clock start for the live elapsed counter (replays start now, not at the recorded time). */
   clockStartMs?: number;
+  summary?: RunSummaryCounts;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
-  const followRef = useRef(true);
+  const userUpAt = useRef(0);
+  const programmatic = useRef(false);
+  const follow = () => Date.now() - userUpAt.current > 2000;
+  const toBottom = (smooth: boolean) => {
+    const el = listRef.current;
+    if (!el) return;
+    programmatic.current = true;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    setTimeout(() => (programmatic.current = false), smooth ? 500 : 50);
+  };
   const lastArrival = useRef<number>(0);
   const [clock, setClock] = useState({ now: 0, since: 0 });
 
@@ -155,26 +246,27 @@ export function TracePanel({
   }, [running]);
   const now = clock.now;
 
-  // Auto-scroll to the newest step unless the presenter scrolled up.
+  // Follow new steps unless the presenter scrolled up within the last 2 s.
   useLayoutEffect(() => {
-    const el = listRef.current;
-    if (el && followRef.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [steps.length, running]);
+    if (follow()) toBottom(true);
+  }, [steps.length]);
 
-  // The done header grows the panel after the last step; follow it once the run ends.
+  // On completion, pin the last step (again after the done header has grown the panel).
   useEffect(() => {
     if (running) return;
-    const t = setTimeout(() => {
-      const el = listRef.current;
-      if (el && followRef.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    }, 450);
-    return () => clearTimeout(t);
+    const a = setTimeout(() => follow() && toBottom(false), 60);
+    const b = setTimeout(() => follow() && toBottom(false), 480);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
   }, [running]);
 
   const onScroll = () => {
     const el = listRef.current;
-    if (!el) return;
-    followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    if (!el || programmatic.current) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+    userUpAt.current = atBottom ? 0 : Date.now();
   };
 
   const total = totalOf(steps, meta, elapsedMs);
@@ -221,7 +313,7 @@ export function TracePanel({
               className="mb-2 flex items-center justify-between gap-3"
             >
               <span className="text-[14.5px] font-semibold text-ink" role="status">
-                Done: {controls ?? 8} controls re-checked{total != null ? ` in ${ms(total)}` : ""}
+                {doneText(summary ?? (controls != null ? { total: controls, notEvaluated: 0 } : undefined), total)}
               </span>
               {onCollapse ? (
                 <button className="btn btn-ghost btn-sm !h-7 !px-2 text-muted" onClick={onCollapse} aria-label="Collapse trace">
@@ -262,9 +354,9 @@ export function TracePanel({
             </span>
           ) : null}
           {isCompressed(meta) ? <span>· compressed timing in mock</span> : null}
-        </div>
-        <div className="mt-2">
-          <SourceLegend />
+          <span className="ml-auto">
+            <LegendTip />
+          </span>
         </div>
       </header>
 

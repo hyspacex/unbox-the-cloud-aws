@@ -88,7 +88,7 @@ Each store is logically isolated with its own encryption context. The ability to
 
 ### 4.4 Encryption in transit
 
-All network connections use TLS 1.2 at minimum, and TLS 1.3 is preferred where both sides support it. The ALB applies the security policy `ELBSecurityPolicy-TLS13-1-2-2021-06`, and calls to Corvid and Atlas CRM use certificates from the Meridian internal CA.
+All network connections use TLS 1.2 at minimum, and TLS 1.3 is preferred where both sides support it. The ALB uses the security policy `ELBSecurityPolicy-TLS13-1-2-2021-06`, and calls to Corvid and Atlas CRM use certificates issued by the Meridian internal CA.
 
 ### 4.5 Processing location
 

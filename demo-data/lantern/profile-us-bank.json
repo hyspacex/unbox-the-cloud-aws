@@ -7,36 +7,56 @@
     "id",
     "title",
     "requirement",
+    "required_clauses",
     "standard",
     "applicability",
     "evidence",
     "tier",
     "framework_map",
-    "reviewer_role",
-    "required_clauses"
+    "reviewer_role"
   ],
   "handed_to_model": [
     "requirement",
+    "required_clauses",
     "applicability",
-    "evidence",
-    "required_clauses"
+    "evidence"
   ],
   "materiality": {
     "Critical": "acknowledge_on_evidencing_file_change",
     "High": "hold_if_unchanged",
     "Medium": "hold_if_unchanged"
   },
+  "attestation_phrase": "I attest the cited evidence meets the requirement.",
+  "default_remediation_window_business_days": 5,
   "severity_rule": "control tier x application tier",
+  "assessment_rule": "all required clauses supported: evidence_found; some: evidence_weakened; none: evidence_absent (applied by code)",
   "out_of_profile": [
-    "network diagram currency (images)",
-    "contract clause matching (contracts live in the legal system)",
-    "bare retention numbers (banks cite a Records Retention Schedule class)"
+    "diagram currency",
+    "contract matching",
+    "bare retention numbers",
+    "TLS version nagging"
   ],
   "controls": [
     {
       "id": "SEC-ARCH-01",
       "title": "Approved services only",
       "requirement": "Every cloud service and third-party component named in the design must be on the Approved Cloud Services Catalog, or the package must reference an approved exception by id. The package must contain a list of services and components with their catalog status. A component named in the design but missing from the list is a finding.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-01.1",
+          "clause": "every cloud service and component is listed",
+          "hint_terms": [
+            "Approved Cloud Services Catalog"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-01.2",
+          "clause": "catalog status or exception id is given for each item",
+          "hint_terms": [
+            "EXC-"
+          ]
+        }
+      ],
       "standard": "IS-STD-009 Approved Technology v3.1 §4.2",
       "applicability": "Applies to every new application and material change. Not applicable only to documentation-only changes with no deployed component.",
       "evidence": [
@@ -64,16 +84,36 @@
           "OCC Bulletin 2023-17"
         ]
       },
-      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
-      "required_clauses": [
-        "every cloud service and component is listed",
-        "catalog status or exception id is given for each item"
-      ]
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk"
     },
     {
       "id": "SEC-ARCH-02",
       "title": "Data classification and regulatory scope per data store",
       "requirement": "Every data store must carry a classification label under IS-STD-003: Public, Internal, Confidential or Restricted. Stores holding nonpublic personal information must be flagged NPI (GLBA). If payment card data could be present, the design must state the PCI DSS scope boundary.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-02.1",
+          "clause": "classification label given per data store",
+          "hint_terms": [
+            "IS-STD-003",
+            "Confidential"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-02.2",
+          "clause": "NPI (GLBA) stores flagged",
+          "hint_terms": [
+            "NPI (GLBA)"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-02.3",
+          "clause": "PCI DSS scope boundary stated",
+          "hint_terms": [
+            "PCI DSS"
+          ]
+        }
+      ],
       "standard": "IS-STD-003 Data Classification v5.0 §3",
       "applicability": "Applies whenever the application stores or processes data. Not applicable only to stateless components that hold no data at rest.",
       "evidence": [
@@ -101,17 +141,35 @@
           "Interagency Guidelines Establishing Information Security Standards (12 CFR 30, App. B)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
-      "required_clauses": [
-        "classification label given per data store",
-        "NPI (GLBA) stores flagged",
-        "PCI DSS scope boundary stated"
-      ]
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk"
     },
     {
       "id": "SEC-ARCH-04",
       "title": "Authentication and MFA via enterprise IdP",
       "requirement": "All human access, for users and administrators, must authenticate through the enterprise IdP. Multi-factor authentication is required, and it must be phishing-resistant for privileged and remote access. The application must not keep local user accounts.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-04.1",
+          "clause": "authentication through the enterprise IdP",
+          "hint_terms": [
+            "enterprise IdP"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-04.2",
+          "clause": "phishing-resistant MFA required",
+          "hint_terms": [
+            "MFA"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-04.3",
+          "clause": "no local user accounts",
+          "hint_terms": [
+            "local user accounts"
+          ]
+        }
+      ],
       "standard": "IS-STD-011 Identity and Authentication v4.0 §2.3",
       "applicability": "Applies to every component with a human access path. Not applicable to components reached only by workload identities.",
       "evidence": [
@@ -139,17 +197,43 @@
           "FFIEC Authentication and Access to Financial Institution Services and Systems (2021)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
-      "required_clauses": [
-        "authentication through the enterprise IdP",
-        "phishing-resistant MFA required",
-        "no local user accounts"
-      ]
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk"
     },
     {
       "id": "SEC-ARCH-05",
       "title": "Least privilege, PAM, no shared admin, break-glass named",
       "requirement": "Access must use named roles scoped to specific resources. Privileged access must be brokered through the enterprise PAM vault, and there must be no shared administrator account. A break-glass path must be named, require two-person approval, and expire.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-05.1",
+          "clause": "named roles scoped to resources",
+          "hint_terms": [
+            "LanternApiRole"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-05.2",
+          "clause": "privileged access brokered through PAM",
+          "hint_terms": [
+            "PAM"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-05.3",
+          "clause": "no shared administrator account",
+          "hint_terms": [
+            "shared administrator"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-05.4",
+          "clause": "break-glass named with two-person approval and expiry",
+          "hint_terms": [
+            "LanternBreakGlass",
+            "break-glass"
+          ]
+        }
+      ],
       "standard": "IS-STD-012 Privileged Access v2.4 §3.1",
       "applicability": "Applies to every application with production accounts or administrative interfaces.",
       "evidence": [
@@ -179,18 +263,51 @@
           "12 CFR 30, App. B, III.C.1(a)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
-      "required_clauses": [
-        "named roles scoped to resources",
-        "privileged access brokered through PAM",
-        "no shared administrator account",
-        "break-glass named with two-person approval and expiry"
-      ]
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations"
     },
     {
       "id": "SEC-ARCH-07",
       "title": "Encryption at rest and key management",
       "requirement": "All customer data at rest must be encrypted with AES-256. Keys must be AWS KMS customer-managed keys or held in CipherTrust Manager; provider-managed or default keys do not meet this requirement. Keys must rotate at least annually, and the key custodians must be named.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-07.1",
+          "clause": "encryption at rest stated",
+          "hint_terms": [
+            "encrypt"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-07.2",
+          "clause": "AES-256 stated",
+          "hint_terms": [
+            "AES-256"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-07.3",
+          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+          "hint_terms": [
+            "customer-managed",
+            "CipherTrust"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-07.4",
+          "clause": "rotation period stated (at least annually)",
+          "hint_terms": [
+            "rotated",
+            "rotation period"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-07.5",
+          "clause": "key custodians named",
+          "hint_terms": [
+            "custodian"
+          ]
+        }
+      ],
       "standard": "IS-STD-014 Cryptography v4.2 §5.1",
       "applicability": "Applies to every data store holding Confidential or Restricted data. Not applicable only if the classification document shows no such data at rest.",
       "evidence": [
@@ -217,19 +334,35 @@
           "12 CFR 30, App. B, III.C.1(c)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Security Architecture",
-      "required_clauses": [
-        "encryption at rest stated",
-        "AES-256 stated",
-        "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
-        "rotation period stated (at least annually)",
-        "key custodians named"
-      ]
+      "reviewer_role": "ARB reviewer, Security Architecture"
     },
     {
       "id": "SEC-ARCH-17",
       "title": "Security events to enterprise SIEM (Splunk)",
       "requirement": "Security events from control plane, network flow, application audit and model invocation sources must be forwarded to the enterprise SIEM (Splunk). Retention must follow IS-STD-021. A named team must own the alerts raised on these events.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-17.1",
+          "clause": "security event sources forwarded to Splunk",
+          "hint_terms": [
+            "Splunk"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-17.2",
+          "clause": "retention per IS-STD-021",
+          "hint_terms": [
+            "IS-STD-021"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-17.3",
+          "clause": "alert owner named",
+          "hint_terms": [
+            "alert owner"
+          ]
+        }
+      ],
       "standard": "IS-STD-021 Security Logging and Monitoring v3.0 §4",
       "applicability": "Applies to every production application.",
       "evidence": [
@@ -259,17 +392,42 @@
           "12 CFR 30, App. B, III.C.1(f)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
-      "required_clauses": [
-        "security event sources forwarded to Splunk",
-        "retention per IS-STD-021",
-        "alert owner named"
-      ]
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations"
     },
     {
       "id": "SEC-ARCH-20",
       "title": "Third parties named with TPRM assessment id and inherent risk tier",
       "requirement": "Every third party or sub-processor in the design must be named and must carry a TPRM assessment id and an inherent risk tier. Each assessment must be current on the date of review.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-20.1",
+          "clause": "each third party named",
+          "hint_terms": [
+            "Corvid Systems"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-20.2",
+          "clause": "TPRM assessment id given",
+          "hint_terms": [
+            "TPRM-"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-20.3",
+          "clause": "inherent risk tier given",
+          "hint_terms": [
+            "inherent risk Tier"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-20.4",
+          "clause": "assessment current",
+          "hint_terms": [
+            "assessment current"
+          ]
+        }
+      ],
       "standard": "IS-STD-019 Third-Party Risk Management v2.0 §3.4",
       "applicability": "Applies whenever the design uses a third party or sub-processor. Not applicable only if the design states that no third party is used and no document in the package names one.",
       "evidence": [
@@ -294,18 +452,37 @@
           "GV.SC-07"
         ]
       },
-      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk",
-      "required_clauses": [
-        "each third party named",
-        "TPRM assessment id given",
-        "inherent risk tier given",
-        "assessment current"
-      ]
+      "reviewer_role": "ARB reviewer, Data Governance and Third-Party Risk"
     },
     {
       "id": "SEC-ARCH-22",
-      "title": "RTO/RPO consistent with BIA tier, rollback path, immutable backups",
-      "requirement": "The package must state RTO and RPO, and both must be consistent with the application's BIA tier. A rollback path for deployments must be described. Backups must be immutable, for example held in a vault-locked backup vault. Evidence may be in the architecture document or the runbook.",
+      "title": "Recovery targets and rollback path documented",
+      "requirement": "The package must state RTO and RPO and describe a rollback path for deployments. Backups must be immutable, for example held in a vault-locked backup vault. Evidence may be in the architecture document or the runbook. Consistency of RTO and RPO with the BIA tier is pilot scope.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-22.1",
+          "clause": "RTO and RPO stated",
+          "hint_terms": [
+            "RTO",
+            "RPO"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-22.2",
+          "clause": "rollback path described",
+          "hint_terms": [
+            "roll back"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-22.3",
+          "clause": "backups immutable",
+          "hint_terms": [
+            "Vault Lock",
+            "vault-locked"
+          ]
+        }
+      ],
       "standard": "IS-STD-030 Resilience and Recovery v2.2 §3",
       "applicability": "Applies to every production application with a BIA tier.",
       "evidence": [
@@ -333,13 +510,7 @@
           "Interagency Paper on Sound Practices to Strengthen Operational Resilience (2020)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
-      "required_clauses": [
-        "RTO and RPO stated",
-        "consistent with BIA tier",
-        "rollback path described",
-        "backups immutable"
-      ]
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations"
     }
   ]
 }

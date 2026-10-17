@@ -7,30 +7,57 @@
     "id",
     "title",
     "requirement",
+    "required_clauses",
     "standard",
     "applicability",
     "evidence",
     "tier",
     "framework_map",
-    "reviewer_role",
-    "required_clauses"
+    "reviewer_role"
   ],
   "handed_to_model": [
     "requirement",
+    "required_clauses",
     "applicability",
-    "evidence",
-    "required_clauses"
+    "evidence"
   ],
   "materiality": {
     "Critical": "acknowledge_on_evidencing_file_change",
     "High": "hold_if_unchanged",
     "Medium": "hold_if_unchanged"
   },
+  "attestation_phrase": "I attest the cited evidence meets the requirement.",
+  "assessment_rule": "all required clauses supported: evidence_found; some: evidence_weakened; none: evidence_absent (applied by code)",
   "controls": [
     {
       "id": "EU-C1",
       "title": "Encryption at rest and key management",
       "requirement": "All customer data at rest must be encrypted, and the design must state the key model: customer-managed or provider-managed keys, where they are held, and the rotation period. Vague statements such as 'industry-standard encryption' do not meet this requirement.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C1.1",
+          "clause": "encryption at rest stated",
+          "hint_terms": [
+            "encrypt"
+          ]
+        },
+        {
+          "clause_id": "EU-C1.2",
+          "clause": "key model stated",
+          "hint_terms": [
+            "customer-managed",
+            "provider-managed"
+          ]
+        },
+        {
+          "clause_id": "EU-C1.3",
+          "clause": "rotation period stated",
+          "hint_terms": [
+            "rotated",
+            "rotation period"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-07 Cryptography §3",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -55,17 +82,28 @@
           "SC-12"
         ]
       },
-      "reviewer_role": "ARB reviewer, Security Architecture",
-      "required_clauses": [
-        "encryption at rest stated",
-        "key model stated",
-        "rotation period stated"
-      ]
+      "reviewer_role": "ARB reviewer, Security Architecture"
     },
     {
       "id": "EU-C2",
       "title": "Encryption in transit",
       "requirement": "All network connections carrying customer data must be encrypted, with the minimum TLS version stated as a number.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C2.1",
+          "clause": "all connections encrypted",
+          "hint_terms": [
+            "TLS"
+          ]
+        },
+        {
+          "clause_id": "EU-C2.2",
+          "clause": "minimum TLS version stated",
+          "hint_terms": [
+            "TLS 1."
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-07 Cryptography §4",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -89,16 +127,35 @@
           "SC-8"
         ]
       },
-      "reviewer_role": "ARB reviewer, Security Architecture",
-      "required_clauses": [
-        "all connections encrypted",
-        "minimum TLS version stated"
-      ]
+      "reviewer_role": "ARB reviewer, Security Architecture"
     },
     {
       "id": "EU-C3",
       "title": "Data residency and processing region",
       "requirement": "The processing and storage region must be stated for every data store and processor. The design must state whether any personal data is transferred outside the EEA, and the transfer mechanism if so.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C3.1",
+          "clause": "region per data store",
+          "hint_terms": [
+            "Region"
+          ]
+        },
+        {
+          "clause_id": "EU-C3.2",
+          "clause": "region per processor",
+          "hint_terms": [
+            "processor"
+          ]
+        },
+        {
+          "clause_id": "EU-C3.3",
+          "clause": "transfer statement",
+          "hint_terms": [
+            "transfer"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-02 Data Location §2",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -121,17 +178,35 @@
           "A.5.34"
         ]
       },
-      "reviewer_role": "ARB reviewer, Privacy Office",
-      "required_clauses": [
-        "region per data store",
-        "region per processor",
-        "transfer statement"
-      ]
+      "reviewer_role": "ARB reviewer, Privacy Office"
     },
     {
       "id": "EU-C4",
       "title": "Personal data inventory",
       "requirement": "Personal data must be inventoried by category, the data subjects must be named, and the document must state whether special category data is processed.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C4.1",
+          "clause": "data categories listed",
+          "hint_terms": [
+            "category"
+          ]
+        },
+        {
+          "clause_id": "EU-C4.2",
+          "clause": "data subjects named",
+          "hint_terms": [
+            "data subjects"
+          ]
+        },
+        {
+          "clause_id": "EU-C4.3",
+          "clause": "special category flag stated",
+          "hint_terms": [
+            "special category"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-03 Records of Processing §1",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -151,17 +226,32 @@
           "A.5.34"
         ]
       },
-      "reviewer_role": "ARB reviewer, Privacy Office",
-      "required_clauses": [
-        "data categories listed",
-        "data subjects named",
-        "special category flag stated"
-      ]
+      "reviewer_role": "ARB reviewer, Privacy Office"
     },
     {
       "id": "EU-C5",
       "title": "Retention and deletion",
       "requirement": "A retention period must be stated as a number with a unit, and a deletion mechanism such as a job, lifecycle rule or TTL must be described.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C5.1",
+          "clause": "numeric retention period",
+          "hint_terms": [
+            "months",
+            "years",
+            "days"
+          ]
+        },
+        {
+          "clause_id": "EU-C5.2",
+          "clause": "deletion mechanism named",
+          "hint_terms": [
+            "deletion",
+            "TTL",
+            "lifecycle"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-04 Retention §2",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -180,16 +270,28 @@
           "A.8.10"
         ]
       },
-      "reviewer_role": "ARB reviewer, Privacy Office",
-      "required_clauses": [
-        "numeric retention period",
-        "deletion mechanism named"
-      ]
+      "reviewer_role": "ARB reviewer, Privacy Office"
     },
     {
       "id": "EU-C6",
       "title": "Processors and sub-processors",
       "requirement": "Every processor and sub-processor that can access personal data must be listed in the design, and the list must match the processing agreements in the package.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C6.1",
+          "clause": "processors listed or none stated",
+          "hint_terms": [
+            "processor"
+          ]
+        },
+        {
+          "clause_id": "EU-C6.2",
+          "clause": "list matches agreements in the package",
+          "hint_terms": [
+            "sub-processor"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-05 Third Parties §3",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -214,16 +316,37 @@
           "A.5.21"
         ]
       },
-      "reviewer_role": "ARB reviewer, Privacy Office",
-      "required_clauses": [
-        "processors listed or none stated",
-        "list matches agreements in the package"
-      ]
+      "reviewer_role": "ARB reviewer, Privacy Office"
     },
     {
       "id": "EU-C7",
       "title": "Network segmentation and trust boundaries",
       "requirement": "Network segmentation must be described, trust boundaries shown, and every inbound path and the internet egress posture stated.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C7.1",
+          "clause": "segmentation described",
+          "hint_terms": [
+            "VPC",
+            "subnet"
+          ]
+        },
+        {
+          "clause_id": "EU-C7.2",
+          "clause": "inbound paths stated",
+          "hint_terms": [
+            "inbound"
+          ]
+        },
+        {
+          "clause_id": "EU-C7.3",
+          "clause": "egress posture stated",
+          "hint_terms": [
+            "internet gateway",
+            "NAT"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-08 Network §2",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -244,17 +367,36 @@
           "SC-7"
         ]
       },
-      "reviewer_role": "ARB reviewer, Security Architecture",
-      "required_clauses": [
-        "segmentation described",
-        "inbound paths stated",
-        "egress posture stated"
-      ]
+      "reviewer_role": "ARB reviewer, Security Architecture"
     },
     {
       "id": "EU-C8",
       "title": "Least-privilege access",
       "requirement": "Access must use named roles scoped to specific resources. There must be no shared administrator account, and human access to production data must not be standing.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C8.1",
+          "clause": "named scoped roles",
+          "hint_terms": [
+            "Role"
+          ]
+        },
+        {
+          "clause_id": "EU-C8.2",
+          "clause": "no shared admin",
+          "hint_terms": [
+            "shared administrator"
+          ]
+        },
+        {
+          "clause_id": "EU-C8.3",
+          "clause": "no standing human data access",
+          "hint_terms": [
+            "break-glass",
+            "standing"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-09 Access §2",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -276,17 +418,36 @@
           "AC-6"
         ]
       },
-      "reviewer_role": "ARB reviewer, Security Architecture",
-      "required_clauses": [
-        "named scoped roles",
-        "no shared admin",
-        "no standing human data access"
-      ]
+      "reviewer_role": "ARB reviewer, Security Architecture"
     },
     {
       "id": "EU-C9",
       "title": "Security logging and monitoring",
       "requirement": "Security events must be logged to a protected location, with a numeric retention period and a description of alerting and its routing.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C9.1",
+          "clause": "security event sources logged",
+          "hint_terms": [
+            "CloudTrail"
+          ]
+        },
+        {
+          "clause_id": "EU-C9.2",
+          "clause": "numeric retention",
+          "hint_terms": [
+            "days",
+            "months"
+          ]
+        },
+        {
+          "clause_id": "EU-C9.3",
+          "clause": "alert routing",
+          "hint_terms": [
+            "alert"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-10 Logging §3",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -308,17 +469,35 @@
           "AU-11"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience",
-      "required_clauses": [
-        "security event sources logged",
-        "numeric retention",
-        "alert routing"
-      ]
+      "reviewer_role": "ARB reviewer, Technology Resilience"
     },
     {
       "id": "EU-C10",
       "title": "Rollback and recovery",
       "requirement": "A rollback plan for deployments must exist, and RTO and RPO must be stated as numbers.",
+      "required_clauses": [
+        {
+          "clause_id": "EU-C10.1",
+          "clause": "rollback plan described",
+          "hint_terms": [
+            "roll back"
+          ]
+        },
+        {
+          "clause_id": "EU-C10.2",
+          "clause": "RTO stated",
+          "hint_terms": [
+            "RTO"
+          ]
+        },
+        {
+          "clause_id": "EU-C10.3",
+          "clause": "RPO stated",
+          "hint_terms": [
+            "RPO"
+          ]
+        }
+      ],
       "standard": "MTB-EU-STD-11 Continuity §2",
       "applicability": "Applies when the application processes personal data of EU or EEA data subjects or supports an EU entity's ICT services.",
       "evidence": [
@@ -341,12 +520,7 @@
           "CP-10"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience",
-      "required_clauses": [
-        "rollback plan described",
-        "RTO stated",
-        "RPO stated"
-      ]
+      "reviewer_role": "ARB reviewer, Technology Resilience"
     }
   ]
 }

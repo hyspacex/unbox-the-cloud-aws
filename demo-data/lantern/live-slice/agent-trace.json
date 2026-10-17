@@ -18,13 +18,13 @@
       "label": "Snapshot S4 captured: 2 files",
       "detail": {
         "snapshot_id": "S4",
-        "manifest_hash": "sha256:236f013da363fde53d1024c2f34b62395b918e239978cbaea6a19a117c860ba4",
+        "manifest_hash": "sha256:c981b2255c52fecbad97e9abdc435862201e80fac8a7a3345984a75a7924a42e",
         "files": [
           {
             "fileId": "1650233401",
             "fileName": "architecture.md",
             "versionId": "1801102233",
-            "contentHash": "sha256:a8139392d091654dda904cf124c09d3c15a49e3881598b448f588235753ee6b8"
+            "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302"
           },
           {
             "fileId": "1650233403",
@@ -41,7 +41,7 @@
       "startMs": 220,
       "durationMs": 610,
       "kind": "texts_fetched",
-      "label": "Texts fetched: coverage 2 of 2 readable",
+      "label": "Texts fetched by version: coverage 2 of 2 readable",
       "detail": {
         "coverage": "2 of 2",
         "downloaded": [
@@ -51,10 +51,7 @@
           }
         ],
         "cached": [
-          {
-            "fileName": "runbook.md",
-            "versionId": "1801102251"
-          }
+          "runbook.md"
         ]
       }
     },
@@ -66,45 +63,41 @@
       "kind": "prior_quotes_diffed",
       "label": "Prior quotes diffed: 1 weakened, 1 removed, 0 added",
       "detail": {
-        "missing": [
+        "prior_snapshot_id": "S2",
+        "hints": [
           {
             "control_id": "SEC-ARCH-07",
             "file": "architecture.md",
             "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
             "status": "weakened",
-            "anchor_terms_in_prior_quote": [
+            "hint_terms_in_prior_quote": [
               "encrypt",
               "customer-managed",
               "rotated",
               "custodian"
             ],
-            "anchor_terms_kept": [
+            "hint_terms_still_in_file": [
               "encrypt"
             ],
-            "anchor_terms_lost": [
-              "customer-managed",
-              "rotated",
-              "custodian"
-            ],
-            "replacement_sentence": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities."
+            "note": "hint for the evaluator, not a verdict"
           },
           {
             "control_id": "SEC-ARCH-22",
             "file": "architecture.md",
             "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
             "status": "removed",
-            "anchor_terms_in_prior_quote": [
+            "hint_terms_in_prior_quote": [
               "RTO",
               "RPO",
               "roll back"
             ],
-            "anchor_terms_kept": [],
-            "anchor_terms_lost": [
-              "RTO",
-              "RPO",
-              "roll back"
-            ],
-            "replacement_sentence": null
+            "hint_terms_still_in_file": [],
+            "note": "hint for the evaluator, not a verdict"
+          },
+          {
+            "control_id": "SEC-ARCH-17",
+            "file": "architecture.md",
+            "status": "present"
           }
         ],
         "added_bound_quotes": 0
@@ -119,16 +112,17 @@
       "label": "Agent evaluation: one Claude Sonnet 4.6 call, 3 controls",
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "mrm_model_id": "MRM-AI-0271",
       "detail": {
-        "input_tokens": 9310,
         "output_tokens": 1240,
+        "structured_output": "FindingSet (zod)",
         "substeps": [
           {
             "source": "agent",
             "kind": "model_turn",
-            "label": "Reading requirement, applicability, evidence and required clauses for 3 controls with 2 file texts",
+            "label": "Reading requirement, required clauses, applicability and evidence for 3 controls with 2 file texts and diff hints",
             "startMs": 890,
             "durationMs": 3600
           },
@@ -199,8 +193,8 @@
             },
             "result": {
               "files_searched": [
-                "runbook.md",
-                "architecture.md"
+                "architecture.md",
+                "runbook.md"
               ],
               "match_count": 0,
               "matches": []
@@ -219,8 +213,8 @@
             },
             "result": {
               "files_searched": [
-                "runbook.md",
-                "architecture.md"
+                "architecture.md",
+                "runbook.md"
               ],
               "match_count": 1,
               "matches": [
@@ -228,7 +222,9 @@
                   "fileId": "1650233403",
                   "fileName": "runbook.md",
                   "versionId": "1801102251",
+                  "versionLabel": "v1",
                   "section": "§3 Deployment and rollback",
+                  "paragraph": 2,
                   "page": 1,
                   "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
                   "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
@@ -239,7 +235,7 @@
           {
             "source": "agent",
             "kind": "model_turn",
-            "label": "Writing 3 typed findings with clause support",
+            "label": "Writing 3 typed findings with per-clause support",
             "startMs": 4925,
             "durationMs": 5900,
             "output_tokens": 1240
@@ -281,11 +277,7 @@
       "kind": "findings_applied",
       "label": "Findings applied: 3",
       "detail": {
-        "finding_ids": [
-          "KEEL-2026-0405",
-          "KEEL-2026-0408",
-          "KEEL-2026-0406"
-        ]
+        "assessment_rule": "all required clauses supported: evidence_found; some: evidence_weakened; none: evidence_absent (applied by code)"
       }
     },
     {
@@ -294,9 +286,17 @@
       "startMs": 10895,
       "durationMs": 30,
       "kind": "ledger_events_written",
-      "label": "Ledger events written (hash chain)",
+      "label": "Ledger events written: 7 events, hash chain extended",
       "detail": {
-        "chain_head": "c420ccc7c9fcd235619224b3e906425d159f51360a3cd9b544f83e399955fac7"
+        "event_ids": [
+          "EVT-0017",
+          "EVT-0018",
+          "EVT-0019",
+          "EVT-0020",
+          "EVT-0021",
+          "EVT-0022",
+          "EVT-0023"
+        ]
       }
     },
     {
@@ -305,14 +305,16 @@
       "startMs": 10925,
       "durationMs": 450,
       "kind": "box_folder_metadata_written",
-      "label": "Box folder metadata written: keel_snapshot_id, keel_status_SEC_ARCH_07, _22, _17, keel_last_human_review",
+      "label": "Box folder metadata written: keel_snapshot_id, one status field per control, keel_last_human_review, keel_record_url",
       "detail": {
+        "pointer_check": "current snapshot matches",
         "fields": {
           "keel_snapshot_id": "S4",
-          "keel_status_SEC_ARCH_07": "evidence_weakened / verified@S2",
-          "keel_status_SEC_ARCH_22": "evidence_found / verified@S2",
-          "keel_status_SEC_ARCH_17": "evidence_found / verified@S2",
-          "keel_last_human_review": "2026-10-08T10:32:00Z"
+          "keel_status_SEC_ARCH_07": "NEEDS_REVIEW_WEAKENED",
+          "keel_status_SEC_ARCH_22": "NEEDS_REVIEW_BINDING",
+          "keel_status_SEC_ARCH_17": "VERIFIED_HOLDS",
+          "keel_last_human_review": "Priya Natarajan|Principal Security Architect, ARB reviewer|SEC-ARCH-07|S2|2026-10-08T10:32:00Z",
+          "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
         },
         "outcome": "ok"
       }
@@ -326,14 +328,15 @@
       "label": "Box task A created for Dana Okafor (review)",
       "detail": {
         "task_id": "box-task-77120931",
-        "kind": "review",
+        "assignment_id": "box-asgn-88120931",
+        "action": "review",
         "fileId": "1650233401",
         "assignee": "Dana Okafor",
         "assignee_box_user_id": "30118804",
         "finding_id": "KEEL-2026-0405",
+        "control_id": "SEC-ARCH-07",
         "snapshot_id": "S4",
-        "message": "KEEL-2026-0405 (snapshot S4): SEC-ARCH-07 needs review. Encryption is still stated in architecture.md v3 §4.3, but the key model and rotation have no support. Priya Natarajan verified the v2 sentence on 2026-10-08.",
-        "due_at": "2026-10-20T17:00:00Z"
+        "message": "KEEL-2026-0405 (snapshot S4): SEC-ARCH-07 needs review. Encryption is still stated in architecture.md v3 §4.3, but the key model and rotation have no support. Priya Natarajan verified the v2 sentence on 2026-10-08."
       }
     }
   ]

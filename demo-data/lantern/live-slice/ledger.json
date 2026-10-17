@@ -18,19 +18,22 @@
   "chain": {
     "algorithm": "sha256(previous chain_hash + canonical JSON of event without chain_hash)",
     "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
-    "head": "c420ccc7c9fcd235619224b3e906425d159f51360a3cd9b544f83e399955fac7",
+    "head": "c2aa16bef3ab20d4611bf9762d9d528497bff907aa428e2951335b5573fb57c1",
     "note": "Events with ts LIVE are re-chained by the app when the real timestamp is known."
   },
   "population": {
-    "revisions_observed": 3,
-    "snapshots": 2,
-    "evaluations_run": 2,
-    "control_evaluations": 6,
-    "evaluation_errors": 0,
+    "file_version_observed": 3,
+    "snapshot_captured": 2,
+    "evaluation_attempt": 2,
+    "evaluation_completed": 2,
+    "control_evaluated": 6,
+    "evaluation_error": 0,
     "verification_holds": 1,
-    "binding_changes": 1,
-    "box_tasks_created": 2,
-    "human_actions": 4
+    "binding_changed": 1,
+    "box_metadata_written": 4,
+    "box_task_created": 2,
+    "box_task_response_ingested": 1,
+    "human_disposition_recorded": 4
   },
   "events": [
     {
@@ -55,6 +58,7 @@
       "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7",
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -62,7 +66,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
-      "chain_hash": "7a20e84b2303d8a0751b538330032839b9f8907d511ed78598742e643ce7dcb7"
+      "chain_hash": "045575d8e2ba3233406382951bc42c048b62fcb8a74c195f3c89d8957781463d"
     },
     {
       "event_id": "EVT-0002",
@@ -86,6 +90,7 @@
       "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188",
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -93,7 +98,7 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
-      "chain_hash": "ceb80e511a945c733a5c88de2bdc442f3414c855cf78e8913f0e1d5074119881"
+      "chain_hash": "036be190f86f28654835e909dd254cf22ee1f09101d4c43cfe13b88a441fbe63"
     },
     {
       "event_id": "EVT-0003",
@@ -109,7 +114,7 @@
       "actor": {
         "type": "app",
         "name": "keel",
-        "role": "snapshot, validation and projection"
+        "role": "snapshot, validation, staleness and projection"
       },
       "fileId": null,
       "fileName": null,
@@ -117,6 +122,7 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -125,6 +131,7 @@
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
       "manifest_hash": "sha256:946634d49ed9654cb3cc11894a6bdbd29574779d3c8cd5b6d136ca76c62c8a08",
+      "control_profile_version": "2026.3-live",
       "files": [
         {
           "fileName": "architecture.md",
@@ -137,18 +144,61 @@
           "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
         }
       ],
-      "chain_hash": "a0b4d2a7d79ebca95a157a7c3cb98a017729a468c0183768179d11a5ffcaef2e"
+      "chain_hash": "6e1c558d69aee68a59a08b93cec8ef7924f452cc315454afeeec80fd258eed0a"
     },
     {
       "event_id": "EVT-0004",
       "ts": "2026-10-07T13:00:31Z",
       "phase": "seed",
       "snapshot_id": "S2",
+      "control_id": null,
+      "event_type": "evaluation_attempt",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "agent",
+        "name": "keel-evaluator",
+        "role": "machine assessment",
+        "model_id": "anthropic.claude-sonnet-4-6",
+        "inference_profile": "us.anthropic.claude-sonnet-4-6"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S2",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "chain_hash": "e7e8bbc2321ce06a523792fe1845bbd31dddf6bcc70382e753647d2973dc3fa7"
+    },
+    {
+      "event_id": "EVT-0005",
+      "ts": "2026-10-07T13:00:32Z",
+      "phase": "seed",
+      "snapshot_id": "S2",
       "control_id": "SEC-ARCH-07",
       "event_type": "control_evaluated",
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
-      "change_classification": null,
+      "change_classification": "none",
       "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
@@ -163,11 +213,94 @@
       "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188",
       "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
       "basis": [
-        "Each required clause has a supporting quote in the snapshot."
+        "5 of 5 required clauses supported by validated quotes.",
+        "No prior evidence to compare."
+      ],
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-07.1",
+          "clause": "encryption at rest stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.2",
+          "clause": "AES-256 stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 2,
+            "page": 3,
+            "quote": "Each data store has its own AES-256 key: `lantern-s3-snapshots`, `lantern-ddb-state`, `lantern-aoss-index` and `lantern-logs`.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.3",
+          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.4",
+          "clause": "rotation period stated (at least annually)",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.5",
+          "clause": "key custodians named",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        }
       ],
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
@@ -177,94 +310,46 @@
           "fileId": "1650233401",
           "fileName": "architecture.md",
           "versionId": "1801102232",
+          "versionLabel": "v2",
           "section": "§4.3 Encryption at rest and key management",
+          "paragraph": 1,
           "page": 3,
           "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
           "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+        },
+        {
+          "fileId": "1650233401",
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "versionLabel": "v2",
+          "section": "§4.3 Encryption at rest and key management",
+          "paragraph": 2,
+          "page": 3,
+          "quote": "Each data store has its own AES-256 key: `lantern-s3-snapshots`, `lantern-ddb-state`, `lantern-aoss-index` and `lantern-logs`.",
+          "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
         }
       ],
+      "evaluation_id": "EVAL-S2",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "clause_support": [
-        {
-          "clause": "encryption at rest stated",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102232",
-            "section": "§4.3 Encryption at rest and key management",
-            "page": 3,
-            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-          }
-        },
-        {
-          "clause": "AES-256 stated",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102232",
-            "section": "§4.3 Encryption at rest and key management",
-            "page": 3,
-            "quote": "Each data store has its own AES-256 key: `lantern-s3-snapshots`, `lantern-ddb-state`, `lantern-aoss-index` and `lantern-logs`.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-          }
-        },
-        {
-          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102232",
-            "section": "§4.3 Encryption at rest and key management",
-            "page": 3,
-            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-          }
-        },
-        {
-          "clause": "rotation period stated (at least annually)",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102232",
-            "section": "§4.3 Encryption at rest and key management",
-            "page": 3,
-            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-          }
-        },
-        {
-          "clause": "key custodians named",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102232",
-            "section": "§4.3 Encryption at rest and key management",
-            "page": 3,
-            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-          }
-        }
-      ],
-      "chain_hash": "2368c4bea54dcf5ee768f1238e4e57cd1723c0c1c912443a1a49306c49ddbcb0"
+      "chain_hash": "1cbaf73b87d02c123058f83afea14f62c24f69a7804487b9d104abd300f392d0"
     },
     {
-      "event_id": "EVT-0005",
-      "ts": "2026-10-07T13:00:32Z",
+      "event_id": "EVT-0006",
+      "ts": "2026-10-07T13:00:33Z",
       "phase": "seed",
       "snapshot_id": "S2",
       "control_id": "SEC-ARCH-22",
       "event_type": "control_evaluated",
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
-      "change_classification": null,
+      "change_classification": "none",
       "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
@@ -279,11 +364,46 @@
       "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188",
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": [
-        "Each required clause has a supporting quote in the snapshot."
+        "2 of 2 required clauses supported by validated quotes.",
+        "No prior evidence to compare."
+      ],
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-22.1",
+          "clause": "RTO and RPO stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.6 Resilience and recovery",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-22.2",
+          "clause": "rollback path described",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.6 Resilience and recovery",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        }
       ],
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
@@ -293,64 +413,35 @@
           "fileId": "1650233401",
           "fileName": "architecture.md",
           "versionId": "1801102232",
+          "versionLabel": "v2",
           "section": "§4.6 Resilience and recovery",
+          "paragraph": 1,
           "page": 3,
           "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
           "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-        },
-        {
-          "fileId": "1650233403",
-          "fileName": "runbook.md",
-          "versionId": "1801102251",
-          "section": "§3 Deployment and rollback",
-          "page": 1,
-          "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
-          "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
         }
       ],
+      "evaluation_id": "EVAL-S2",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "clause_support": [
-        {
-          "clause": "RTO and RPO stated",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233403",
-            "fileName": "runbook.md",
-            "versionId": "1801102251",
-            "section": "§3 Deployment and rollback",
-            "page": 1,
-            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
-            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
-          }
-        },
-        {
-          "clause": "rollback path described",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233403",
-            "fileName": "runbook.md",
-            "versionId": "1801102251",
-            "section": "§3 Deployment and rollback",
-            "page": 1,
-            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
-            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
-          }
-        }
-      ],
-      "chain_hash": "505ef745364f831fc88a1474f7abea8b16c8b5d12ac49c5bb3c5da2607bbf9e8"
+      "chain_hash": "c062a66214cc6ce1c7cc7b39c2b2bb105bae1ab57c345535602fde0f9debfe01"
     },
     {
-      "event_id": "EVT-0006",
-      "ts": "2026-10-07T13:00:33Z",
+      "event_id": "EVT-0007",
+      "ts": "2026-10-07T13:00:34Z",
       "phase": "seed",
       "snapshot_id": "S2",
       "control_id": "SEC-ARCH-17",
       "event_type": "control_evaluated",
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
-      "change_classification": null,
+      "change_classification": "none",
       "human_disposition": "unreviewed",
       "actor": {
         "type": "agent",
@@ -365,11 +456,62 @@
       "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188",
       "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
       "basis": [
-        "Each required clause has a supporting quote in the snapshot."
+        "3 of 3 required clauses supported by validated quotes.",
+        "No prior evidence to compare."
+      ],
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-17.1",
+          "clause": "security event sources forwarded to Splunk",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-17.2",
+          "clause": "retention per IS-STD-021",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-17.3",
+          "clause": "alert owner named",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        }
       ],
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
@@ -379,60 +521,27 @@
           "fileId": "1650233401",
           "fileName": "architecture.md",
           "versionId": "1801102232",
+          "versionLabel": "v2",
           "section": "§6 Logging and monitoring",
+          "paragraph": 1,
           "page": 3,
           "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
           "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
         }
       ],
+      "evaluation_id": "EVAL-S2",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "clause_support": [
-        {
-          "clause": "security event sources forwarded to Splunk",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102232",
-            "section": "§6 Logging and monitoring",
-            "page": 3,
-            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-          }
-        },
-        {
-          "clause": "retention per IS-STD-021",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102232",
-            "section": "§6 Logging and monitoring",
-            "page": 3,
-            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-          }
-        },
-        {
-          "clause": "alert owner named",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102232",
-            "section": "§6 Logging and monitoring",
-            "page": 3,
-            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
-          }
-        }
-      ],
-      "chain_hash": "e09f7a0a3178b67643c8b7d633c7dacc5513657534107391fac3340e87319232"
+      "chain_hash": "c113aff62ab3a21c867482b0382500a7299c7a254a8e48a31281ebb09f299b0c"
     },
     {
-      "event_id": "EVT-0007",
+      "event_id": "EVT-0008",
       "ts": "2026-10-07T13:00:40Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -455,22 +564,46 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "n/a"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S2",
+      "evaluation_state": "complete",
+      "attempts": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
       "controls_evaluated": 3,
-      "evaluation_errors": 0,
+      "outcomes": [
+        {
+          "control_id": "SEC-ARCH-07",
+          "machine_assessment": "evidence_found",
+          "change_classification": "none"
+        },
+        {
+          "control_id": "SEC-ARCH-22",
+          "machine_assessment": "evidence_found",
+          "change_classification": "none"
+        },
+        {
+          "control_id": "SEC-ARCH-17",
+          "machine_assessment": "evidence_found",
+          "change_classification": "none"
+        }
+      ],
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "3f22b347b9eab662e070f6533edc0598ca12e398ff29bb34d3a1eb896cac9534"
+      "chain_hash": "77643db8905b57ffa17faaa75dbf78671ca10906f26a0c50978605a27eacd856"
     },
     {
-      "event_id": "EVT-0008",
+      "event_id": "EVT-0009",
       "ts": "2026-10-07T13:00:41Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -483,7 +616,7 @@
       "actor": {
         "type": "app",
         "name": "keel",
-        "role": "snapshot, validation and projection"
+        "role": "snapshot, validation, staleness and projection"
       },
       "fileId": null,
       "fileName": null,
@@ -491,6 +624,7 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "ok"
@@ -501,19 +635,26 @@
       "target": {
         "type": "folder",
         "id": "318840021",
-        "template": "keelReview"
+        "template": "keelReview",
+        "instance": "folder-level"
+      },
+      "pointer_check": {
+        "current_snapshot_id": "S2",
+        "matches": true
       },
       "fields_written": {
         "keel_snapshot_id": "S2",
-        "keel_status_SEC_ARCH_07": "evidence_found / unreviewed",
-        "keel_status_SEC_ARCH_22": "evidence_found / unreviewed",
-        "keel_status_SEC_ARCH_17": "evidence_found / unreviewed",
-        "keel_last_human_review": null
+        "keel_status_SEC_ARCH_07": "PENDING",
+        "keel_status_SEC_ARCH_22": "PENDING",
+        "keel_status_SEC_ARCH_17": "PENDING",
+        "keel_last_human_review": null,
+        "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
-      "chain_hash": "4c190a8f0c31673327f759cf416a262ddee9ce7afe800abe52170c8fccfc1106"
+      "last_projected_snapshot": "S2",
+      "chain_hash": "d1931382775735ba0bbae10d727b151c3f41cc97beb7ec18ef6dbe62b99f8f6b"
     },
     {
-      "event_id": "EVT-0009",
+      "event_id": "EVT-0010",
       "ts": "2026-10-07T15:00:00Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -535,6 +676,7 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -548,10 +690,10 @@
         "date": "2026-10-07",
         "chair": "R. Alvarez"
       },
-      "chain_hash": "568d59882c1332103ed2697e9d9902144c154f3cc1fd68722d8733a655ee3666"
+      "chain_hash": "99975adf8d589b0c4d52d1f11c3576d1491a48e875c8fe779d2d7bb4c4cb6a8d"
     },
     {
-      "event_id": "EVT-0010",
+      "event_id": "EVT-0011",
       "ts": "2026-10-07T15:46:31Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -559,7 +701,7 @@
       "event_type": "human_disposition_recorded",
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
-      "change_classification": null,
+      "change_classification": "none",
       "human_disposition": "verified",
       "actor": {
         "type": "human",
@@ -573,28 +715,96 @@
       "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188",
       "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
       "basis": null,
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-17.1",
+          "clause": "security event sources forwarded to Splunk",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-17.2",
+          "clause": "retention per IS-STD-021",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-17.3",
+          "clause": "alert owner named",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        }
+      ],
       "prompt_hash": null,
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "comment": "I attest the cited evidence meets the requirement.",
+      "via": {
+        "channel": "Box task",
+        "task_id": "box-task-77120000",
+        "assignment_id": "box-asgn-88120000",
+        "resolution_state": "approved",
+        "completed_at": "2026-10-07T15:46:31Z",
+        "ingested_at": "2026-10-07T15:46:52Z",
+        "note": "seed: review task creation events elided"
+      },
       "reviewer_identity": {
-        "box_user_id": "30118804",
-        "login": "dana.okafor@meridiantrust.example",
-        "name": "Dana Okafor",
-        "source": "identity as returned by Box (task assignment resolved_by)"
+        "assigned_to": {
+          "id": "30118804",
+          "login": "dana.okafor@meridiantrust.example",
+          "name": "Dana Okafor"
+        },
+        "source": "identity as returned by Box (task assignment assigned_to)"
+      },
+      "checks": {
+        "reviewer_on_configured_list": true,
+        "reviewer_is_not_author": true,
+        "binding_current": true,
+        "all_clauses_supported": true
       },
       "freshness_check": {
         "decision_snapshot_id": "S2",
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "502e2fb9f7f71073106d8909c3d9dfeb7ad74f9036fe6664636e3b0db980dd26"
+      "chain_hash": "7c6718c738fae98511d53b1f4276ecef548c3ca92516090395f14113366891e8"
     },
     {
-      "event_id": "EVT-0011",
+      "event_id": "EVT-0012",
       "ts": "2026-10-07T15:52:08Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -602,7 +812,7 @@
       "event_type": "human_disposition_recorded",
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
-      "change_classification": null,
+      "change_classification": "none",
       "human_disposition": "verified",
       "actor": {
         "type": "human",
@@ -616,28 +826,80 @@
       "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188",
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": null,
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-22.1",
+          "clause": "RTO and RPO stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.6 Resilience and recovery",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-22.2",
+          "clause": "rollback path described",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.6 Resilience and recovery",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        }
+      ],
       "prompt_hash": null,
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "comment": "I attest the cited evidence meets the requirement.",
+      "via": {
+        "channel": "Box task",
+        "task_id": "box-task-77120001",
+        "assignment_id": "box-asgn-88120001",
+        "resolution_state": "approved",
+        "completed_at": "2026-10-07T15:52:08Z",
+        "ingested_at": "2026-10-07T15:52:29Z",
+        "note": "seed: review task creation events elided"
+      },
       "reviewer_identity": {
-        "box_user_id": "30118804",
-        "login": "dana.okafor@meridiantrust.example",
-        "name": "Dana Okafor",
-        "source": "identity as returned by Box (task assignment resolved_by)"
+        "assigned_to": {
+          "id": "30118804",
+          "login": "dana.okafor@meridiantrust.example",
+          "name": "Dana Okafor"
+        },
+        "source": "identity as returned by Box (task assignment assigned_to)"
+      },
+      "checks": {
+        "reviewer_on_configured_list": true,
+        "reviewer_is_not_author": true,
+        "binding_current": true,
+        "all_clauses_supported": true
       },
       "freshness_check": {
         "decision_snapshot_id": "S2",
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "056336b0826d6da2987f58bdfca16c57a76a6243c1c5ada056379096f04c3c47"
+      "chain_hash": "f1713e4d914bb58e6fbdbf3f23081e55e70ab0fb4276974fb96f61cab41b9634"
     },
     {
-      "event_id": "EVT-0012",
+      "event_id": "EVT-0013",
       "ts": "2026-10-08T10:32:00Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -645,7 +907,7 @@
       "event_type": "human_disposition_recorded",
       "machine_assessment": "evidence_found",
       "prior_machine_assessment": null,
-      "change_classification": null,
+      "change_classification": "none",
       "human_disposition": "verified",
       "actor": {
         "type": "human",
@@ -659,28 +921,179 @@
       "contentHash": "sha256:ce758665f5e08221243a96eb6b07a999a774644538dc6e28ae5da6c96d121188",
       "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
       "basis": null,
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-07.1",
+          "clause": "encryption at rest stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.2",
+          "clause": "AES-256 stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 2,
+            "page": 3,
+            "quote": "Each data store has its own AES-256 key: `lantern-s3-snapshots`, `lantern-ddb-state`, `lantern-aoss-index` and `lantern-logs`.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.3",
+          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.4",
+          "clause": "rotation period stated (at least annually)",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.5",
+          "clause": "key custodians named",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102232",
+            "versionLabel": "v2",
+            "section": "§4.3 Encryption at rest and key management",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
+          }
+        }
+      ],
       "prompt_hash": null,
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
+      "comment": "I attest the cited evidence meets the requirement.",
+      "via": {
+        "channel": "Box task",
+        "task_id": "box-task-77120002",
+        "assignment_id": "box-asgn-88120002",
+        "resolution_state": "approved",
+        "completed_at": "2026-10-08T10:32:00Z",
+        "ingested_at": "2026-10-08T10:32:21Z",
+        "note": "seed: review task creation events elided"
+      },
       "reviewer_identity": {
-        "box_user_id": "30118802",
-        "login": "priya.natarajan@meridiantrust.example",
-        "name": "Priya Natarajan",
-        "source": "identity as returned by Box (task assignment resolved_by)"
+        "assigned_to": {
+          "id": "30118802",
+          "login": "priya.natarajan@meridiantrust.example",
+          "name": "Priya Natarajan"
+        },
+        "source": "identity as returned by Box (task assignment assigned_to)"
+      },
+      "checks": {
+        "reviewer_on_configured_list": true,
+        "reviewer_is_not_author": true,
+        "binding_current": true,
+        "all_clauses_supported": true
       },
       "freshness_check": {
         "decision_snapshot_id": "S2",
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "9138b0dafade5041f5d08db51a8bb720bf3901f5f4da36071579b1cfef289adb"
+      "chain_hash": "08a0b53bf80fd771c23c06c703cf84397488b38457a6250f75d265192b89448a"
     },
     {
-      "event_id": "EVT-0013",
+      "event_id": "EVT-0014",
+      "ts": "2026-10-08T10:32:30Z",
+      "phase": "seed",
+      "snapshot_id": "S2",
+      "control_id": null,
+      "event_type": "box_metadata_written",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "ok"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "target": {
+        "type": "folder",
+        "id": "318840021",
+        "template": "keelReview",
+        "instance": "folder-level"
+      },
+      "pointer_check": {
+        "current_snapshot_id": "S2",
+        "matches": true
+      },
+      "fields_written": {
+        "keel_snapshot_id": "S2",
+        "keel_status_SEC_ARCH_07": "VERIFIED",
+        "keel_status_SEC_ARCH_22": "VERIFIED",
+        "keel_status_SEC_ARCH_17": "VERIFIED",
+        "keel_last_human_review": "Priya Natarajan|Principal Security Architect, ARB reviewer|SEC-ARCH-07|S2|2026-10-08T10:32:00Z",
+        "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
+      },
+      "last_projected_snapshot": "S2",
+      "chain_hash": "dac3a3a4b8f10d850871465cd8f8eea03bb23c64dcc67a48215a80df6babdb2a"
+    },
+    {
+      "event_id": "EVT-0015",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -698,9 +1111,10 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:a8139392d091654dda904cf124c09d3c15a49e3881598b448f588235753ee6b8",
+      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -711,10 +1125,10 @@
       "version_comment": "Section 4 rewrite for clarity",
       "confluence_editor": "J. Park (Eng)",
       "jira": "LAN-2291",
-      "chain_hash": "7e9838c5988c4ae0fd606ac1ad9634bdba355adda5dcfee9be0c720f888de888"
+      "chain_hash": "8d6d441bcf4748c4847d4ebc4a059851fef4874e8355068609bd1e0f227ee05b"
     },
     {
-      "event_id": "EVT-0014",
+      "event_id": "EVT-0016",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -727,7 +1141,7 @@
       "actor": {
         "type": "app",
         "name": "keel",
-        "role": "snapshot, validation and projection"
+        "role": "snapshot, validation, staleness and projection"
       },
       "fileId": null,
       "fileName": null,
@@ -735,6 +1149,7 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -742,12 +1157,13 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
-      "manifest_hash": "sha256:236f013da363fde53d1024c2f34b62395b918e239978cbaea6a19a117c860ba4",
+      "manifest_hash": "sha256:c981b2255c52fecbad97e9abdc435862201e80fac8a7a3345984a75a7924a42e",
+      "control_profile_version": "2026.3-live",
       "files": [
         {
           "fileName": "architecture.md",
           "versionId": "1801102233",
-          "contentHash": "sha256:a8139392d091654dda904cf124c09d3c15a49e3881598b448f588235753ee6b8"
+          "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302"
         },
         {
           "fileName": "runbook.md",
@@ -755,10 +1171,53 @@
           "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
         }
       ],
-      "chain_hash": "d12657e227f06a3a975f239d109723c010cb36baf45e5ade88670c21a7a7b3cc"
+      "chain_hash": "9319daf865d350405678e6ae8b739659c3e16df8d31a76b230d519692f1bc313"
     },
     {
-      "event_id": "EVT-0015",
+      "event_id": "EVT-0017",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": null,
+      "event_type": "evaluation_attempt",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "agent",
+        "name": "keel-evaluator",
+        "role": "machine assessment",
+        "model_id": "anthropic.claude-sonnet-4-6",
+        "inference_profile": "us.anthropic.claude-sonnet-4-6"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": "sha256:46fbc0f743a8a3ae",
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S4",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "inference_profile": "us.anthropic.claude-sonnet-4-6",
+      "prompt_version": "v3",
+      "chain_hash": "6db8c1d3fcad06cde6049755068a06b634b9221da0b3e358ceb860299feb35a5"
+    },
+    {
+      "event_id": "EVT-0018",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -778,16 +1237,58 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:a8139392d091654dda904cf124c09d3c15a49e3881598b448f588235753ee6b8",
+      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
       "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
       "basis": [
         "Verified quote from architecture.md v2 §4.3 ¶1 not found in v3 after normalization.",
-        "Encryption is still stated at §4.3 ¶2; the key model and rotation clauses have no support.",
+        "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. The key model and rotation clauses have no support.",
         "2 files in the snapshot searched for customer-managed keys: 0 candidates."
+      ],
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-07.1",
+          "clause": "encryption at rest stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "versionLabel": "v3",
+            "section": "§4.3 Data protection at rest",
+            "paragraph": 2,
+            "page": 3,
+            "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.2",
+          "clause": "AES-256 stated",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause_id": "SEC-ARCH-07.3",
+          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause_id": "SEC-ARCH-07.4",
+          "clause": "rotation period stated (at least annually)",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause_id": "SEC-ARCH-07.5",
+          "clause": "key custodians named",
+          "support": "unsupported",
+          "quote": null
+        }
       ],
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
@@ -797,61 +1298,28 @@
           "fileId": "1650233401",
           "fileName": "architecture.md",
           "versionId": "1801102233",
+          "versionLabel": "v3",
           "section": "§4.3 Data protection at rest",
+          "paragraph": 2,
           "page": 3,
           "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
           "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
         }
       ],
+      "evaluation_id": "EVAL-S4",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0405",
-      "clause_support": [
-        {
-          "clause": "encryption at rest stated",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102233",
-            "section": "§4.3 Data protection at rest",
-            "page": 3,
-            "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
-          }
-        },
-        {
-          "clause": "AES-256 stated",
-          "support": "unsupported",
-          "quote": null
-        },
-        {
-          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
-          "support": "unsupported",
-          "quote": null
-        },
-        {
-          "clause": "rotation period stated (at least annually)",
-          "support": "unsupported",
-          "quote": null
-        },
-        {
-          "clause": "key custodians named",
-          "support": "unsupported",
-          "quote": null
-        }
-      ],
-      "prior_verification": {
-        "by": "Priya Natarajan",
-        "role": "Principal Security Architect, ARB reviewer",
-        "at": "2026-10-08T10:32:00Z",
-        "snapshot_id": "S2"
-      },
-      "chain_hash": "5a1b5182009b2bf8608736b11409b198180c4dfc98b94980aaa772321cbd8475"
+      "chain_hash": "f1c79227c80575695d77e12a589c66271ee0f54498748e382aa1794b441c1348"
     },
     {
-      "event_id": "EVT-0016",
+      "event_id": "EVT-0019",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -875,12 +1343,46 @@
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 not found in v3 after normalization.",
-        "The same statement matched verbatim in runbook.md §3.",
-        "The runbook quote already existed at the reviewed baseline, so support did not move; the selected evidence binding moved from architecture.md v2 to runbook.md."
+        "The same statement matched verbatim in runbook.md §3; 2 of 2 required clauses supported.",
+        "The runbook quote already existed at the reviewed baseline, so the binding moved from architecture.md v2 to runbook.md and the support did not."
+      ],
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-22.1",
+          "clause": "RTO and RPO stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233403",
+            "fileName": "runbook.md",
+            "versionId": "1801102251",
+            "versionLabel": "v1",
+            "section": "§3 Deployment and rollback",
+            "paragraph": 2,
+            "page": 1,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-22.2",
+          "clause": "rollback path described",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233403",
+            "fileName": "runbook.md",
+            "versionId": "1801102251",
+            "versionLabel": "v1",
+            "section": "§3 Deployment and rollback",
+            "paragraph": 2,
+            "page": 1,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
+          }
+        }
       ],
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
@@ -890,48 +1392,28 @@
           "fileId": "1650233403",
           "fileName": "runbook.md",
           "versionId": "1801102251",
+          "versionLabel": "v1",
           "section": "§3 Deployment and rollback",
+          "paragraph": 2,
           "page": 1,
           "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
           "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
         }
       ],
+      "evaluation_id": "EVAL-S4",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0408",
-      "clause_support": [
-        {
-          "clause": "RTO and RPO stated",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233403",
-            "fileName": "runbook.md",
-            "versionId": "1801102251",
-            "section": "§3 Deployment and rollback",
-            "page": 1,
-            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
-            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
-          }
-        },
-        {
-          "clause": "rollback path described",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233403",
-            "fileName": "runbook.md",
-            "versionId": "1801102251",
-            "section": "§3 Deployment and rollback",
-            "page": 1,
-            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
-            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
-          }
-        }
-      ],
-      "chain_hash": "f1f5774f020dc5fb6ca327e3c2af953faba7db2316c06714c073aad34b87e457"
+      "chain_hash": "79c036f4ac293e4d02f404ea3a4ef02cea03aad0e72baf321944a2529aeabf62"
     },
     {
-      "event_id": "EVT-0017",
+      "event_id": "EVT-0020",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -951,16 +1433,65 @@
       "fileId": "1650233401",
       "fileName": "architecture.md",
       "versionId": "1801102233",
-      "contentHash": "sha256:a8139392d091654dda904cf124c09d3c15a49e3881598b448f588235753ee6b8",
+      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
       "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
       "basis": [
-        "Verified quote matched after normalization in architecture.md v3 §6.",
-        "Each required clause has a supporting quote.",
-        "Tier High holds without acknowledgment."
+        "3 of 3 required clauses supported by validated quotes.",
+        "Prior binding quote matched after normalization."
+      ],
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-17.1",
+          "clause": "security event sources forwarded to Splunk",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "versionLabel": "v3",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-17.2",
+          "clause": "retention per IS-STD-021",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "versionLabel": "v3",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-17.3",
+          "clause": "alert owner named",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "versionLabel": "v3",
+            "section": "§6 Logging and monitoring",
+            "paragraph": 1,
+            "page": 3,
+            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        }
       ],
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "pending"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
@@ -970,101 +1501,28 @@
           "fileId": "1650233401",
           "fileName": "architecture.md",
           "versionId": "1801102233",
+          "versionLabel": "v3",
           "section": "§6 Logging and monitoring",
+          "paragraph": 1,
           "page": 3,
           "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
           "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
         }
       ],
+      "evaluation_id": "EVAL-S4",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0406",
-      "clause_support": [
-        {
-          "clause": "security event sources forwarded to Splunk",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102233",
-            "section": "§6 Logging and monitoring",
-            "page": 3,
-            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
-          }
-        },
-        {
-          "clause": "retention per IS-STD-021",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102233",
-            "section": "§6 Logging and monitoring",
-            "page": 3,
-            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
-          }
-        },
-        {
-          "clause": "alert owner named",
-          "support": "supported",
-          "quote": {
-            "fileId": "1650233401",
-            "fileName": "architecture.md",
-            "versionId": "1801102233",
-            "section": "§6 Logging and monitoring",
-            "page": 3,
-            "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
-            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
-          }
-        }
-      ],
-      "chain_hash": "ac51fd942423e588ba345c5dcc310d811b640a4b6878ecf80c867a36904b412f"
+      "chain_hash": "9284551febd0cc4c24630b9c2abf95462a5b8104af004cfaef333aef05cecce0"
     },
     {
-      "event_id": "EVT-0018",
-      "ts": "LIVE",
-      "phase": "live_v3",
-      "snapshot_id": "S4",
-      "control_id": "SEC-ARCH-17",
-      "event_type": "verification_holds",
-      "machine_assessment": "evidence_found",
-      "prior_machine_assessment": null,
-      "change_classification": "unchanged",
-      "human_disposition": "verified",
-      "actor": {
-        "type": "agent",
-        "name": "keel-evaluator",
-        "role": "machine assessment",
-        "model_id": "anthropic.claude-sonnet-4-6",
-        "inference_profile": "us.anthropic.claude-sonnet-4-6"
-      },
-      "fileId": "1650233401",
-      "fileName": "architecture.md",
-      "versionId": "1801102233",
-      "contentHash": "sha256:a8139392d091654dda904cf124c09d3c15a49e3881598b448f588235753ee6b8",
-      "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
-      "basis": null,
-      "prompt_hash": null,
-      "projection": {
-        "box_metadata": "n/a"
-      },
-      "mrm_model_id": "MRM-AI-0271",
-      "normalization": "whitespace, quotes, hyphens, case",
-      "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
-      "prior_verification": {
-        "by": "Dana Okafor",
-        "role": "ARB reviewer, Technology Resilience",
-        "at": "2026-10-07T15:46:31Z",
-        "snapshot_id": "S2"
-      },
-      "note": "evidencing file version changed; cited quote unchanged; tier High holds without acknowledgment",
-      "chain_hash": "7cef9b9c2a03de9a1cbf775c411c2ed2131377769ffd28478a4a192d27354cec"
-    },
-    {
-      "event_id": "EVT-0019",
+      "event_id": "EVT-0021",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1075,11 +1533,9 @@
       "change_classification": "moved",
       "human_disposition": "verified",
       "actor": {
-        "type": "agent",
-        "name": "keel-evaluator",
-        "role": "machine assessment",
-        "model_id": "anthropic.claude-sonnet-4-6",
-        "inference_profile": "us.anthropic.claude-sonnet-4-6"
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
       },
       "fileId": "1650233403",
       "fileName": "runbook.md",
@@ -1087,6 +1543,7 @@
       "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7",
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -1104,23 +1561,62 @@
         "fileId": "1650233401",
         "fileName": "architecture.md",
         "versionId": "1801102232",
+        "versionLabel": "v2",
         "section": "§4.6 Resilience and recovery",
+        "paragraph": 1,
         "page": 3,
         "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
-        "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
-        "verified_by": "Dana Okafor",
-        "verified_role": "ARB reviewer, Technology Resilience",
-        "verified_at": "2026-10-07T15:52:08Z"
+        "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232"
       },
       "acknowledgment": {
         "required": true,
         "severity": "Low"
       },
-      "note": "selected binding moved from architecture.md v2 to runbook.md; the runbook quote pre-existed, so support did not move",
-      "chain_hash": "1101f67d9fc273f3b8a1a1c07701f2da98b8f8062700bcf2d3936d62e619fe72"
+      "note": "selected binding moved from architecture.md v2 to runbook.md v1; the quote is new in that file",
+      "chain_hash": "e7c96a7512cd2191c4e482900e69247044595d71bbd0a3a1b27ea115ef88445f"
     },
     {
-      "event_id": "EVT-0020",
+      "event_id": "EVT-0022",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": "SEC-ARCH-17",
+      "event_type": "verification_holds",
+      "machine_assessment": "evidence_found",
+      "prior_machine_assessment": null,
+      "change_classification": "unchanged",
+      "human_disposition": "verified",
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": "1650233401",
+      "fileName": "architecture.md",
+      "versionId": "1801102233",
+      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "quote": "Security events from CloudTrail, VPC Flow Logs, Bedrock model invocation logs and Lantern application audit logs are forwarded to the enterprise SIEM (Splunk) and retained per IS-STD-021; the alert owner is the Security Operations Center, with Card Servicing Platform on-call as secondary.",
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "prior_verification": {
+        "by": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "at": "2026-10-07T15:46:31Z",
+        "snapshot_id": "S2"
+      },
+      "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
+      "materiality": "hold_if_unchanged",
+      "chain_hash": "31ad572daa242907555df4a9c3389b7a3b9cb736f06e22fb7fb4da1cd6cbe709"
+    },
+    {
+      "event_id": "EVT-0023",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1143,23 +1639,47 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": "sha256:46fbc0f743a8a3ae",
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "n/a"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S4",
+      "evaluation_state": "complete",
+      "attempts": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
       "controls_evaluated": 3,
-      "evaluation_errors": 0,
-      "quotes_validated": "3 of 3",
+      "outcomes": [
+        {
+          "control_id": "SEC-ARCH-07",
+          "machine_assessment": "evidence_weakened",
+          "change_classification": "weakened"
+        },
+        {
+          "control_id": "SEC-ARCH-22",
+          "machine_assessment": "evidence_found",
+          "change_classification": "moved"
+        },
+        {
+          "control_id": "SEC-ARCH-17",
+          "machine_assessment": "evidence_found",
+          "change_classification": "unchanged"
+        }
+      ],
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "9303b41ea440a3e9b8625274f7fb619b65c4c6fb6b61490a3ad69b709576afc8"
+      "quotes_validated": "3 of 3",
+      "chain_hash": "b8ba09ffe2c515278230ad08437eb93828f2755a72355f474082602f3e260d8c"
     },
     {
-      "event_id": "EVT-0021",
+      "event_id": "EVT-0024",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1172,7 +1692,7 @@
       "actor": {
         "type": "app",
         "name": "keel",
-        "role": "snapshot, validation and projection"
+        "role": "snapshot, validation, staleness and projection"
       },
       "fileId": null,
       "fileName": null,
@@ -1180,6 +1700,7 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "ok"
@@ -1190,19 +1711,26 @@
       "target": {
         "type": "folder",
         "id": "318840021",
-        "template": "keelReview"
+        "template": "keelReview",
+        "instance": "folder-level"
+      },
+      "pointer_check": {
+        "current_snapshot_id": "S4",
+        "matches": true
       },
       "fields_written": {
         "keel_snapshot_id": "S4",
-        "keel_status_SEC_ARCH_07": "evidence_weakened / verified@S2",
-        "keel_status_SEC_ARCH_22": "evidence_found / verified@S2",
-        "keel_status_SEC_ARCH_17": "evidence_found / verified@S2",
-        "keel_last_human_review": "2026-10-08T10:32:00Z"
+        "keel_status_SEC_ARCH_07": "NEEDS_REVIEW_WEAKENED",
+        "keel_status_SEC_ARCH_22": "NEEDS_REVIEW_BINDING",
+        "keel_status_SEC_ARCH_17": "VERIFIED_HOLDS",
+        "keel_last_human_review": "Priya Natarajan|Principal Security Architect, ARB reviewer|SEC-ARCH-07|S2|2026-10-08T10:32:00Z",
+        "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
-      "chain_hash": "df38539881dc404400e6ec216b0389f0270a219654a2205891c97b9bad516ac1"
+      "last_projected_snapshot": "S4",
+      "chain_hash": "e53b73a3179760d3aacf37f78c09944e73d7d334be60ebaae1f7a60907758ac1"
     },
     {
-      "event_id": "EVT-0022",
+      "event_id": "EVT-0025",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1215,7 +1743,7 @@
       "actor": {
         "type": "app",
         "name": "keel",
-        "role": "snapshot, validation and projection"
+        "role": "snapshot, validation, staleness and projection"
       },
       "fileId": null,
       "fileName": null,
@@ -1223,6 +1751,7 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -1233,33 +1762,41 @@
       "finding_id": "KEEL-2026-0405",
       "task": {
         "task_id": "box-task-77120931",
-        "kind": "review",
+        "assignment_id": "box-asgn-88120931",
+        "action": "review",
         "fileId": "1650233401",
         "assignee": "Dana Okafor",
         "assignee_box_user_id": "30118804",
         "finding_id": "KEEL-2026-0405",
+        "control_id": "SEC-ARCH-07",
         "snapshot_id": "S4",
-        "message": "KEEL-2026-0405 (snapshot S4): SEC-ARCH-07 needs review. Encryption is still stated in architecture.md v3 §4.3, but the key model and rotation have no support. Priya Natarajan verified the v2 sentence on 2026-10-08.",
-        "due_at": "2026-10-20T17:00:00Z"
+        "message": "KEEL-2026-0405 (snapshot S4): SEC-ARCH-07 needs review. Encryption is still stated in architecture.md v3 §4.3, but the key model and rotation have no support. Priya Natarajan verified the v2 sentence on 2026-10-08."
       },
-      "chain_hash": "8dc0b000286152eb5201a77f5c1922615764bc66a3a0145fe9a62c97feb19fdd"
+      "server_mapping": {
+        "task_id": "box-task-77120931",
+        "assignment_id": "box-asgn-88120931",
+        "finding_id": "KEEL-2026-0405",
+        "control_id": "SEC-ARCH-07",
+        "snapshot_id": "S4",
+        "immutable": true
+      },
+      "chain_hash": "73d52c4025c41e8470d6f419adb7cc9198af03b56a021d030463314074c949ca"
     },
     {
-      "event_id": "EVT-0023",
+      "event_id": "EVT-0026",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
       "control_id": "SEC-ARCH-07",
-      "event_type": "human_disposition_recorded",
-      "machine_assessment": "evidence_weakened",
+      "event_type": "box_task_response_ingested",
+      "machine_assessment": null,
       "prior_machine_assessment": null,
       "change_classification": null,
-      "human_disposition": "returned_to_author",
+      "human_disposition": null,
       "actor": {
-        "type": "human",
-        "name": "Dana Okafor",
-        "role": "ARB reviewer, Technology Resilience",
-        "box_user_id": "30118804"
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
       },
       "fileId": null,
       "fileName": null,
@@ -1267,35 +1804,36 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
-        "box_metadata": "ok"
+        "box_metadata": "n/a"
       },
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/folder/318840021",
       "finding_id": "KEEL-2026-0405",
-      "via": {
-        "channel": "Box task",
+      "response": {
         "task_id": "box-task-77120931",
-        "resolution_state": "completed"
+        "assignment_id": "box-asgn-88120931",
+        "resolution_state": "rejected",
+        "message": "Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored.",
+        "completed_at": "LIVE",
+        "ingested_at": "LIVE"
       },
-      "comment": "Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored.",
       "reviewer_identity": {
-        "box_user_id": "30118804",
-        "login": "dana.okafor@meridiantrust.example",
-        "name": "Dana Okafor",
-        "source": "identity as returned by Box (task assignment resolved_by)"
+        "assigned_to": {
+          "id": "30118804",
+          "login": "dana.okafor@meridiantrust.example",
+          "name": "Dana Okafor"
+        },
+        "source": "identity as returned by Box (task assignment assigned_to)"
       },
-      "freshness_check": {
-        "decision_snapshot_id": "S4",
-        "current_snapshot_id": "S4",
-        "result": "pass"
-      },
-      "chain_hash": "19a8ac9aee40ac4af00c4f565269f0bc3105bdc9f51eb7d5c85c34397bf41d4b"
+      "mapped_action": "returned_to_author",
+      "chain_hash": "6222da3993f6282b4fdd7374b4dd14bd917de0d5518b17cea573031b5e10ab56"
     },
     {
-      "event_id": "EVT-0024",
+      "event_id": "EVT-0027",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1308,7 +1846,7 @@
       "actor": {
         "type": "app",
         "name": "keel",
-        "role": "snapshot, validation and projection"
+        "role": "snapshot, validation, staleness and projection"
       },
       "fileId": null,
       "fileName": null,
@@ -1316,6 +1854,7 @@
       "contentHash": null,
       "quote": null,
       "basis": null,
+      "clause_support": null,
       "prompt_hash": null,
       "projection": {
         "box_metadata": "n/a"
@@ -1326,15 +1865,18 @@
       "finding_id": "KEEL-2026-0405",
       "task": {
         "task_id": "box-task-77120944",
+        "assignment_id": "box-asgn-88120944",
+        "action": "review",
         "kind": "author_remediation",
         "fileId": "1650233401",
         "assignee": "J. Park (Eng)",
         "assignee_box_user_id": "30118811",
         "finding_id": "KEEL-2026-0405",
+        "control_id": "SEC-ARCH-07",
         "snapshot_id": "S4",
         "due_at": "2026-10-23T17:00:00Z",
+        "due_rule": "5 business days (profile default remediation window)",
         "jira": "LAN-2291",
-        "created_by": "keel (after reviewer response)",
         "message": "Returned by Dana Okafor (ARB reviewer): \"Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored.\" Lost from architecture.md §4.3 in v3: \"All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.\""
       },
       "lost_clauses": [
@@ -1343,7 +1885,170 @@
         "rotation period stated (at least annually)",
         "key custodians named"
       ],
-      "chain_hash": "c420ccc7c9fcd235619224b3e906425d159f51360a3cd9b544f83e399955fac7"
+      "server_mapping": {
+        "task_id": "box-task-77120944",
+        "assignment_id": "box-asgn-88120944",
+        "finding_id": "KEEL-2026-0405",
+        "control_id": "SEC-ARCH-07",
+        "snapshot_id": "S4",
+        "immutable": true
+      },
+      "chain_hash": "05d0497392cc4705a606c31a371db7ae5962451af50f6bfc3c306b3d214dd867"
+    },
+    {
+      "event_id": "EVT-0028",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": "SEC-ARCH-07",
+      "event_type": "human_disposition_recorded",
+      "machine_assessment": "evidence_weakened",
+      "prior_machine_assessment": null,
+      "change_classification": "weakened",
+      "human_disposition": "returned_to_author",
+      "actor": {
+        "type": "human",
+        "name": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "box_user_id": "30118804"
+      },
+      "fileId": "1650233401",
+      "fileName": "architecture.md",
+      "versionId": "1801102233",
+      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
+      "basis": null,
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-07.1",
+          "clause": "encryption at rest stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233401",
+            "fileName": "architecture.md",
+            "versionId": "1801102233",
+            "versionLabel": "v3",
+            "section": "§4.3 Data protection at rest",
+            "paragraph": 2,
+            "page": 3,
+            "quote": "All customer data is protected with industry-standard encryption, with keys managed through AWS's native key management capabilities.",
+            "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-07.2",
+          "clause": "AES-256 stated",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause_id": "SEC-ARCH-07.3",
+          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause_id": "SEC-ARCH-07.4",
+          "clause": "rotation period stated (at least annually)",
+          "support": "unsupported",
+          "quote": null
+        },
+        {
+          "clause_id": "SEC-ARCH-07.5",
+          "clause": "key custodians named",
+          "support": "unsupported",
+          "quote": null
+        }
+      ],
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "pending"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "comment": "Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored.",
+      "via": {
+        "channel": "Box task",
+        "task_id": "box-task-77120931",
+        "assignment_id": "box-asgn-88120931",
+        "resolution_state": "rejected"
+      },
+      "reviewer_identity": {
+        "assigned_to": {
+          "id": "30118804",
+          "login": "dana.okafor@meridiantrust.example",
+          "name": "Dana Okafor"
+        },
+        "source": "identity as returned by Box (task assignment assigned_to)"
+      },
+      "checks": {
+        "reviewer_on_configured_list": true,
+        "reviewer_is_not_author": true,
+        "binding_current": true,
+        "all_clauses_supported": null
+      },
+      "freshness_check": {
+        "decision_snapshot_id": "S4",
+        "current_snapshot_id": "S4",
+        "result": "pass"
+      },
+      "finding_id": "KEEL-2026-0405",
+      "due_at": "2026-10-23T17:00:00Z",
+      "author_task_id": "box-task-77120944",
+      "recorded_after": "author task created successfully",
+      "chain_hash": "bd3ea960375661e92782c45b124a1d8cef27e2c280c89438041341ace5afa65d"
+    },
+    {
+      "event_id": "EVT-0029",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": null,
+      "event_type": "box_metadata_written",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "ok"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "target": {
+        "type": "folder",
+        "id": "318840021",
+        "template": "keelReview",
+        "instance": "folder-level"
+      },
+      "pointer_check": {
+        "current_snapshot_id": "S4",
+        "matches": true
+      },
+      "fields_written": {
+        "keel_snapshot_id": "S4",
+        "keel_status_SEC_ARCH_07": "RETURNED_TO_AUTHOR",
+        "keel_status_SEC_ARCH_22": "NEEDS_REVIEW_BINDING",
+        "keel_status_SEC_ARCH_17": "VERIFIED_HOLDS",
+        "keel_last_human_review": "Dana Okafor|ARB reviewer, Technology Resilience|SEC-ARCH-07|S4|LIVE",
+        "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
+      },
+      "last_projected_snapshot": "S4",
+      "chain_hash": "c2aa16bef3ab20d4611bf9762d9d528497bff907aa428e2951335b5573fb57c1"
     }
   ]
 }

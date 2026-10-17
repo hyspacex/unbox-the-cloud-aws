@@ -6,24 +6,68 @@
     "id",
     "title",
     "requirement",
+    "required_clauses",
     "standard",
     "applicability",
     "evidence",
     "tier",
     "framework_map",
-    "reviewer_role",
-    "required_clauses"
+    "reviewer_role"
   ],
   "materiality": {
     "Critical": "acknowledge_on_evidencing_file_change",
     "High": "hold_if_unchanged",
     "Medium": "hold_if_unchanged"
   },
+  "attestation_phrase": "I attest the cited evidence meets the requirement.",
+  "assessment_rule": "all required clauses supported: evidence_found; some: evidence_weakened; none: evidence_absent (applied by code)",
+  "notes": {
+    "SEC-ARCH-22": "BIA consistency check: pilot scope"
+  },
   "controls": [
     {
       "id": "SEC-ARCH-07",
       "title": "Encryption at rest and key management",
       "requirement": "All customer data at rest must be encrypted with AES-256. Keys must be AWS KMS customer-managed keys or held in CipherTrust Manager; provider-managed or default keys do not meet this requirement. Keys must rotate at least annually, and the key custodians must be named.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-07.1",
+          "clause": "encryption at rest stated",
+          "hint_terms": [
+            "encrypt"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-07.2",
+          "clause": "AES-256 stated",
+          "hint_terms": [
+            "AES-256"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-07.3",
+          "clause": "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
+          "hint_terms": [
+            "customer-managed",
+            "CipherTrust"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-07.4",
+          "clause": "rotation period stated (at least annually)",
+          "hint_terms": [
+            "rotated",
+            "rotation period"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-07.5",
+          "clause": "key custodians named",
+          "hint_terms": [
+            "custodian"
+          ]
+        }
+      ],
       "standard": "IS-STD-014 Cryptography v4.2 §5.1",
       "applicability": "Applies to every data store holding Confidential or Restricted data. Not applicable only if the classification document shows no such data at rest.",
       "evidence": [
@@ -50,19 +94,29 @@
           "12 CFR 30, App. B, III.C.1(c)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Security Architecture",
-      "required_clauses": [
-        "encryption at rest stated",
-        "AES-256 stated",
-        "key management model stated (AWS KMS customer-managed keys or CipherTrust)",
-        "rotation period stated (at least annually)",
-        "key custodians named"
-      ]
+      "reviewer_role": "ARB reviewer, Security Architecture"
     },
     {
       "id": "SEC-ARCH-22",
-      "title": "RTO/RPO consistent with BIA tier, rollback path, immutable backups",
+      "title": "Recovery targets and rollback path documented",
       "requirement": "Recovery targets and rollback path are documented: the package states RTO and RPO and describes a rollback path for deployments. BIA consistency check: pilot scope.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-22.1",
+          "clause": "RTO and RPO stated",
+          "hint_terms": [
+            "RTO",
+            "RPO"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-22.2",
+          "clause": "rollback path described",
+          "hint_terms": [
+            "roll back"
+          ]
+        }
+      ],
       "standard": "IS-STD-030 Resilience and Recovery v2.2 §3",
       "applicability": "Applies to every production application with a BIA tier.",
       "evidence": [
@@ -90,17 +144,35 @@
           "Interagency Paper on Sound Practices to Strengthen Operational Resilience (2020)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
-      "required_clauses": [
-        "RTO and RPO stated",
-        "rollback path described"
-      ],
-      "pilot_scope_note": "BIA consistency check: pilot scope"
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations"
     },
     {
       "id": "SEC-ARCH-17",
       "title": "Security events to enterprise SIEM (Splunk)",
       "requirement": "Security events from control plane, network flow, application audit and model invocation sources must be forwarded to the enterprise SIEM (Splunk). Retention must follow IS-STD-021. A named team must own the alerts raised on these events.",
+      "required_clauses": [
+        {
+          "clause_id": "SEC-ARCH-17.1",
+          "clause": "security event sources forwarded to Splunk",
+          "hint_terms": [
+            "Splunk"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-17.2",
+          "clause": "retention per IS-STD-021",
+          "hint_terms": [
+            "IS-STD-021"
+          ]
+        },
+        {
+          "clause_id": "SEC-ARCH-17.3",
+          "clause": "alert owner named",
+          "hint_terms": [
+            "alert owner"
+          ]
+        }
+      ],
       "standard": "IS-STD-021 Security Logging and Monitoring v3.0 §4",
       "applicability": "Applies to every production application.",
       "evidence": [
@@ -130,12 +202,7 @@
           "12 CFR 30, App. B, III.C.1(f)"
         ]
       },
-      "reviewer_role": "ARB reviewer, Technology Resilience and Operations",
-      "required_clauses": [
-        "security event sources forwarded to Splunk",
-        "retention per IS-STD-021",
-        "alert owner named"
-      ]
+      "reviewer_role": "ARB reviewer, Technology Resilience and Operations"
     }
   ]
 }

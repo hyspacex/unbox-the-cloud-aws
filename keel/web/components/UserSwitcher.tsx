@@ -10,7 +10,7 @@ export function UserSwitcher({ users, current, label = "Signed in as" }: { users
   const me = users.find((u) => u.id === current);
   return (
     <label className="userchip" title="Local stand-in for Box sign-in">
-      <span className="muted" style={{ fontSize: 12 }}>{label}</span>
+      {label && <span className="muted" style={{ fontSize: 12 }}>{label}</span>}
       <span className="avatar">{initials(me?.name)}</span>
       <select
         data-testid="user-switcher"

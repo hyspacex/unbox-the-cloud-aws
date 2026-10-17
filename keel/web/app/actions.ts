@@ -38,6 +38,14 @@ export async function setPack(folderId: string, packId: string, version: string 
   } catch (e) { return fail(e); }
 }
 
+export async function resolveDecision(folderId: string, topic: string, action: "adopt" | "keep"): Promise<Result> {
+  try {
+    const { me } = await actingUser();
+    await runnerApi(`/folders/${folderId}/decisions/${topic}`, { method: "POST", body: { action, actor_id: me?.id } });
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
 // ---------- Fake Box (acting as the signed-in user) ----------
 export async function completeAssignment(assignmentId: string): Promise<Result> {
   try {

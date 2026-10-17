@@ -60,19 +60,22 @@ export type Run = {
   changes?: { broke: string[]; fixed: string[]; added: string[]; removed: string[]; first_run: boolean };
   tasks?: { kind: string; task_id?: string; file_id: string; assignee_id: string; assignee?: UserRef; rules: string[]; error?: string }[];
   projection?: { status: string; error?: string };
-  decisions?: { holding: number; drifted: number; unstated: number; total: number; drifted_now: string[]; resolved: string[]; updated: string[] };
+  decisions?: { holding: number; drifted: number; unstated: number; total: number; drifted_now: string[]; resolved: string[]; updated: string[]; adopted?: string[]; kept?: string[]; needs_decision?: number };
   packs_summary?: (Pack & { passing: number; total: number })[];
   summary?: Summary;
   error?: string;
 };
-export type Summary = { kind: "drift" | "fail" | "resolved" | "updated" | "attention" | "clear"; title: string; text: string; by?: string | null; file?: string | null; more?: number };
+export type Summary = { kind: "drift" | "fail" | "resolved" | "updated" | "adopted" | "kept" | "attention" | "clear"; title: string; text: string; by?: string | null; file?: string | null; more?: number };
 export type Statement = { topic: string; label: string; value: string; file_id: string; file_name: string; version_id: string; quote: string; line: number | null; section: string | null; timestamp: string | null };
 export type Decision = {
   run_id: string; topic: string; label: string; status: "holding" | "drifted" | "unstated";
   agreed_value: string | null; statements: Statement[]; values: { value: string; files: string[] }[];
-  history: { from: string; to: string; run: number; at: string; by: Blame | null }[];
+  history: { from?: string; to?: string; kept?: string; declined?: string; adopted?: boolean; run: number; at: string; by: Blame | null }[];
+  superseded?: Statement[];
+  decision_state?: "needs_decision" | "revert_requested" | null;
+  resolution?: { id: string; action: "adopt" | "keep"; value: string; from_value: string; by: { id: string; name: string }; at: string } | null;
   first_seen_run: number; first_seen_at: string; previous_status: string | null;
-  change: "first" | "new" | "drifted" | "resolved" | "updated" | "same";
+  change: "first" | "new" | "drifted" | "resolved" | "updated" | "adopted" | "kept" | "same";
   drift: { value: string; statements: Statement[]; by: Blame | null } | null; task_id?: string | null;
 };
 export type Citation = { file_id: string; file_name: string; version_id: string; quote: string; line: number | null; section: string | null; timestamp: string | null };
@@ -96,6 +99,14 @@ export const getResults = (runId: string) => query<Result>(`RUN#${runId}`, "RESU
 export const getResult = (runId: string, ruleId: string) => get<Result>(`RUN#${runId}`, `RESULT#${ruleId}`);
 export const getDecisions = (runId: string) => query<Decision>(`RUN#${runId}`, "DECISION#");
 export const getDecision = (runId: string, topic: string) => get<Decision>(`RUN#${runId}`, `DECISION#${topic}`);
+
+// ok = all holds; blue = a proposed change waits for a decision; alert = a check fails.
+export function folderState(run: Run | null): "ok" | "blue" | "alert" | "none" {
+  if (!run || run.status !== "completed") return "none";
+  if ((run.counts?.failing ?? 0) > 0) return "alert";
+  if ((run.decisions?.drifted ?? 0) + (run.decisions?.unstated ?? 0) > 0) return "blue";
+  return "ok";
+}
 
 export function attention(run: Run | null) {
   if (!run || run.status !== "completed") return 0;

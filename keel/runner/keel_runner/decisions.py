@@ -33,8 +33,11 @@ def _files(snapshot: dict) -> dict:
     return {f["id"]: f for f in snapshot["files"]}
 
 
-def build_ledger(run: dict, statements: list[dict], prev: dict[str, dict], snapshot: dict) -> list[dict]:
+def build_ledger(run: dict, statements: list[dict], prev: dict[str, dict], snapshot: dict,
+                 resolutions: dict[str, dict] | None = None) -> list[dict]:
+    """resolutions: latest Adopt/Keep decision per topic, made by the decision owner in Keel."""
     files = _files(snapshot)
+    resolutions = resolutions or {}
     topics: "OrderedDict[str, list[dict]]" = OrderedDict()
     for s in statements:
         topics.setdefault(s["topic"], []).append(s)
@@ -42,9 +45,14 @@ def build_ledger(run: dict, statements: list[dict], prev: dict[str, dict], snaps
         topics.setdefault(t, [])
 
     out = []
-    for topic, stmts in topics.items():
+    for topic, all_stmts in topics.items():
         p = prev.get(topic)
-        label = stmts[0]["label"] if stmts else p["label"]
+        res = resolutions.get(topic)
+        # Statements an adopted change superseded (same file version, old value) are history, not drift.
+        sup_keys = {(x["file_id"], x["version_id"]) for x in (res or {}).get("superseded", [])} if res and res["action"] == "adopt" else set()
+        superseded = [s for s in all_stmts if (s["file_id"], s["version_id"]) in sup_keys and s["value"] == res["from_value"]]
+        stmts = [s for s in all_stmts if s not in superseded]
+        label = all_stmts[0]["label"] if all_stmts else p["label"]
         by_value: "OrderedDict[str, list[dict]]" = OrderedDict()
         for s in stmts:
             by_value.setdefault(s["value"], []).append(s)
@@ -57,14 +65,24 @@ def build_ledger(run: dict, statements: list[dict], prev: dict[str, dict], snaps
             "previous_status": p["status"] if p else None,
             "agreed_value": p.get("agreed_value") if p else None,
             "drift": None, "task_id": p.get("task_id") if p and p["status"] == "drifted" else None,
+            "superseded": superseded, "decision_state": None, "resolution": None,
         }
+        if res and not any(h.get("resolution") == res["id"] for h in d["history"]):
+            entry = {"run": run["number"], "at": res["at"], "by": {"user": res["by"], "file": res.get("source_file")}, "resolution": res["id"]}
+            if res["action"] == "adopt":
+                d["history"].append({**entry, "from": res["from_value"], "to": res["value"], "adopted": True})
+                d["agreed_value"] = res["value"]
+            else:
+                d["history"].append({**entry, "kept": res["from_value"], "declined": res["value"]})
+        if res:
+            d["resolution"] = {k: res[k] for k in ("id", "action", "value", "from_value", "by", "at", "tasks") if k in res}
         agreed = d["agreed_value"]
 
         if not stmts:
             d["status"] = "unstated"
         elif len(by_value) == 1:
             value = next(iter(by_value))
-            if agreed is not None and value != agreed:
+            if agreed is not None and value != agreed and not (res and res["action"] == "adopt" and res["value"] == value):
                 by = _who_changed(stmts, files)
                 d["history"].append({"from": agreed, "to": value, "run": run["number"], "at": run["started_at"], "by": by})
                 d["status"] = "holding"
@@ -84,12 +102,18 @@ def build_ledger(run: dict, statements: list[dict], prev: dict[str, dict], snaps
             drifting = [s for s in stmts if s["value"] != agreed]
             d["status"] = "drifted"
             d["drift"] = {"value": drifting[0]["value"], "statements": drifting, "by": _who_changed(drifting, files)}
+            kept = res and res["action"] == "keep" and res["from_value"] == agreed and res["value"] == d["drift"]["value"]
+            d["decision_state"] = "revert_requested" if kept else "needs_decision"
 
         prev_status = d["previous_status"]
         if p is None:
             d["change"] = "first" if run.get("first_run") else "new"
         elif d["status"] == "drifted" and prev_status != "drifted":
             d["change"] = "drifted"
+        elif res and res["action"] == "adopt" and (run.get("trigger") or {}).get("topic") == topic:
+            d["change"] = "adopted"
+        elif res and res["action"] == "keep" and (run.get("trigger") or {}).get("topic") == topic:
+            d["change"] = "kept"
         elif d.get("updated_in_run"):
             d["change"] = "updated"  # every document now states the new value
         elif prev_status == "drifted" and d["status"] == "holding":

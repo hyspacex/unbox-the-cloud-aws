@@ -25,7 +25,7 @@ log = logging.getLogger("keel.runner")
 
 TEMPLATE_FIELDS = [
     {"type": "enum", "key": "status", "displayName": "Status",
-     "options": [{"key": "passing"}, {"key": "failing"}, {"key": "running"}, {"key": "error"}]},
+     "options": [{"key": "passing"}, {"key": "review"}, {"key": "failing"}, {"key": "running"}, {"key": "error"}]},
     {"type": "float", "key": "passing", "displayName": "Checks passing"},
     {"type": "float", "key": "failing", "displayName": "Checks failing"},
     {"type": "float", "key": "unknown", "displayName": "Checks not evaluated"},
@@ -108,7 +108,8 @@ class Runner:
         run = {
             "run_id": run_id, "number": number, "folder_id": folder_id, "status": "running",
             "trigger": {"reason": message.get("reason", "manual"), "event_id": message.get("event_id"),
-                        "event": message.get("event"), "actor": message.get("actor"), "file": message.get("file")},
+                        "event": message.get("event"), "actor": message.get("actor"), "file": message.get("file"),
+                        "topic": message.get("topic"), "action": message.get("action")},
             "started_at": utcnow(), "snapshot": snapshot,
             "judge": {"name": self.judge.name, "model_id": getattr(self.judge, "model_id", "")},
             "previous_run": prev["number"] if prev else None, "first_run": prev is None,
@@ -135,7 +136,8 @@ class Runner:
             prev_ledger = {d["topic"]: d for d in self.store.query(run_pk(prev["run_id"]), "DECISION#")} if prev else {}
             known = [{"topic": t, "label": d["label"]} for t, d in prev_ledger.items()]
             statements, rejected = validate_statements(self.extractor.extract(docs, known), {d.file_id: d for d in docs})
-            ledger = build_ledger(run, statements, prev_ledger, snapshot)
+            resolutions = {r["topic"]: r for r in self.store.query(folder_pk(folder_id), "RESOLUTION#")}
+            ledger = build_ledger(run, statements, prev_ledger, snapshot, resolutions)
             dcounts = {k: sum(1 for d in ledger if d["status"] == k) for k in ("holding", "drifted", "unstated")}
             run.update({
                 "rules": {"hash": ruleset.hash, "file": {"id": rules_file["id"], "version_id": rules_file["version_id"],
@@ -148,7 +150,10 @@ class Runner:
                 "decisions": {**dcounts, "total": len(ledger), "rejected_statements": rejected,
                               "drifted_now": [d["topic"] for d in ledger if d["change"] == "drifted"],
                               "resolved": [d["topic"] for d in ledger if d["change"] == "resolved"],
-                              "updated": [d["topic"] for d in ledger if d["change"] == "updated"]},
+                              "updated": [d["topic"] for d in ledger if d["change"] == "updated"],
+                              "adopted": [d["topic"] for d in ledger if d["change"] == "adopted"],
+                              "kept": [d["topic"] for d in ledger if d["change"] == "kept"],
+                              "needs_decision": sum(1 for d in ledger if d.get("decision_state") == "needs_decision")},
                 "packs_summary": self.pack_summary(ruleset, results),
                 "extractor": {"name": self.extractor.name, "model_id": getattr(self.extractor, "model_id", "")},
             })
@@ -169,8 +174,8 @@ class Runner:
         run["duration_ms"] = int((time.time() - started) * 1000)
         if run["status"] == "completed":
             c, dc = run["counts"], run["decisions"]
-            attention = c["failing"] + dc["drifted"] + dc["unstated"]
-            projected = {"status": "failing" if attention else ("error" if c["unknown"] and not c["passing"] else "passing"),
+            status = "failing" if c["failing"] else "review" if dc["drifted"] + dc["unstated"] else ("error" if c["unknown"] and not c["passing"] else "passing")
+            projected = {"status": status,
                          "passing": c["passing"], "failing": c["failing"], "unknown": c["unknown"],
                          "decisionsHolding": dc["holding"], "decisionsDrifted": dc["drifted"]}
         else:
@@ -322,10 +327,20 @@ class Runner:
         resolved = [d for d in ledger if d["change"] == "resolved"] + [r for r in results if r.get("change") == "fixed"]
         updated = [d for d in ledger if d["change"] == "updated"]
         attention = sum(1 for r in results if r["status"] == "fail") + sum(1 for d in ledger if d["status"] in ("drifted", "unstated"))
+        adopted = [d for d in ledger if d["change"] == "adopted"]
+        kept = [d for d in ledger if d["change"] == "kept"]
+        if adopted:
+            d = adopted[0]
+            return {"kind": "adopted", "title": "Decision updated", "text": f"{d['label']} is now {d['agreed_value']}",
+                    "by": d["resolution"]["by"]["name"], "more": len(adopted) - 1}
+        if kept:
+            d = kept[0]
+            return {"kind": "kept", "title": "Change declined", "text": f"{d['label']} stays {d['agreed_value']} · revert requested",
+                    "by": d["resolution"]["by"]["name"], "more": len(kept) - 1}
         if drifted:
             d = drifted[0]
             by = (d["drift"].get("by") or {})
-            return {"kind": "drift", "title": "Decision drift",
+            return {"kind": "drift", "title": "Proposed change",
                     "text": f"{d['label']}: {d['agreed_value']} → {d['drift']['value']}",
                     "by": (by.get("user") or {}).get("name"), "file": (by.get("file") or {}).get("name"), "more": len(drifted) + len(broke) - 1}
         if broke:
@@ -354,12 +369,8 @@ class Runner:
         due = (datetime.now(timezone.utc) + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"{self.app_url}/folders/{folder_id}/runs/{run['number']}"
 
-        # Regressions: one task per (uploader, file) that broke something — drifted decisions and broken checks.
+        # Broken checks: one task per (uploader, file) that broke something.
         groups: dict[tuple, list[dict]] = {}
-        for d in ledger or []:
-            if d["change"] == "drifted" and d["drift"] and d["drift"].get("by") and (d["drift"]["by"].get("user") or {}).get("id"):
-                by = d["drift"]["by"]
-                groups.setdefault((by["user"]["id"], by["file"]["id"]), []).append(d)
         for r in results:
             if r.get("change") == "broke" and r.get("blame") and r["blame"].get("user") and r["blame"].get("file") and not r["blame"]["file"].get("removed"):
                 key = (r["blame"]["user"]["id"], r["blame"]["file"]["id"])
@@ -368,12 +379,8 @@ class Runner:
                 groups.setdefault((r["blame"]["user"]["id"], rules_file["id"]), []).append(r)
         for (user_id, file_id), rs in groups.items():
             f = next((x for x in run["snapshot"]["files"] if x["id"] == file_id), rules_file)
-            nd = sum(1 for r in rs if "topic" in r)
-            nc = len(rs) - nd
-            what = " and ".join(x for x in (
-                f"changed {nd} agreed decision{'s' if nd > 1 else ''}" if nd else "",
-                f"broke {nc} check{'s' if nc > 1 else ''}" if nc else "") if x)
-            head = f"Keel · Your upload of {f['name']} (v{f['version_number']}) {what}."
+            nc = len(rs)
+            head = f"Keel · Your upload of {f['name']} (v{f['version_number']}) broke {nc} check{'s' if nc > 1 else ''}."
             tasks.append(self._task(folder_id, file_id, user_id, head, rs, url, due, run, "regression"))
 
         # Failures nobody "broke" (first run, newly added rules): one task for the folder owner.
@@ -391,13 +398,80 @@ class Runner:
             prev_task = self._task_for_rule(folder_id, r["rule_id"])
             if prev_task:
                 self._resolve_rule_on_task(folder_id, prev_task, r, run)
-        for d in ledger or []:
-            if not (d["change"] == "resolved" or (d["change"] == "updated" and d["previous_status"] == "drifted")):
-                continue
-            prev_task = self._task_for_rule(folder_id, f"decision:{d['topic']}")
-            if prev_task:
-                self._resolve_rule_on_task(folder_id, prev_task, d, run)
+        tasks += self.notify_decisions(folder_id, meta, run, ledger or [], due)
         return [t for t in tasks if t]
+
+    # Decisions: a drift is a proposed change. The decision owner adopts or keeps it in Keel;
+    # Keel then asks the right people to update their documents.
+    def notify_decisions(self, folder_id: str, meta: dict, run: dict, ledger: list[dict], due: str) -> list[dict]:
+        tasks = []
+        owner = meta.get("owner") or {}
+        files = {f["id"]: f for f in run["snapshot"]["files"]}
+        for d in ledger:
+            link = f"{self.app_url}/folders/{folder_id}/decisions/{d['topic']}"
+            key = f"decision:{d['topic']}"
+            agreed_files = ", ".join(sorted({s["file_name"] for s in d["statements"] + d.get("superseded", []) if s["value"] == (d["resolution"] or {}).get("from_value", d["agreed_value"])}))
+            if d["change"] == "drifted" and d["drift"] and owner.get("id"):
+                by, st = d["drift"]["by"] or {}, d["drift"]["statements"][0]
+                msg = (f"Keel · Proposed change in {st['file_name']} (v{(by.get('file') or {}).get('version_number', '?')}) by {(by.get('user') or {}).get('name', 'someone')}:\n\n"
+                       f"● {d['label']}: {d['agreed_value']} → {d['drift']['value']}\n"
+                       f"    Current decision from {agreed_files}\n    “{st['quote'][:160]}” — {st['file_name']}\n\nAdopt or keep it: {link}")
+                tasks.append(self._simple_task(folder_id, st["file_id"], owner["id"], msg, [key], "decision", run))
+            elif d["change"] == "kept" and d["drift"]:
+                by, st = d["drift"]["by"] or {}, d["drift"]["statements"][0]
+                self._annotate(folder_id, key, f"✓ {d['resolution']['by']['name']} kept {d['label']} = {d['agreed_value']}. Revert requested.")
+                if (by.get("user") or {}).get("id"):
+                    msg = (f"Keel · {d['resolution']['by']['name']} kept the decision {d['label']} = {d['agreed_value']}.\n"
+                           f"Your upload of {st['file_name']} says {d['drift']['value']}. Please change it back.\n\n"
+                           f"    “{st['quote'][:160]}” — {st['file_name']}\n\nDetails: {link}")
+                    tasks.append(self._simple_task(folder_id, st["file_id"], by["user"]["id"], msg, [key], "revert", run))
+            elif d["change"] == "adopted":
+                res = d["resolution"]
+                self._annotate(folder_id, key, f"✓ {res['by']['name']} adopted {d['label']} = {res['value']}.")
+                for st in d.get("superseded", []):
+                    f = files.get(st["file_id"])
+                    if not f or is_record(st["file_name"]) or not (f.get("modified_by") or {}).get("id"):
+                        continue  # meeting records keep what was said at the time; they are superseded, not edited
+                    msg = (f"Keel · {res['by']['name']} adopted {d['label']} = {res['value']} (was {res['from_value']}).\n"
+                           f"{st['file_name']} still says {res['from_value']}. Please update it.\n\n"
+                           f"    “{st['quote'][:160]}” — {st['file_name']}\n\nDetails: {link}")
+                    tasks.append(self._simple_task(folder_id, st["file_id"], f["modified_by"]["id"], msg,
+                                                   [f"update:{d['topic']}:{st['file_id']}"], "update", run))
+            elif d["change"] in ("resolved", "updated") and d["previous_status"] == "drifted":
+                self._annotate(folder_id, key, f"✓ {d['label']} agrees again ({d['agreed_value']}) as of run #{run['number']}.")
+            # Update requests are done once that document states the adopted value.
+            for st in d["statements"]:
+                if st["value"] == d["agreed_value"] and d["status"] == "holding":
+                    self._annotate(folder_id, f"update:{d['topic']}:{st['file_id']}", f"✓ {st['file_name']} now says {d['agreed_value']}.")
+        return tasks
+
+    def _simple_task(self, folder_id, file_id, user_id, message, keys, kind, run) -> dict | None:
+        due = (datetime.now(timezone.utc) + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        entry = {"kind": kind, "file_id": file_id, "assignee_id": user_id, "rules": keys, "message": message}
+        try:
+            task = self.box.create_task(file_id, message, due)
+            assignment = self.box.assign_task(task["id"], user_id)
+            entry.update({"task_id": task["id"], "assignee": user_ref(assignment.get("assigned_to"))})
+            self.store.put(folder_pk(folder_id), f"TASK#{task['id']}", {
+                "task_id": task["id"], "file_id": file_id, "assignee_id": user_id, "rules": keys, "open_rules": keys,
+                "run_number": run["number"], "message": message, "kind": kind})
+        except BoxApiError as e:
+            entry["error"] = str(e)
+        return entry
+
+    def _annotate(self, folder_id: str, key: str, note: str) -> None:
+        """Close `key` on every open task that tracks it, appending a note to the Box task message."""
+        for t in self.store.query(folder_pk(folder_id), "TASK#"):
+            if key not in t.get("open_rules", []):
+                continue
+            t.pop("_version", None)
+            t["open_rules"] = [x for x in t["open_rules"] if x != key]
+            t["message"] += "\n" + note
+            try:
+                self.box.update_task(t["task_id"], t["message"])
+            except BoxApiError as e:
+                log.warning("could not update task %s: %s", t["task_id"], e)
+            self.store.put(folder_pk(folder_id), f"TASK#{t['task_id']}", t)
 
     def _task(self, folder_id, file_id, user_id, head, rs, url, due, run, kind) -> dict | None:
         lines = [head, ""]
@@ -467,6 +541,12 @@ class Runner:
         except BoxApiError as e:
             log.warning("metadata projection failed: %s", e)
             return {"status": "failed", "error": str(e), "values": values}
+
+
+def is_record(name: str) -> bool:
+    """Meeting transcripts and minutes record what was said at the time; they are never asked to change."""
+    n = name.lower()
+    return any(k in n for k in ("transcript", "minutes", "recording")) or n.endswith(".vtt")
 
 
 class RunError(Exception):

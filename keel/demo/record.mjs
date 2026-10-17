@@ -1,5 +1,6 @@
 // Records the Keel demo videos from the running local stack:
-//   keel-demo.mp4            the 4-beat story, under 2 minutes
+//   keel-demo.mp4            the main story (~1 min): all clear → proposed change → adopted → on the record
+//   keel-keep.mp4            ~30 s: the owner keeps the decision; the author reverts
 //   keel-certifications.mp4  ~30 s: install a certification pack, close the gap
 //
 //   cd keel && ./dev.sh --prod &
@@ -141,39 +142,62 @@ async function main() {
     await h.go(F);
     await h.card(TITLE("One source of truth<br/>for every project decision.", "Checked on every upload to Box."), 3000);
 
-    // 1 · All green
-    await h.caption("Keel reads every document in a Box project folder.<br/><b>8 decisions agree. 7 security &amp; privacy checks pass.</b>", 3400);
+    // 1 · All clear
+    await h.caption("Keel reads every document in this Box folder.<br/><b>8 decisions agreed. 7 security &amp; privacy checks pass.</b>", 3200);
     await h.click(page.getByTestId("pillar-decisions"));
-    await h.caption("The decisions come straight from the documents — no one maintains a list.", 3400);
+    await h.caption("The decisions come straight from the documents — nobody keeps a list.", 3200);
 
-    // 2 · A teammate uploads
+    // 2 · A teammate uploads a change
     await h.as("J. Park");
     await h.go(`/box/folders/${folder}`, "In Box, J. Park uploads a rewrite of <b>architecture.md</b>.", 1400);
     await h.upload(path.join(CONTENT, "drift", "architecture.md"));
 
-    // 3 · Drift caught → detail → Box task
+    // 3 · Keel surfaces it as a proposed change
     await h.as("Maya Chen");
     await h.go(F, "Keel re-checks the folder automatically…");
     await h.toast("drift");
-    await h.caption("<b>Decision drift.</b> The team agreed on 50 ms. The new architecture doc says 200 ms.", 3800);
-    await h.click(page.getByTestId("attention-p99_latency"));
-    await h.caption("Both sides, quoted from the exact file versions — and who changed it.", 4200);
-    await h.as("J. Park");
-    await h.go("/box/tasks", "J. Park already has a Box task explaining what to fix.", 3800);
+    await h.caption("<b>Proposed change.</b> The team agreed on 50 ms; the new architecture doc says 200 ms.", 3600);
+    await h.click(page.getByTestId("attention-p99_latency").getByRole("link", { name: "Compare" }));
+    await h.caption("Both sides, quoted from the exact file versions. Maya owns the decision.", 3800);
 
-    // 4 · Fix → green
-    await h.go(`/box/folders/${folder}`, "He restores 50 ms and uploads again.", 1200);
+    // 4 · The owner adopts it — changes are welcome, just never silent
+    await h.caption("The change is intended, so she adopts it.", 800);
+    await h.click(page.getByTestId("adopt-p99_latency"));
+    await h.toast("adopted");
+    await h.caption("<b>Decision updated: 200 ms.</b> The old statements are kept as superseded history.", 3800);
+    await h.go("/box/tasks", "Keel asks the proposal’s author to update it. The meeting transcript stays as the record.", 3800);
+    await h.go(F, "<b>All clear</b> — and the change is on the record: who proposed it, who adopted it, when.", 3600);
+    await h.card(TITLE("Changes are welcome.<br/>Silent changes are not.", "Keel keeps every decision in agreement and on the record — in Box."), 3400);
+  });
+
+  execSync("python3 -m keel_runner.seed --connect", { cwd: path.join(ROOT, "runner"), stdio: "inherit" });
+  const folder2 = (await (await fetch(`${BASE}/api/folders`)).json())[0].folder_id;
+  const F2 = `/folders/${folder2}`;
+
+  await session(browser, "keel-keep", async (h) => {
+    const { page } = h;
+    await h.as("J. Park");
+    await h.go(`/box/folders/${folder2}`, "If a change is <b>not</b> intended…", 600);
+    await h.upload(path.join(CONTENT, "drift", "architecture.md"));
+    await h.as("Maya Chen");
+    await h.go(F2, "");
+    await h.toast("drift");
+    await h.caption("…Maya keeps the current decision.", 900);
+    await h.click(page.getByTestId("keep-p99_latency"));
+    await h.toast("kept");
+    await h.as("J. Park");
+    await h.go("/box/tasks", "J. Park gets a Box task to change it back.", 3200);
+    await h.go(`/box/folders/${folder2}`, "He reverts and uploads again…", 400);
     await h.upload(path.join(CONTENT, "fix", "architecture.md"));
     await h.as("Maya Chen");
-    await h.go(F, "");
+    await h.go(F2, "");
     await h.toast("resolved");
-    await h.caption("<b>All clear.</b> Every decision holds, every check passes.", 3200);
-    await h.go(`${F}/activity`, "Every upload is in the audit trail: who changed what, and what it did.", 3400);
-    await h.card(TITLE("Decisions stay in agreement.<br/>Compliance is checked on every upload.", "The right person hears about it first — in Box."), 3200);
+    await h.caption("<b>Back in agreement.</b>", 2600);
   });
 
   await session(browser, "keel-certifications", async (h) => {
     const { page } = h;
+    const F = F2, folder = folder2;
     await h.as("Maya Chen");
     await h.go(`${F}/packs`, "Certifications: install a standard as a set of checks.", 2400);
     await h.click(page.getByTestId("install-gdpr-design-review"));

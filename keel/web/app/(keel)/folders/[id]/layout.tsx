@@ -11,15 +11,18 @@ export default async function FolderLayout({ children, params }: { children: Rea
   if (!folder) notFound();
   return (
     <main className="page">
-      <div className="crumbs"><Link href="/">Folders</Link><span className="sep">/</span><span>{folder.name}</span></div>
-      <div className="folderhead">
-        <div>
-          <h1 className="display">{folder.name}</h1>
-          <div className="muted" style={{ fontSize: 14, marginTop: 10 }}>Box folder · owned by {folder.owner?.name}</div>
+      <div className="crumbs"><Link href="/">All folders</Link><span className="sep">›</span><span>{folder.name}</span></div>
+      <div className="folderhead" style={{ marginTop: 14 }}>
+        <div className="row" style={{ gap: 14 }}>
+          <span className="ficon" />
+          <div>
+            <h1 className="display" style={{ margin: 0 }}>{folder.name}</h1>
+            <div className="muted" style={{ fontSize: 13 }}>Box folder · decision owner {folder.owner?.name}</div>
+          </div>
         </div>
         <div className="row">
           <FolderLive folderId={folder.folder_id} />
-          <a className="btn ghost" href={`/box/folders/${folder.folder_id}`} target="_blank" rel="noreferrer">Open in Box ↗</a>
+          <a className="btn ghost" href={`/box/folders/${folder.folder_id}`} target="_blank" rel="noreferrer">Open in Box</a>
           <RunButton folderId={folder.folder_id} />
         </div>
       </div>

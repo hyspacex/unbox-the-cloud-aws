@@ -1,28 +1,37 @@
-# Keel: decisions and compliance for Box folders (local v2)
+# Keel: decisions and compliance for Box folders
 
 Keel gives a Box project folder **one source of truth for its decisions** and **checks its compliance on every upload**.
 
-- **Decisions.** Keel reads every document in the folder: proposals, architecture docs, checklists and meeting transcripts. It extracts what the team has decided, for example "p99 latency 50 ms", "data stays in the EU" or "keys are customer-managed, rotated every 12 months". Nobody maintains a list by hand. When a new upload contradicts an agreed decision, that is **decision drift**: Keel quotes both sides and names who changed it.
+- **Decisions.** Keel reads every document in the folder: proposals, architecture docs, checklists and meeting transcripts. It extracts what the team has decided, for example "p99 latency 50 ms", "data stays in the EU" or "keys are customer-managed, rotated every 12 months". Nobody maintains a list by hand.
+  - **Proposed change.** When a new upload says something different, Keel doesn't block it. It shows the current decision and the proposed value side by side, quoted from the exact file versions.
+  - **Adopt.** The decision owner adopts the change with one click. The older statements are kept as superseded history: a meeting transcript stays a record of what was said. Authors of documents that should stay current get a Box task to update them.
+  - **Keep.** The author gets a Box task to revert.
+  - **Changes are welcome; silent changes are not.**
 - **Compliance.**
   - **Security & privacy.** Plain-language rules in `keel-rules.md` are checked on every upload.
   - **Certifications.** Standards such as GDPR, NIST CSF, OWASP ASVS and an internal ARB checklist install as versioned rule packs.
 - **Productivity.** Nobody rereads the folder. Only the person whose upload caused a problem gets a Box task. The audit trail records who changed what, and what it did.
 
-Green means a decision holds or a check passes. Red means a person is needed. Everything else is black and white.
+The UI follows Box's design language (Lato, Box blue, compact lists and cards). Colour carries meaning only:
 
-![Overview after a drift](demo/screenshots/overview-drift.png)
+- **Green:** the decision is agreed or the check passes.
+- **Blue:** a proposed change waits for a decision.
+- **Red:** a compliance check fails.
+
+![Overview with a proposed change](demo/screenshots/overview-proposed-change.png)
 
 ## Demo videos
 
 | Video | What it shows |
 | --- | --- |
-| [`keel-demo.mp4`](demo/videos/keel-demo.mp4) (~55 s) | **All green** → J. Park uploads a rewrite in Box → **decision drift** notification: p99 latency agreed 50 ms, now 200 ms → both sides quoted, plus the Box task he received → he fixes it → **all clear**. |
+| [`keel-demo.mp4`](demo/videos/keel-demo.mp4) (~50 s) | **All clear** → J. Park uploads a rewrite in Box → **Proposed change** notification: p99 latency 50 ms → 200 ms → compare both sides → Maya **adopts 200 ms** → decision updated, old statements superseded, the proposal's author gets a Box task to update it → **all clear**, with the change on record. |
+| [`keel-keep.mp4`](demo/videos/keel-keep.mp4) (~25 s) | The same change, but Maya **keeps 50 ms**. J. Park gets a Box task to revert, uploads the fix, and Keel shows **Back in agreement**. |
 | [`keel-certifications.mp4`](demo/videos/keel-certifications.mp4) (~25 s) | Install the GDPR pack → 4 of 5 (no DPIA) → Privacy uploads the DPIA summary → **GDPR ready**. |
 
 | | |
 | --- | --- |
-| ![All clear](demo/screenshots/overview-all-clear.png) | ![Decision drift](demo/screenshots/decision-drift.png) |
-| ![Decisions](demo/screenshots/decisions.png) | ![Box task](demo/screenshots/box-task.png) |
+| ![All clear](demo/screenshots/overview-all-clear.png) | ![Proposed change](demo/screenshots/decision-proposed.png) |
+| ![Adopted, with superseded history](demo/screenshots/decision-adopted.png) | ![Box tasks](demo/screenshots/box-task.png) |
 
 ## Run it
 
@@ -37,10 +46,11 @@ cd keel
 
 Try it:
 
-1. In Fake Box (`/box`), switch to **J. Park** and upload `content/lantern/drift/architecture.md`. Keel's overview turns red and shows a **Decision drift** notification. J. Park gets a Box task.
-2. Upload `content/lantern/fix/architecture.md`. Keel shows **Back in agreement** and the folder is all clear again.
+1. In Fake Box (`/box`), switch to **J. Park** and upload `content/lantern/drift/architecture.md`. Keel shows a blue **Proposed change** for p99 latency (50 ms → 200 ms). Maya, the decision owner, gets a Box task.
+2. In Keel, as **Maya Chen**, open the change and click **Adopt 200 ms** or **Keep 50 ms**. Only the decision owner sees these buttons.
+   - **Adopt:** the decision becomes 200 ms. The transcript and the proposal statements are marked superseded, and the proposal's author is asked to update it.
+   - **Keep:** J. Park gets a Box task to revert. Uploading `content/lantern/fix/architecture.md` brings the folder back to all clear.
 3. In Keel, open **Certifications** and install *GDPR design review*. The pack scores 4 of 5. Upload `content/lantern/certify/dpia.md` to make it 5 of 5.
-4. To see an intended change recorded instead of flagged, update the p99 target to 200 ms in *all* documents. Once every document agrees, the Decisions page records "changed 50 ms → 200 ms".
 
 ## How it works
 
@@ -83,9 +93,12 @@ Each run follows these steps:
 5. **Validate.** Every quoted passage must appear in the exact file version it cites. If it doesn't, the rule shows **Couldn't evaluate**. It never shows a pass.
 6. **Compare** with the previous run: which rules broke, which were fixed, and which are new.
 7. **Decisions.** Extract decided values from every document and validate their quotes. Compare them with the decision ledger carried forward from the last run, and classify each decision:
-   - **Holding:** every document agrees.
-   - **Drifted:** documents disagree. The statements that moved away from the agreed value are the drift.
-   - **Updated:** every document now agrees on a new value, and the change is recorded in the decision's history.
+   - **Agreed:** every document agrees.
+   - **Proposed change:** a document now disagrees. Keel waits for the decision owner to **Adopt** or **Keep** it (`POST /api/folders/{id}/decisions/{topic}`).
+     - An adoption marks the old statements as superseded.
+     - A keep requests a revert.
+     - Both are recorded in the decision's history.
+   - **Updated:** every document now agrees on a new value.
 8. **Blame.** A newly failing rule or a new drift is attributed to the uploader of the changed file.
 9. **Notify.** Create one Box task per person whose upload caused a problem, attached to the file they changed. Failures nobody caused (new rules or packs) go to the folder owner. When things are back in agreement, the task's message is updated. Keel also shows a live notification, and a bell with the count of items that need attention.
 10. **Project.** Write the status and the decision and check counts to the folder's `keelChecks` metadata in Box.

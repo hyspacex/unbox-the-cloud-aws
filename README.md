@@ -5,7 +5,7 @@
 | What we solve | How Keel does it |
 | --- | --- |
 | **One source of truth for decisions** | Keel reads every document in a Box project folder and extracts what the team decided: targets, regions, owners, policies. Nobody maintains a list by hand. |
-| **Decision drift, with an audit trail** | When an upload contradicts an agreed decision, Keel flags the drift, quotes both sides, and records who changed what. |
+| **Decision drift, with an audit trail** | When an upload says something different, Keel shows it as a proposed change with both sides quoted. The decision owner adopts it or keeps the current decision, and the history records who proposed and who decided. |
 | **Certificate compliance** | Standards (GDPR, NIST CSF, OWASP ASVS, internal checklists) install as versioned rule packs and show as certification badges. |
 | **Security & privacy review** | Plain-language rules in the folder are checked on every upload, with verified quotes. |
 | **Team productivity** | Only the person whose upload caused a problem gets a Box task. Everyone else sees green. |
@@ -13,14 +13,14 @@
 **Status:** a local build that runs on one machine. *Fake Box*, a Box-shaped API and UI, stands in for Box. SQLite stand-ins replace Lambda, SQS FIFO and DynamoDB, with the same limits as the real services. The demo uses deterministic offline extraction and judging. Bedrock agents are wired in but have not been run end to end yet.
 
 - [`keel/README.md`](keel/README.md): how to run it, the user flow, and the architecture
-- [`keel/demo/videos/keel-demo.mp4`](keel/demo/videos/keel-demo.mp4): the ~1-minute demo, plus [`keel-certifications.mp4`](keel/demo/videos/keel-certifications.mp4)
+- [`keel/demo/videos/keel-demo.mp4`](keel/demo/videos/keel-demo.mp4): the ~1-minute demo, plus [`keel-keep.mp4`](keel/demo/videos/keel-keep.mp4) and [`keel-certifications.mp4`](keel/demo/videos/keel-certifications.mp4)
 - [`docs/v1-local-design.md`](docs/v1-local-design.md): design decisions, Box and AWS constraints with sources, and the swap plan
 
 ```bash
 cd keel && ./dev.sh --seed-connected   # Keel on http://localhost:3000, Fake Box on /box
 ```
 
-![Keel overview with a decision drift](keel/demo/screenshots/overview-drift.png)
+![Keel overview with a proposed change](keel/demo/screenshots/overview-proposed-change.png)
 
 ## Earlier explorations
 

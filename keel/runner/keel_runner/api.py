@@ -73,6 +73,33 @@ class KeelApi:
                "file": None, "received_at": _now()}
         return self.queue.send(json.dumps(msg), group_id=folder_id, dedup_id=event_id)
 
+    def resolve_decision(self, folder_id: str, topic: str, action: str, actor_id: str) -> dict:
+        """The decision owner adopts or keeps a proposed change. Keel records it and reruns."""
+        if action not in ("adopt", "keep"):
+            raise ApiError(400, "action must be adopt or keep")
+        meta = self.store.get(folder_pk(folder_id), "META")
+        if not meta:
+            raise ApiError(404, "Folder is not connected to Keel")
+        owner = meta.get("owner") or {}
+        if actor_id != owner.get("id"):
+            raise ApiError(403, f"Only the decision owner ({owner.get('name', 'folder owner')}) can adopt or keep a change.")
+        number = meta.get("last_completed_run")
+        run = self.store.get(folder_pk(folder_id), f"RUN#{number:06d}") if number else None
+        d = self.store.get(f"RUN#{run['run_id']}", f"DECISION#{topic}") if run else None
+        if not d or d["status"] != "drifted" or not d.get("drift"):
+            raise ApiError(409, "There is no proposed change to decide on for this decision.")
+        res = {
+            "id": str(uuid.uuid4()), "topic": topic, "action": action, "value": d["drift"]["value"], "from_value": d["agreed_value"],
+            "by": self._actor(actor_id), "at": _now(), "source_file": (d["drift"].get("by") or {}).get("file"),
+            "superseded": [{"file_id": s["file_id"], "version_id": s["version_id"], "file_name": s["file_name"]}
+                           for s in d["statements"] if s["value"] == d["agreed_value"]] if action == "adopt" else [],
+        }
+        self.store.put(folder_pk(folder_id), f"RESOLUTION#{topic}", res)
+        msg = {"type": "run", "folder_id": folder_id, "reason": "decision", "topic": topic, "action": action,
+               "event_id": res["id"], "actor": res["by"], "file": None, "received_at": _now()}
+        self.queue.send(json.dumps(msg), group_id=folder_id, dedup_id=res["id"])
+        return res
+
     def packs(self) -> list[dict]:
         return rules.catalog()
 

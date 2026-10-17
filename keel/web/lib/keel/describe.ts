@@ -6,6 +6,7 @@ export function triggerText(run: Run): string {
   switch (t.reason) {
     case "connected": return `Folder connected by ${who}`;
     case "manual": return `Run started by ${who}`;
+    case "decision": return `${who} ${(t as { action?: string }).action === "adopt" ? "adopted" : "kept"} a decision`;
     case "reconcile": {
       const f = run.snapshot.files.find((x) => x.changed);
       return f ? `${f.modified_by?.name ?? "Someone"} uploaded ${f.name}${f.version_number > 1 ? ` v${f.version_number}` : ""} (found by scheduled check)` : "Scheduled check found changes";
@@ -34,7 +35,9 @@ export function fileHref(fileId: string, versionId?: string, line?: number | nul
 // Where a notification about this run should take you.
 export function summaryHref(folderId: string, run: Run): string {
   const k = run.summary?.kind;
-  const topic = (k === "drift" ? run.decisions?.drifted_now[0] : k === "resolved" ? run.decisions?.resolved[0] : k === "updated" ? run.decisions?.updated[0] : undefined);
+  const d = run.decisions;
+  const topic = k === "drift" ? d?.drifted_now[0] : k === "resolved" ? d?.resolved[0] : k === "updated" ? d?.updated[0]
+    : k === "adopted" ? d?.adopted?.[0] : k === "kept" ? d?.kept?.[0] : undefined;
   if (topic) return `/folders/${folderId}/decisions/${topic}`;
   if (k === "fail" && run.changes?.broke[0]) return ruleHref(folderId, run.number, run.changes.broke[0]);
   return `/folders/${folderId}`;

@@ -1,10 +1,13 @@
-export type Status = "pass" | "fail" | "unknown" | "running";
+export type Status = "pass" | "fail" | "unknown" | "running" | "change";
 
 export function Glyph({ status, size }: { status: Status; size?: "lg" }) {
   const cls = `glyph ${status}${size ? ` ${size}` : ""}`;
   if (status === "running") return <span className={cls} aria-label="running" />;
   return (
-    <span className={cls} aria-label={status === "pass" ? "passing" : status === "fail" ? "failing" : "not evaluated"}>
+    <span className={cls} aria-label={status === "pass" ? "passing" : status === "fail" ? "failing" : status === "change" ? "proposed change" : "not evaluated"}>
+      {status === "change" && (
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6h7M7 3.5 9.5 6 7 8.5" /></svg>
+      )}
       {status === "pass" && (
         <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.4 5 8.8l4.6-5.4" /></svg>
       )}

@@ -105,6 +105,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(201, self.api.connect_folder(body["folder_id"], body.get("actor_id"), address))
             if len(parts) == 4 and parts[:2] == ["api", "folders"] and parts[3] == "runs":
                 return self._send(202, self.api.enqueue_run(parts[2], body.get("actor_id")))
+            if len(parts) == 5 and parts[:2] == ["api", "folders"] and parts[3] == "decisions":
+                return self._send(200, self.api.resolve_decision(parts[2], parts[4], body["action"], body.get("actor_id")))
             if len(parts) == 4 and parts[:2] == ["api", "folders"] and parts[3] == "packs":
                 return self._send(200, self.api.set_pack(parts[2], body["pack_id"], body.get("version"), body["actor_id"]))
             self._send(404, {"error": "not found"})

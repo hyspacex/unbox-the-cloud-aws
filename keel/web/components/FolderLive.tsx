@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { KindMark } from "./Marks";
+import { KindMark, kindTone } from "./Marks";
 
 type State = { fp: string; running: boolean; latest: number; summary: { kind: string; title: string; text: string; by?: string | null; file?: string | null; more?: number } | null; href: string };
 
@@ -37,18 +37,18 @@ export function FolderLive({ folderId }: { folderId: string }) {
     tick();
     return () => { alive = false; clearTimeout(hide); };
   }, [folderId, router]);
-  const alert = toast?.summary && ["drift", "fail", "attention"].includes(toast.summary.kind);
+  const tone = toast?.summary ? kindTone(toast.summary.kind) : "";
   return (
     <>
       {running && <span className="checking" data-testid="checking"><span className="pulse" />Checking the folder…</span>}
       {toast?.summary && (
-        <a href={toast.href} className={`ntoast${alert ? " alert" : ""}`} data-testid="toast" data-kind={toast.summary.kind} onClick={() => setToast(null)}>
+        <a href={toast.href} className={`ntoast ${tone}`} data-testid="toast" data-kind={toast.summary.kind} onClick={() => setToast(null)}>
           <KindMark kind={toast.summary.kind} />
           <div>
-            <div className="t">{toast.summary.title}</div>
-            {toast.summary.text && <div className="x">{toast.summary.text}</div>}
-            {(toast.summary.by || toast.summary.file) && <div className="by">{[toast.summary.by, toast.summary.file].filter(Boolean).join(" · ")}{alert ? " · Box task sent" : ""}</div>}
+            <div className="t">{toast.summary.title}{toast.summary.text ? <span style={{ fontWeight: 400 }}> · {toast.summary.text}</span> : null}</div>
+            {(toast.summary.by || toast.summary.file) && <div className="by">{[toast.summary.by, toast.summary.file].filter(Boolean).join(" · ")}</div>}
           </div>
+          <span className="go">View</span>
         </a>
       )}
     </>

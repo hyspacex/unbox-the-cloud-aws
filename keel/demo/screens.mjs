@@ -37,15 +37,16 @@ const shot = async (url, name, wait) => {
 await shot(F, "overview-all-clear");
 await shot(`${F}/decisions`, "decisions");
 upload("J. Park", "drift/architecture.md");
-await shot(F, "overview-drift", "[data-testid=overview-status][data-attention='1']");
-await shot(`${F}/decisions/p99_latency`, "decision-drift");
-await ctx.addCookies([{ name: "keel_user", value: users["J. Park"], url: BASE }]);
+await shot(F, "overview-proposed-change", "[data-testid=overview-status][data-tone=blue]");
+await shot(`${F}/decisions/p99_latency`, "decision-proposed");
+await fetch(`http://127.0.0.1:8787/api/folders/${folder}/decisions/p99_latency`, {
+  method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "adopt", actor_id: users["Maya Chen"] }),
+});
+await p.goto(BASE + F, { waitUntil: "networkidle" });
+await p.locator("[data-testid=overview-status][data-tone=ok]").waitFor({ timeout: 30000 });
+await shot(`${F}/decisions/p99_latency`, "decision-adopted");
 await shot("/box/tasks", "box-task");
 await shot(`/box/folders/${folder}`, "box-folder");
-await ctx.addCookies([{ name: "keel_user", value: users["Maya Chen"], url: BASE }]);
-upload("J. Park", "fix/architecture.md");
-await p.goto(BASE + F, { waitUntil: "networkidle" });
-await p.locator("[data-testid=overview-status][data-attention='0']").waitFor({ timeout: 30000 });
 await shot(`${F}/packs`, "certifications");
 await shot(`${F}/activity`, "activity");
 await b.close();

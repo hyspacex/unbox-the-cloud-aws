@@ -2,6 +2,7 @@ import unittest
 
 import tests  # noqa: F401
 from keel_runner import config
+from keel_runner.api import ApiError, KeelApi
 from keel_runner.judges.extract_offline import OfflineExtractor
 from keel_runner.judges.offline import OfflineJudge
 from keel_runner.runner import Runner
@@ -11,6 +12,11 @@ from tests.fakes import MemoryBox
 C = config.KEEL_ROOT / "content" / "lantern"
 SEED_FILES = (("proposal.md", "u-maya"), ("kickoff-transcript.txt", "u-maya"), ("architecture.md", "u-park"),
               ("security-checklist.md", "u-dana"), ("data-retention.md", "u-park"), ("keel-rules.md", "u-maya"))
+
+
+class _NullQueue:
+    def send(self, body, group_id, dedup_id):
+        return {"MessageId": dedup_id, "Duplicate": False}
 
 
 class RunnerTest(unittest.TestCase):
@@ -64,12 +70,15 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual((d["status"], d["agreed_value"], d["drift"]["value"]), ("drifted", "50 ms", "200 ms"))
         self.assertEqual(d["drift"]["by"]["user"]["id"], "u-park")
         self.assertEqual(d["drift"]["by"]["file"]["version_number"], 2)
+        self.assertEqual(r2["summary"]["title"], "Proposed change")
+        self.assertEqual(d["decision_state"], "needs_decision")
         [task] = r2["tasks"]
-        self.assertEqual((task["kind"], task["assignee_id"], task["rules"]), ("regression", "u-park", ["decision:p99_latency"]))
+        self.assertEqual((task["kind"], task["assignee_id"], task["rules"]), ("decision", "u-maya", ["decision:p99_latency"]))
         msg = self.box.tasks[task["task_id"]]["message"]
-        self.assertIn("changed 1 agreed decision", msg)
-        self.assertIn("agreed 50 ms → your version says 200 ms", msg)
-        self.assertEqual(self.box.metadata[self.folder]["status"], "failing")
+        self.assertIn("Proposed change in architecture.md (v2) by J. Park", msg)
+        self.assertIn("p99 latency target: 50 ms → 200 ms", msg)
+        self.assertIn("Adopt or keep it", msg)
+        self.assertEqual(self.box.metadata[self.folder]["status"], "review")
         self.assertEqual(self.box.metadata[self.folder]["decisionsDrifted"], 1)
 
         r3 = self.upload_path(C / "fix" / "architecture.md", "u-park")
@@ -107,9 +116,63 @@ class RunnerTest(unittest.TestCase):
         r = self.upload("architecture.md", text, "u-park")
         self.assertEqual(r["changes"]["broke"], ["R2"])
         self.assertEqual(self.items(r, "RESULT#")["R2"]["blame"]["user"]["id"], "u-park")
-        [task] = r["tasks"]
-        self.assertEqual(task["rules"], ["decision:p99_latency", "R2"])
-        self.assertIn("changed 1 agreed decision and broke 1 check", self.box.tasks[task["task_id"]]["message"])
+        kinds = {t["kind"]: t for t in r["tasks"]}
+        self.assertEqual((kinds["regression"]["assignee_id"], kinds["regression"]["rules"]), ("u-park", ["R2"]))
+        self.assertIn("broke 1 check", self.box.tasks[kinds["regression"]["task_id"]]["message"])
+        self.assertEqual(kinds["decision"]["assignee_id"], "u-maya")
+
+    # ---------------------------------------------------------------- adopt / keep
+    def api(self):
+        api = KeelApi(box=self.box, store=self.store, queue=_NullQueue())
+        api._actor = lambda uid: {"id": uid, "name": self.box.users[uid]}
+        return api
+
+    def decide(self, action, actor="u-maya"):
+        res = self.api().resolve_decision(self.folder, "p99_latency", action, actor)
+        return self.runner.handle({"folder_id": self.folder, "reason": "decision", "topic": "p99_latency", "action": action,
+                                   "actor": res["by"]})
+
+    def test_only_the_decision_owner_can_decide(self):
+        self.connect()
+        self.upload_path(C / "drift" / "architecture.md", "u-park")
+        with self.assertRaises(ApiError) as e:
+            self.api().resolve_decision(self.folder, "p99_latency", "adopt", "u-park")
+        self.assertEqual(e.exception.status, 403)
+
+    def test_adopt_supersedes_old_statements_and_asks_editable_docs_to_update(self):
+        self.connect()
+        r2 = self.upload_path(C / "drift" / "architecture.md", "u-park")
+        owner_task = r2["tasks"][0]["task_id"]
+        r3 = self.decide("adopt")
+        d = self.items(r3, "DECISION#")["p99_latency"]
+        self.assertEqual((d["status"], d["agreed_value"], d["change"]), ("holding", "200 ms", "adopted"))
+        self.assertEqual(sorted(s["file_name"] for s in d["superseded"]), ["kickoff-transcript.txt", "proposal.md"])
+        self.assertTrue(d["history"][-1]["adopted"])
+        self.assertEqual(d["history"][-1]["by"]["user"]["id"], "u-maya")
+        self.assertEqual(r3["summary"]["kind"], "adopted")
+        self.assertIn("adopted p99 latency target = 200 ms", self.box.tasks[owner_task]["message"])
+        [update] = r3["tasks"]  # the transcript is a record of the meeting, so only proposal.md is asked to change
+        self.assertEqual((update["kind"], update["assignee_id"]), ("update", "u-maya"))
+        self.assertIn("proposal.md still says 50 ms", self.box.tasks[update["task_id"]]["message"])
+        self.assertEqual(r3["decisions"]["drifted"], 0)
+        r4 = self.upload("proposal.md", self.current_text("proposal.md").replace("p99 latency of 50 ms", "p99 latency of 200 ms"), "u-maya")
+        self.assertEqual(r4["decisions"]["drifted"], 0)
+        self.assertIn("proposal.md now says 200 ms", self.box.tasks[update["task_id"]]["message"])
+        r5 = self.upload("proposal.md", self.current_text("proposal.md").replace("p99 latency of 200 ms", "p99 latency of 50 ms"), "u-maya")
+        self.assertEqual(r5["decisions"]["drifted_now"], ["p99_latency"])  # a new version going back is a new proposal
+
+    def test_keep_asks_the_author_to_revert(self):
+        self.connect()
+        self.upload_path(C / "drift" / "architecture.md", "u-park")
+        r3 = self.decide("keep")
+        d = self.items(r3, "DECISION#")["p99_latency"]
+        self.assertEqual((d["status"], d["agreed_value"], d["change"], d["decision_state"]), ("drifted", "50 ms", "kept", "revert_requested"))
+        self.assertEqual(r3["summary"]["kind"], "kept")
+        [revert] = r3["tasks"]
+        self.assertEqual((revert["kind"], revert["assignee_id"]), ("revert", "u-park"))
+        r4 = self.upload_path(C / "fix" / "architecture.md", "u-park")
+        self.assertEqual(r4["decisions"]["resolved"], ["p99_latency"])
+        self.assertIn("agrees again (50 ms)", self.box.tasks[revert["task_id"]]["message"])
 
     # ---------------------------------------------------------------- certifications
     def test_pack_install_then_dpia_upload_certifies(self):

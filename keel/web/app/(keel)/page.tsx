@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Ago } from "@/components/Ago";
 import { ConnectFolder } from "./ConnectFolder";
-import { attention, latestCompleted, listFolders } from "@/lib/keel/data";
+import { attention, folderState, latestCompleted, listFolders } from "@/lib/keel/data";
 import { runnerApi } from "@/lib/keel/runner";
 
 export const dynamic = "force-dynamic";
@@ -31,10 +31,10 @@ export default async function Home() {
               <Link key={f.folder_id} href={`/folders/${f.folder_id}`} className="foldercard" data-testid="folder-card">
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <span className="fn">{f.name}</span>
-                  {run && <span className={`pill ${n ? "alert" : "ok"}`}>{n ? `${n} need${n === 1 ? "s" : ""} attention` : "All clear"}</span>}
+                  {run && <span className={`pill ${folderState(run) === "alert" ? "alert" : folderState(run) === "blue" ? "blue" : "ok"}`}>{n ? `${n} to review` : "All clear"}</span>}
                 </div>
                 <div style={{ fontSize: 15, color: "var(--mute)" }}>
-                  {run ? `${run.decisions?.holding ?? 0} of ${run.decisions?.total ?? 0} decisions holding · ${run.counts?.passing}/${run.counts?.total} checks passing` : "Reading the folder…"}
+                  {run ? `${run.decisions?.holding ?? 0} of ${run.decisions?.total ?? 0} decisions agreed · ${run.counts?.passing}/${run.counts?.total} checks passing` : "Reading the folder…"}
                 </div>
                 <div className="muted" style={{ fontSize: 13 }}>
                   Run #{f.latest_run?.number ?? 0} · <Ago iso={f.latest_run?.finished_at} /> · Box folder <span className="mono">{f.folder_id}</span>

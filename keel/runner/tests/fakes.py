@@ -18,6 +18,9 @@ class MemoryBox:
         self.metadata: dict[str, dict] = {}
         self.fail_metadata = False
 
+    def users_list(self):
+        return [{"id": k, "name": v} for k, v in self.users.items()]
+
     def put_file(self, name: str, text: str, user: str = "u-maya") -> str:
         fid = next((f for f, x in self.files.items() if x["name"] == name), None)
         vid = str(next(_ids))

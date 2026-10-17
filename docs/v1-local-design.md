@@ -70,6 +70,28 @@ Decision ledger items are stored as `RUN#<folder>-<n> / DECISION#<topic>`. Each 
 
 The ledger is carried forward from the last completed run.
 
+## 1b. v3: changes are proposals, Box design language
+
+**Feedback.**
+
+- The UI still didn't look right.
+- Does decision drift mean changes aren't allowed?
+
+**Decisions.**
+
+- **Changes are allowed.**
+  - A disagreement is a **proposed change**. Only the decision owner (the folder owner, for now) can **Adopt** or **Keep** it.
+  - **Adopt:** the decision takes the new value. The old statements at those file versions become *superseded* history, so meeting transcripts are never asked to change. Authors of editable documents get a Box task to update them, and that task closes itself once their document states the new value.
+  - **Keep:** the author gets a Box task to revert.
+  - Both are recorded in the decision's history. Adopt/Keep requests are written as `FOLDER#<id> / RESOLUTION#<topic>` and applied by a run with `reason: decision`.
+- **Notifications.**
+  - A drift creates a Box task for the decision owner ("Adopt or keep it"), not for the author.
+  - Failing compliance checks still go straight to the uploader.
+- **Look and colour.**
+  - Keel stays a separate web app, restyled in Box's design language: Lato, Box blue, a left navigation, compact lists and cards, and coloured banner notifications.
+  - Blue means a proposed change waiting for a decision, green means agreed or passing, and red means a failing check.
+  - Folder metadata gains the status `review`.
+
 ## 2. Ports and adapters
 
 | Port | Local adapter | Production adapter (planned) |

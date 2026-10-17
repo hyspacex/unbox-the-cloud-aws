@@ -1,5 +1,13 @@
 # EpistemicBox
 
+> **Idea comparison (Oct 16 2026, evening):** this README describes idea #2 (agreement
+> drift, now at V3 with folder intake and the Bedrock decision model). Three ideas were
+> compared against the official judging rubric in [docs/idea-selection.md](docs/idea-selection.md),
+> which recommends idea #1 (Epistemic Review) with fixed review criteria and version-bound
+> verification borrowed from #2 and #3. That is a recommendation for the team to weigh, not
+> a decision. See [docs/one-pager.md](docs/one-pager.md) for idea #1 and
+> [docs/idea3-discussion.md](docs/idea3-discussion.md) for the idea #3 transcript.
+
 ## Pull requests for enterprise decisions
 
 **Files have versions. Team agreement should have versions too.**

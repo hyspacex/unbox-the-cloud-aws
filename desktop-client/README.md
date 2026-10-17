@@ -1,85 +1,244 @@
-# KEEL · Tesla-Inspired Cross-Platform Desktop Client (Windows & macOS)
+<div align="center">
 
-An ultra-clean, frameless, **draggable desktop compliance HUD** inspired by **Tesla OS / Tesla Energy HMI design**, engineered to run on both **Windows (`win32`)** and **macOS (`darwin`)**.
+# KEEL / Desktop
 
-It connects a team's shared **Box Package Folder** (`318840021 · Project Lantern`) to the **AWS + Box AI** compliance evaluation pipeline (`Strands Decider 2B` input gate $\rightarrow$ `Bedrock Claude Sonnet 4.6` + `Box AI Ask` citation search $\rightarrow$ `Box Folder Metadata & Tasks`).
+**A glance for status. A hover for context. A click for evidence.**
 
----
+`224 px` &nbsp; `Tauri + system WebView` &nbsp; `Windows / macOS`
 
-## Visual Walkthrough & Screenshots
+![Compact idle widget](screenshots/hud-main.png)
 
-### 1. Borderless Auto-Hide Idle HUD (`224px` Ultra-Compact Footprint)
+[Interaction guide](#glance-hover-act) &middot;
+[Install and connect](#install-then-click-a-project-link) &middot;
+[Build](#preview-and-development) &middot;
+[Integration contract](project-connection.md)
 
-- **Auto-Hide Border & Chrome:** In idle state on the desktop, the outer window frame and top bar completely auto-hide (`border: transparent`, top micro-bar height `0px`). Only the two floating obsidian tiles and the active 1-line delta notification pill are visible. Hovering over the widget smoothly reveals the top micro-bar (`● LANTERN · S4`, `⚡` simulate drop, `⇥` edge auto-hide dock, `⚙` config).
-- **Screen-Edge Auto-Hide (`⇥`):** Can also tuck into the right edge of the screen and automatically peek out for 4 seconds whenever a teammate file-drop event arrives on the subscribed topic.
-- **Left Green Tile (`COMPLIANT`):** Big tabular numeral (`6`) + live delta badge (`−2`) + bottom green laser bar (`#17c964`).
-- **Right Amber/Yellow Tile (`UNMET`):** Big tabular numeral (`2`) + live delta badge (`+2`) + bottom amber laser bar (`#f5a524`).
-- **Zero-Space Drag & Drop:** The entire two-box rectangle itself is the file/folder drop zone (`⇣ DROP TO BOX` translucent overlay appears only while dragging files/folders over it).
-- **High-Intention 1-Line Notification Pill (`8→6 ⚠`):** Amber-highlighted badge immediately shows **direction (`8→6 ⚠`)**, **who + file (`J. Park · architecture.md`)**, and **which clause changed (`SEC-ARCH-07 CMK lost`)**.
-
-![KEEL Main Draggable 2-Box HUD](screenshots/hud-main.png)
+</div>
 
 ---
 
-### 2. Teammate File Drop Satisfies Compliance (`6→8 ✓` Emerald Intention)
+A small, configurable evidence-review widget using **Tauri and the system
+WebView**: WebView2 on Windows, WKWebView on macOS. The interface is plain
+HTML/CSS/JavaScript. No Python runtime, Electron, bundled Chromium or frontend
+framework.
 
-When a teammate drops a remediated file (`architecture-v4.md`), the notification pill flips to **Emerald Green (`6→8 ✓`)** and the tile deltas flip to **`+2`** / **`−2`**:
+The visual treatment uses restrained automotive-instrument-panel cues: dark
+surfaces, thin strokes, quiet typography, two status colors. No Tesla assets or
+branding are included.
 
-![KEEL Teammate File Drop Satisfied](screenshots/hud-teammate-drop-satisfied.png)
+> **Delivery status:** working local UI and native client transport. Windows
+> ARM64 builds and NSIS packaging are verified here. macOS and Windows x64
+> installer builds are configured for CI, not claimed as tested on this machine.
+> Box uploads and the project backend remain separate integrations.
 
----
+## Glance, hover, act
 
-### 3. Ultra-Compact Tesla Configuration Sheet (`⚙`)
+The idle surface is **224 CSS pixels wide** and at most **112 pixels tall** with
+a notification. It shows two icon counters, not long labels:
 
-Hovering the widget and clicking **`⚙`** swaps the interior of the same `224px` rectangle into a minimal Tesla settings sheet (`US (8) | EU (8) | Live (3)` segmented control, `Box Folder ID`, `Topic Subscription`, `Auto-Hide Border` switch, and `Edge Auto-Hide` switch):
+- Green check: evidence with a human verification that still holds.
+- Amber review icon: evidence needing attention, including an acknowledgment,
+  missing clauses or an open remediation. This is **not** a legal verdict of
+  non-compliance.
+- A **neutral bell notification** reports the change separately: `-3 verified`
+  or `+1 verified`. Its color does not duplicate the current-state counters.
 
-![KEEL Tesla Configuration Drawer](screenshots/hud-config.png)
+### Progressive disclosure
 
----
+| Gesture | Result |
+| --- | --- |
+| Hover a counter for 160 ms | Preview that set of checklist items |
+| Move into the preview | Keep it open; no pointer gap or flicker |
+| Leave the widget | Collapse an unpinned preview after 280 ms |
+| Click an item, or hover its heading for 550 ms | Expand its accordion with source, contributor/reviewer and excerpt |
+| Leave a hover-opened item | Retract it; a clicked item stays open until collapsed |
+| Click another item | Close the previous accordion to save space |
+| Click a source | Open its evidence directly, without another dashboard step |
+| Click a counter | Open the filtered web details |
 
-### 4. One-Click Web Interface Popover (`↗`)
+Only one checklist accordion is open at a time. All controls have accessible
+names and keyboard equivalents; status never relies on color alone. Motion
+respects `prefers-reduced-motion`. Long-hover expansion is limited to the widget;
+the full evidence page uses click-to-expand to keep document scrolling stable.
 
-Clicking the **Left Green Tile**, the **Right Yellow Tile**, or the **Notification Pill** opens a compact popover summary with a **`WEB UI ↗`** button to launch the full Web Interface ([`../demo/index.html`](../demo/index.html)):
+<table>
+  <tr><th>1. Hover: scan the checklist</th><th>2. Dwell or click: inspect one item</th></tr>
+  <tr>
+    <td valign="top"><img src="screenshots/hud-hover-list.png" alt="Hover shows a compact list with all item accordions collapsed" width="280"></td>
+    <td valign="top"><img src="screenshots/hud-hover-review.png" alt="One expanded control shows its source link, contributor, prior reviewer and evidence excerpt" width="280"></td>
+  </tr>
+  <tr><td>No competing panels or repeated warnings.</td><td>Source, person and excerpt are one gesture away.</td></tr>
+</table>
 
-![KEEL Web Interface Detail Popup](screenshots/hud-web-popup.png)
+### Notifications are reversible
 
----
+Hover previews a notification. Click its chevron to pin it; click again to
+collapse. The panel has separate **collapse** and **dismiss** controls.
+Escape, an outside click or losing window focus closes the panel. Dismiss
+removes the notification strip, not the review state; the bell recalls the
+latest event. A new event can appear without opening a full panel.
 
-## Architecture & File Structure
+Both directions are represented: a file change can invalidate prior evidence;
+a **subsequent human review**, not the upload itself, can restore verification.
+The current Lantern fixture is `5 verified / 3 to review`, then `6 / 2` after
+the recorded human responses. The unresolved items do not turn green.
+
+<table>
+  <tr><th>Evidence changed</th><th>Human review recorded</th></tr>
+  <tr>
+    <td><img src="screenshots/hud-main.png" alt="Five verified controls and three needing review after evidence changed" width="280"></td>
+    <td><img src="screenshots/hud-reviewed.png" alt="Six verified controls and two still open after a human review" width="280"></td>
+  </tr>
+  <tr><td>Neutral notification: <code>-3 verified</code>.</td><td>Same neutral notification: <code>+1 verified</code>.</td></tr>
+</table>
+
+<details>
+<summary>See the expanded notification, with separate collapse and dismiss controls</summary>
+
+![Notification detail](screenshots/hud-notification.png)
+
+</details>
+
+### Settings and desktop behavior
+
+Hover or focus the widget to reveal its drag handle and settings button.
+Settings persist locally: always-on-top, border visibility, edge auto-hide and
+notifications. An optional project web URL must use HTTPS.
+
+The native window follows the content height so hover panels and settings do
+not get cut off. Edge auto-hide shrinks the **native window**, not just a CSS
+element, to an 8-pixel handle at the monitor's work-area edge. Hover reveals it.
+The browser preview only simulates that interaction within the page.
+
+<details>
+<summary>See local settings</summary>
+
+![Settings](screenshots/hud-config.png)
+
+</details>
+
+## Install, then click a project link
+
+End users do not need Node.js, Rust or Python:
+
+1. **Windows:** run the architecture-appropriate `Keel_...-setup.exe`. The
+   per-user NSIS installer registers `keel://` and can bootstrap WebView2.
+2. **macOS:** open the DMG, drag Keel into Applications and open it once. The app
+   bundle declares the same URL scheme. The build workflow targets a universal
+   Intel/Apple Silicon app.
+3. On the authenticated project page, click **Open in Keel**. An already-running
+   widget is reused instead of creating a duplicate instance.
+
+[Open the installation/link test page](connect.html) after installing. Its
+`keel://demo/lantern` link deliberately selects synthetic data.
+
+A real project link has this shape:
 
 ```text
-desktop-client/
-├── README.md                        # Documentation & Tesla HMI visual guide
-├── widget.html                      # Tesla-inspired draggable 2-box HUD + Config + Popup UI
-├── main.js                          # Electron main process (Windows & macOS frameless always-on-top window)
-├── preload.js                       # Electron contextBridge IPC (topic pub/sub + Web UI popup launcher)
-├── package.json                     # Cross-platform Electron manifest (win32, darwin, linux)
-├── keel_desktop_client.py           # Zero-install Python Tkinter desktop widget + local HTTP/SSE topic broker
-└── screenshots/
-    ├── hud-main.png                 # Main 2-Box HUD (6 Compliant | 2 Not Yet Compliant)
-    ├── hud-teammate-drop-satisfied.png # After teammate file drop satisfies compliance (8 | 0)
-    ├── hud-config.png               # Tesla-style Configuration Panel
-    └── hud-web-popup.png            # Popup Web Interface Detail Drawer
+keel://connect?project=lantern&server=https%3A%2F%2Fkeel.example.com&code=ONE_TIME_CODE
 ```
 
----
+The project page must mint a short-lived, single-use connection code for the
+signed-in user. **Do not put an API key or long-lived bearer token in a link.**
 
-## Running on Windows & macOS
+- First use of an HTTPS server asks for trust. Future links from that trusted
+  origin can connect directly.
+- The native client exchanges the code, checks the returned project ID, and
+  fetches that project's state. Connection tokens stay in native memory.
+- Data refreshes every 15 seconds. This is polling, **not a claimed live
+  topic-broker integration**. New event IDs update the notification.
+- Invalid, older or mismatched data is rejected. Failed refreshes retain a
+  clearly marked stale view rather than showing a successful demo fallback.
+- After app restart or token expiry, open a fresh link. No automatic startup
+  task, hidden credential persistence or unattended login is installed.
 
-### Option A: Zero-Install HTML / Browser HUD Preview
+The repository has no deployed project API. The client transport and its
+[backend contract](project-connection.md) are implemented; an actual service
+must provide those endpoints before real project data can be verified.
 
-Open [`desktop-client/widget.html`](widget.html) directly in any browser on Windows or macOS.
+## Preview and development
 
-### Option B: Electron Native Frameless Desktop App (Windows & macOS)
+Open [widget.html](widget.html) directly for the offline browser preview.
+Its source links open a local evidence page with the requested filter/control.
 
-```bash
-cd desktop-client
-npm install
+Native development requires Node.js, Rust and the platform prerequisites:
+MSVC build tools and WebView2 on Windows; Xcode command-line tools on macOS.
+
+From this directory:
+
+```text
+npm ci
 npm start
+npm test
+npm run prepare:ui
+npm run test:native -- --release
 ```
 
-### Option C: Zero-Dependency Python Native Widget + Local Topic Broker (Windows & macOS)
+Build a native executable with `npm run build`. Installer builds:
 
-```bash
-python desktop-client/keel_desktop_client.py
+```text
+Windows: npm run bundle -- --bundles nsis
+macOS:   npm run bundle -- --target universal-apple-darwin --bundles app,dmg
 ```
+
+For the universal Mac target, install both Rust targets first:
+`rustup target add aarch64-apple-darwin x86_64-apple-darwin`.
+
+The manual [Desktop installers workflow](../.github/workflows/desktop-build.yml)
+builds Windows x64 and macOS universal artifacts. It does not publish a release
+or claim the binaries are signed. Production distribution requires Windows code
+signing and macOS Developer ID signing/notarization; do not disable OS security
+to hide development-build warnings. Transparent WKWebView uses Tauri's macOS
+private-API feature, so this is a direct-distribution design, not a Mac App Store
+submission.
+
+## What is and is not connected
+
+- **Implemented:** compact hover UI, accordion details, reversible notifications,
+  persisted settings, native sizing/docking, scheme handling, single instance,
+  code exchange, bounded HTTPS project reads, filtered web links and installers.
+- **Local preview only:** file/folder drop intake records selected item names.
+  It does **not** upload to Box, run a model, or grant verification. The old
+  automatic-green-on-drop behavior has been removed.
+- **Not provided here:** the production authorization/data API, Box upload
+  backend, model execution, a live push broker, or signing certificates.
+- **Validation scope:** Windows native build and installer generation, Rust and
+  JavaScript tests, and browser interaction checks. macOS packaging is defined
+  for a macOS builder; native macOS interaction and signing still require that
+  machine. Screenshots show the browser UI, not a fabricated native macOS run.
+
+### Validation at this checkpoint
+
+| Check | Evidence |
+| --- | --- |
+| Data and UI contracts | 8 Node tests: fixture counts, exact excerpts, safe settings, deep links and remote payloads |
+| Native contracts | 6 Rust tests: monitor bounds, project-link parsing and bounded response handling |
+| Interaction checks | Hover enter/leave, long-hover accordion, one open item, click-collapse, Escape, dismiss/recall and persisted settings |
+| Drop boundary | Selecting a real local fixture does not change verification counts |
+| Detail routing | Counter filter and clicked control are preserved in the evidence URL |
+| Pixel layout | 20 px buttons fit the 24 px toolbar with at least 4 px outer-frame clearance; no overlapping bell badge or horizontal overflow |
+| Native startup | Windows process opened a visible widget window; the test-owned process was then stopped |
+| Platform packaging | Windows ARM64 release and per-user NSIS installer; unsigned development build |
+
+![Toolbar detail with separated line icons](screenshots/toolbar-detail.png)
+
+The Windows ARM64 installer measured **1,630,988 bytes (about 1.56 MiB)**;
+this is a measured local build, not a cross-platform size or memory guarantee.
+WebView2 may be downloaded separately on Windows machines that do not have it.
+
+## Files
+
+- [widget.html](widget.html), [widget.css](widget.css), [widget.js](widget.js):
+  framework-free interface.
+- [widget-state.js](widget-state.js): fixture and remote-state validation.
+- [widget-evidence.js](widget-evidence.js): generated synthetic source excerpts.
+  `npm run fixture:sync` refreshes them from the repository's Lantern fixture.
+- [src-tauri](src-tauri): native WebView shell and project-link transport.
+- [tests/widget.test.cjs](tests/widget.test.cjs): focused data and contract tests.
+
+<details>
+<summary>See the full evidence page</summary>
+
+![Expanded evidence preview](screenshots/hud-web-popup.png)
+
+</details>

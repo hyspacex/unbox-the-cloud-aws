@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "widget-window",
+  "description": "Local widget events only. No filesystem, shell or remote page capability.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

@@ -1,11 +1,16 @@
 {
-  "name": "keel-epistemicbox-desktop-client",
+  "name": "keel-desktop-widget",
   "version": "1.0.0",
-  "description": "Cross-platform (Windows & macOS) draggable compliance desktop widget for Box + AWS (Keel / EpistemicBox)",
-  "main": "main.js",
+  "description": "Compact evidence-review widget using the operating system WebView",
+  "private": true,
   "scripts": {
-    "start": "electron .",
-    "start:python": "python keel_desktop_client.py"
+    "start": "tauri dev",
+    "build": "tauri build --no-bundle",
+    "bundle": "tauri build",
+    "prepare:ui": "node scripts/prepare-ui.cjs",
+    "fixture:sync": "node scripts/sync-fixture.cjs",
+    "test": "node --test tests/widget.test.cjs",
+    "test:native": "cargo test --manifest-path src-tauri/Cargo.toml"
   },
   "os": [
     "win32",
@@ -21,6 +26,6 @@
     "macos"
   ],
   "devDependencies": {
-    "electron": "^33.0.0"
+    "@tauri-apps/cli": "^2.0.0"
   }
 }

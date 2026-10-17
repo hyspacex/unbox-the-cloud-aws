@@ -121,7 +121,7 @@ Application events and agent events, each tagged by source, with real UTC timest
 
 ### In Box and on the Desktop (`desktop-client/`)
 The folder's metadata sidebar shows snapshot id and the eight status fields. The reviewer's task and, after her response, the author's task appear in Box tasks. No comments are posted.
-Alongside Box and the web console, a cross-platform **Windows & macOS Desktop Client** ([`desktop-client/`](../../desktop-client/README.md)) provides a frameless, draggable two-box rectangle (`Left Green: Compliant / Verified holds`, `Right Yellow: Not Yet Compliant / Needs review`), accepts file/folder drag-and-drop into the Box package folder, subscribes to the folder compliance topic (`topic://keel/lantern/318840021`) to surface teammate file-drop notifications, includes a minimalist configuration sheet, and opens the detailed Web Interface on click.
+Alongside Box and the web console, the **Windows & macOS Desktop Client** ([`desktop-client/`](../../desktop-client/README.md)) uses a Tauri system-WebView shell with two compact icon counters, hover/click evidence accordions, collapsible neutral change notifications, settings and web-detail links. Green means human-verified evidence, not a machine compliance verdict. Its registered project-link handler exchanges a one-time code and polls the selected project's state through the documented client API contract. That service and live Box uploads are not implemented in the widget; local file/folder drops remain explicitly labelled preview intake. Windows and macOS installer targets are defined; native OS testing, signing and deployment are separate claims.
 
 ## 7. The three-minute demo
 

@@ -129,17 +129,19 @@ In addition to the web interface, the repository includes a cross-platform
 **Windows & macOS Desktop Client** ([`desktop-client/`](desktop-client/README.md))
 styled with minimalist **Tesla HMI design elements**:
 
-- **Draggable Rectangle with Two Boxes:** Left green telemetry box (`COMPLIANT` /
-  verified holds count) and right amber/yellow telemetry box (`NOT YET COMPLIANT` /
-  needs review count).
-- **File & Folder Drag-and-Drop:** Drop files or folders directly onto the
-  rectangle to upload to Box and trigger evaluation.
-- **Topic Subscription & Teammate Notification Info Box:** Subscribes to the
-  folder compliance topic (`topic://keel/lantern/318840021`) and notifies the
-  user when a teammate's file drop satisfies or changes compliance.
-- **Minimalist Configuration & Web Popup:** Built-in `⚙ CONFIG` drawer (Control
-  Profile segmented selector, Box Folder ID, topic URI, and toggles) plus
-  one-click popup to launch the detailed Web Interface.
+- **Lightweight native shell:** Tauri uses WebView2/WKWebView instead of
+  distributing Chromium or requiring Python.
+- **Compact progressive disclosure:** two icon counters, hover previews and
+  click/long-hover checklist accordions. Neutral change notifications can
+  expand, collapse and dismiss independently of the current review status.
+- **Project links:** an installed `keel://` handler reuses the running widget,
+  exchanges a one-time connection code, and polls the selected project's
+  authorized state. See the [service contract](desktop-client/project-connection.md).
+- **Clear prototype boundary:** local fixture mode is visibly labelled.
+  File/folder drops do not yet upload to Box or run an evaluation. Uploading
+  a file never automatically grants human verification.
+- **Installation:** Windows setup and macOS app/DMG build targets are included.
+  Native macOS validation and production signing remain separate release steps.
 
 ![Desktop Client Main HUD](desktop-client/screenshots/hud-main.png)
 

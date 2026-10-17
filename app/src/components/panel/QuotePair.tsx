@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { FindingCard } from "@/lib/types";
 import { wordDiff } from "@/lib/ui/diff";
 import { C, shortSection } from "./parts";
@@ -91,5 +92,77 @@ function Muted({ children }: { children: React.ReactNode }) {
     <p className="text-[13px] leading-[1.5]" style={{ color: C.secondary }}>
       {children}
     </p>
+  );
+}
+
+/**
+ * v4.1 hero blocks (design 51 decision 5). AGREED is the verified commitment with the engine's byline. CHANGED
+ * carries the engine's heading ("Changed in architecture.md v3 §4.3", "Now in runbook.md v2 §3", "Section changed
+ * around it · v3 §4.2") and the new sentence, with inserted words underlined when it replaced the agreed one. "Open
+ * in document" goes to lane A's Box preview with the sentence highlighted. CHANGED is omitted when the engine sends
+ * null (a hold, or while pending).
+ */
+export function AgreedChanged({ card, controlId }: { card: FindingCard; controlId: string }) {
+  const a = card.agreed ?? null;
+  const ch = card.changed ?? null;
+  const od = card.open_in_document;
+  const href = od
+    ? `/files/${encodeURIComponent(od.file_id)}?v=${encodeURIComponent(od.version_id)}${od.sentence ? `&q=${encodeURIComponent(od.sentence)}` : ""}&c=${encodeURIComponent(controlId)}`
+    : null;
+  const replaced = Boolean(a && ch?.quote && ch.kind === "replaced" && norm(a.quote) !== norm(ch.quote));
+  return (
+    <section aria-label="What was agreed and what changed" className="space-y-3">
+      {a ? (
+        <div className="min-w-0">
+          <Head>Agreed</Head>
+          <div className="border-l-[3px] pl-3" style={{ borderColor: C.blue }}>
+            <Quote>{a.quote}</Quote>
+          </div>
+          <p className="mt-1 text-[12px]" style={{ color: C.secondary }}>
+            {a.byline}
+          </p>
+        </div>
+      ) : null}
+      {ch ? (
+        <div className="min-w-0">
+          {/* The engine's heading carries a file name: keep its case. */}
+          <div className="mb-1 text-[12.5px] font-bold" style={{ color: C.text }}>
+            {ch.heading}
+          </div>
+          <div className="border-l-[3px] pl-3" style={{ borderColor: C.amber }}>
+            {ch.quote ? (
+              <Quote>
+                {replaced
+                  ? wordDiff(a!.quote, ch.quote).map((op, i) =>
+                      op.type === "del" ? null : op.type === "ins" ? (
+                        <span key={i} className="underline decoration-[1.5px] underline-offset-[3px]" style={{ textDecorationColor: C.amber }}>
+                          {op.text}
+                        </span>
+                      ) : (
+                        <span key={i}>{op.text}</span>
+                      ),
+                    )
+                  : ch.quote}
+              </Quote>
+            ) : card.quote_pair_note ? (
+              <Muted>{card.quote_pair_note}</Muted>
+            ) : null}
+          </div>
+          {href ? (
+            <Link href={href} className="mt-1 inline-flex items-center gap-1 text-[12.5px] font-bold hover:underline" style={{ color: C.boxBlue }}>
+              Open in document <span aria-hidden>↗</span>
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function Head({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: C.secondary }}>
+      {children}
+    </div>
   );
 }

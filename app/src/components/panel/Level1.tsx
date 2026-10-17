@@ -7,7 +7,9 @@ import { api, peekFinding } from "@/lib/client";
 import { orderByAttention, orderById } from "@/lib/ui/order";
 import { useKeelState } from "@/components/KeelStateProvider";
 import { cardKeyOf } from "./Level2";
-import { C, CheckIcon, Chevron, DUR, EASE_OUT, RowChip, stableSeverity, SectionLabel, clampWords, isDecisionKind, isRecordedRow, toneColor } from "./parts";
+import { Tiles, RuleChip } from "./RuleChip";
+import { Timeline } from "./Timeline";
+import { C, CheckIcon, Chevron, DUR, EASE_OUT, SectionLabel, isDecisionKind, isRecordedRow, toneColor } from "./parts";
 
 /** First-seen attention order per snapshot, kept for the session so recorded rows do not jump. */
 const SEEN_ORDER = new Map<string, string[]>();
@@ -53,13 +55,6 @@ function useReceipts(pkg: PackageView | null, skip: boolean): Receipts {
     fresh[r.control_id] = info.state === cardKeyOf(pkg.snapshot.snapshot_id, r) ? info : { severity: info.severity, state: info.state };
   }
   return fresh;
-}
-
-/** "SEC-ARCH-01 · 02 · 04": the shared prefix once, then the suffixes. */
-function idLine(ids: string[]): string {
-  if (!ids.length) return "";
-  const prefix = ids[0].replace(/[^-]+$/, "");
-  return ids.map((id, i) => (i > 0 && id.startsWith(prefix) ? id.slice(prefix.length) : id)).join(" · ");
 }
 
 export function Level1() {
@@ -113,11 +108,13 @@ export function Level1() {
     );
   }
 
-  // Header and holds title are the engine's sentences (header_line, changed_line, holds_line). Only the bare
-  // snapshot id stands in for changed_line if an older server omits it.
+  // v4.1 header (design 51): the engine's tiles, changed_line and package timeline. header_line is shown only while
+  // a re-check runs, so the presenter sees that rows are pending.
   const line1 = pkg.changed_line ?? `snapshot ${pkg.snapshot.snapshot_id}`;
-  const line2 = pkg.header_line ?? null;
-  const holdText = pkg.holds_line ?? null;
+  const tiles = pkg.dashboard?.tiles ?? [];
+  const holdTile = tiles.find((t) => t.key === "hold");
+  // "5 hold": the engine's hold tile, value and label, as the fold title; holds_line when there are no tiles.
+  const holdText = holdTile ? `${holdTile.value} ${holdTile.label.toLowerCase()}` : pkg.holds_line ?? null;
 
   const open = (r: ControlRow) => !locked && pushView({ kind: "control", controlId: r.control_id });
 
@@ -143,15 +140,19 @@ export function Level1() {
           </button>
         </div>
       ) : null}
-      <header className="mb-4">
-        <div className="text-[14px] font-bold" style={{ color: C.text }}>
-          {line1}
-        </div>
-        {line2 ? (
-          <div className="text-[12.5px] tabular-nums" style={{ color: C.secondary }}>
-            {line2}
+      <header className="mb-4 space-y-3">
+        {tiles.length ? <Tiles tiles={tiles} /> : null}
+        <div>
+          <div className="text-[13.5px] font-bold" style={{ color: C.text }}>
+            {line1}
           </div>
-        ) : null}
+          {running && pkg.header_line ? (
+            <div className="text-[12.5px]" style={{ color: C.secondary }}>
+              {pkg.header_line}
+            </div>
+          ) : null}
+        </div>
+        {pkg.timeline?.length ? <Timeline points={pkg.timeline} label="Package history, one point per snapshot" /> : null}
       </header>
 
       {groups.pending.length ? (
@@ -162,23 +163,23 @@ export function Level1() {
         </Section>
       ) : null}
       {groups.decide.length ? (
-        <Section label="Needs your decision">
+        <Section label="Need you">
           {groups.decide.map((r) => (
-            <Row key={r.control_id} row={r} locked={locked} onOpen={open} awaiting={awaiting.has(r.control_id)} severity={stableSeverity(r, receipts[r.control_id]?.severity, pkg.snapshot.snapshot_id)} />
+            <Row key={r.control_id} row={r} locked={locked} onOpen={open} awaiting={awaiting.has(r.control_id)} />
           ))}
         </Section>
       ) : null}
       {groups.ack.length ? (
         <Section label="Acknowledge">
           {groups.ack.map((r) => (
-            <Row key={r.control_id} row={r} locked={locked} onOpen={open} hollow severity={stableSeverity(r, receipts[r.control_id]?.severity, pkg.snapshot.snapshot_id)} />
+            <Row key={r.control_id} row={r} locked={locked} onOpen={open} hollow />
           ))}
         </Section>
       ) : null}
       {groups.recorded.length ? (
         <Section label="Recorded">
           {groups.recorded.map((r) => (
-            <Row key={r.control_id} row={r} locked={locked} onOpen={open} receipt={receipts[r.control_id]?.receipt} recorded severity={stableSeverity(r, receipts[r.control_id]?.severity, pkg.snapshot.snapshot_id)} />
+            <Row key={r.control_id} row={r} locked={locked} onOpen={open} receipt={receipts[r.control_id]?.receipt} recorded />
           ))}
         </Section>
       ) : null}
@@ -192,7 +193,7 @@ export function Level1() {
             aria-expanded={showHolds}
             onClick={() => setHoldsOpen(!showHolds)}
           >
-            <span>{holdText ?? idLine(groups.holds.map((r) => r.control_id))}</span>
+            <span>{holdText ?? groups.holds.map((r) => r.control_id).join(" · ")}</span>
             <Chevron dir={showHolds ? "up" : "down"} size={13} />
           </button>
           <AnimatePresence initial={false}>
@@ -226,11 +227,7 @@ export function Level1() {
                   </li>
                 ))}
               </motion.ul>
-            ) : (
-              <motion.p key="ids" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mono px-1 text-[12px]" style={{ color: C.secondary }}>
-                {idLine(groups.holds.map((r) => r.control_id))}
-              </motion.p>
-            )}
+            ) : null}
           </AnimatePresence>
         </section>
       ) : null}
@@ -249,6 +246,16 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+/**
+ * The row's status word (v4.1 rule): the engine's short line when it is three words or fewer, otherwise the part of
+ * the engine's label before the colon ("Needs review", "Acknowledge", "Verified, holds"). Both are engine text.
+ */
+function statusWord(row: ControlRow): string {
+  const s = row.status;
+  if (s.short && (s.short.match(/\S+/g) ?? []).length <= 3) return s.short;
+  return s.label.split(":")[0].trim();
+}
+
 function Row({
   row,
   locked,
@@ -257,10 +264,8 @@ function Row({
   hollow,
   recorded,
   receipt,
-  severity,
 }: {
   row: ControlRow;
-  severity?: string;
   locked: boolean;
   onOpen: (r: ControlRow) => void;
   awaiting?: boolean;
@@ -270,8 +275,10 @@ function Row({
 }) {
   const s = row.status;
   const pending = s.kind === "pending_recheck";
-  const secondaryFull = s.short ?? s.detail ?? s.label;
   const dot = toneColor(s.tone);
+  const name = row.rule_name ?? row.title;
+  // Recorded rows keep their receipt's first line (design decision 4); others show the status word.
+  const word = recorded ? receipt?.line1 ?? statusWord(row) : statusWord(row);
   return (
     <li className="border-b last:border-b-0" style={{ borderColor: C.border }}>
       <motion.button
@@ -279,10 +286,11 @@ function Row({
         type="button"
         disabled={locked}
         onClick={() => onOpen(row)}
-        className="group flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors enabled:hover:bg-[#F4F6FA] disabled:cursor-default"
+        className="group flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors enabled:hover:bg-[#F4F6FA] disabled:cursor-default"
         data-kind={s.kind}
         data-row={row.control_id}
-        aria-label={`${row.control_id} ${row.title}. ${pending ? "Re-check pending" : s.label}`}
+        aria-label={`${row.control_id} ${row.title}. ${s.label}`}
+        title={`${row.control_id} · ${row.title}`}
       >
         <span className="mt-[5px] flex-none" aria-hidden>
           {recorded ? (
@@ -295,29 +303,27 @@ function Row({
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-2">
-            <span className="mono flex-none text-[12.5px] font-bold" style={{ color: C.text }}>
-              {row.control_id}
-            </span>
-            <span className="min-w-0 line-clamp-2 text-[13.5px] leading-[1.35]" style={{ color: C.text }} title={row.title}>
-              {row.title}
-            </span>
+          <span className="block truncate text-[13.5px] font-bold" style={{ color: C.text }}>
+            {name}
           </span>
-          <span className="mt-0.5 flex items-center gap-2">
-            {!pending ? <RowChip row={row} severity={severity} /> : null}
+          <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px]" style={{ color: C.secondary }}>
             {pending ? (
-              <span className="min-w-0 text-[12.5px]" style={{ color: C.secondary }}>
+              <span className="min-w-0 truncate">
                 {s.struck ? <s className="mr-1.5">{s.struck}</s> : null}
                 {s.label}
               </span>
-            ) : recorded ? (
-              <span className="min-w-0 truncate text-[12.5px]" style={{ color: C.text }} title={receipt?.line1 ?? s.short ?? s.label}>
-                {receipt?.line1 ?? s.short ?? s.label}
-              </span>
             ) : (
-              <span className="min-w-0 truncate text-[12.5px]" style={{ color: C.secondary }} title={secondaryFull}>
-                {clampWords(secondaryFull, 10)}
-              </span>
+              <>
+                <span className="flex-none whitespace-nowrap" style={{ color: recorded ? C.text : C.secondary }}>
+                  {word}
+                </span>
+                {row.rule_source ? (
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                    <span aria-hidden>·</span>
+                    <RuleChip rs={row.rule_source} />
+                  </span>
+                ) : null}
+              </>
             )}
           </span>
           {awaiting && !recorded ? (

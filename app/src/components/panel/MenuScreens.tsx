@@ -222,7 +222,7 @@ function Scenarios() {
 
 /** Labelled replay of a recorded run: rows end on the run's recorded outcome, never the live store. */
 function Replay() {
-  const { startReplay, endReplay, replay, replayError, run, back } = useKeelState();
+  const { startReplay, endReplay, replay, replayError, run, canReplay } = useKeelState();
   const [runs, setRuns] = useState<RunSummary[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -291,11 +291,9 @@ function Replay() {
             <button
               type="button"
               className={btnPrimary + " !h-8 !px-3 !text-[13px]"}
-              disabled={replay?.runId === r.run_id && Boolean(run?.running)}
-              onClick={async () => {
-                await startReplay(r.run_id);
-                back();
-              }}
+              disabled={!canReplay || (replay?.runId === r.run_id && Boolean(run?.running))}
+              title={!canReplay ? "Replay is available once the current re-check or action finishes." : undefined}
+              onClick={() => startReplay(r.run_id)}
             >
               Replay
             </button>

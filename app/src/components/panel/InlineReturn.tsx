@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ActionResponse, FindingCard } from "@/lib/types";
 import { api } from "@/lib/client";
@@ -42,6 +42,13 @@ export function InlineReturn({
   const [err, setErr] = useState<string | null>(null);
   const [decisionSnap, setDecisionSnap] = useState(resume?.snapshot_id ?? card.finding.snapshot_id);
   const author = personName(rta.author) || rta.author;
+  // The draft step is taller than the reason step: keep "Approve and send" in view inside the panel.
+  const approveRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (step !== "draft") return;
+    const t = setTimeout(() => approveRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 260);
+    return () => clearTimeout(t);
+  }, [step]);
   const byBoxAi = !draft || /box_ai|box ai/i.test(draft.drafted_by);
 
   const toDraft = async () => {
@@ -181,7 +188,7 @@ export function InlineReturn({
               Stored verbatim. Returned to author is recorded when the task exists in Box.
             </p>
             <div className="mt-2 flex justify-end">
-              <button type="button" className={btnPrimary} disabled={disabled || busy || !message.trim()} onClick={approve}>
+              <button ref={approveRef} type="button" className={`${btnPrimary} scroll-mb-4`} disabled={disabled || busy || !message.trim()} onClick={approve}>
                 {busy ? "Sending…" : "Approve and send"}
               </button>
             </div>

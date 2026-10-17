@@ -24,6 +24,8 @@ export const C = {
   green: "#15803D",
   greenBg: "#ECF8F0",
   grey: "#6B7280",
+  teal: "#0F766E",
+  tealBg: "#E8F4F2",
   greyBg: "#F4F5F7",
   red: "#B42318",
 } as const;
@@ -75,6 +77,8 @@ export function toneColor(tone?: string): string {
       return C.green;
     case "red":
       return C.red;
+    case "teal":
+      return C.teal;
     default:
       return C.grey;
   }

@@ -7,7 +7,9 @@ import { api, peekFinding } from "@/lib/client";
 import { ClauseChecklist } from "@/components/finding/Clauses";
 import { VersionColumns } from "@/components/finding/Versions";
 import { useKeelState } from "@/components/KeelStateProvider";
-import { QuotePair } from "./QuotePair";
+import { AgreedChanged, QuotePair } from "./QuotePair";
+import { RuleSourceRow } from "./RuleChip";
+import { Timeline } from "./Timeline";
 import { Receipt } from "./Receipt";
 import { RecordList } from "./RecordList";
 import { InlineReturn } from "./InlineReturn";
@@ -38,7 +40,7 @@ export function cardKeyOf(snapshotId: string | undefined, row: ControlRow | unde
 type Loaded = { card: FindingCard; key: string };
 
 export function Level2({ controlId }: { controlId: string }) {
-  const { pkg, run, replay, afterAction, busy } = useKeelState();
+  const { pkg, run, replay, busy } = useKeelState();
   const liveRow = pkg?.rows.find((r) => r.control_id === controlId);
   const wantKey = cardKeyOf(pkg?.snapshot.snapshot_id, liveRow);
   const [loaded, setLoaded] = useState<Loaded | null>(() => {
@@ -77,15 +79,14 @@ export function Level2({ controlId }: { controlId: string }) {
     setInline("return");
   }
 
+  // runAction (provider) already refreshed the package and cleared the finding cache; reload this card.
   const onFinal = async (r: ActionResponse) => {
     setLast(r);
     setInline(null);
-    await afterAction();
     setNonce((n) => n + 1);
     setRecordKey((k) => k + 1);
   };
   const onChanged = async () => {
-    await afterAction();
     setNonce((n) => n + 1);
   };
 
@@ -146,11 +147,23 @@ export function Level2({ controlId }: { controlId: string }) {
       </h2>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]" style={{ color: C.secondary }}>
         <RowChip row={row} severity={stableSeverity(row, card.finding.severity, card.finding.snapshot_id)} />
-        {review ? <span>{review}</span> : null}
+        {!card.agreed && review ? <span>{review}</span> : null}
       </div>
 
+      {/* v4.1 order (design 51): rule source, control history, AGREED, CHANGED, then verdict and actions. */}
+      {row.rule_source ? (
+        <div className="mt-2.5">
+          <RuleSourceRow rs={row.rule_source} />
+        </div>
+      ) : null}
+      {card.timeline?.length ? (
+        <div className="mt-3">
+          <Timeline points={card.timeline} label={`History of ${row.control_id}, one point per snapshot`} />
+        </div>
+      ) : null}
+
       <div className="mt-4">
-        <QuotePair card={card} />
+        {card.agreed !== undefined || card.changed !== undefined ? <AgreedChanged card={card} controlId={controlId} /> : <QuotePair card={card} />}
       </div>
 
       {card.verdict_line ? (

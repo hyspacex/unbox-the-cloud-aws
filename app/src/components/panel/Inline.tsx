@@ -1,12 +1,17 @@
 "use client";
 
+import { useRef } from "react";
 import { motion } from "motion/react";
 import { C, DUR, EASE_OUT } from "./parts";
 
 /** Inline expand (design 2.4 decision 5, motion section 4): height auto 240 ms, content fades in after 80 ms. */
 export function InlineExpand({ children, label }: { children: React.ReactNode; label: string }) {
+  const ref = useRef<HTMLDivElement>(null);
   return (
     <motion.div
+      ref={ref}
+      // Once open, bring the whole form (and its confirm button) into view inside the panel.
+      onAnimationComplete={() => ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })}
       key={label}
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: "auto", opacity: 1 }}

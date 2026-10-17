@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import type { ControlRow, DashboardTile, FindingCard, PackageStandards, PackageView, TimelinePoint } from "@/lib/types";
 import { api, peekFinding } from "@/lib/client";
 import { orderByAttention, orderById } from "@/lib/ui/order";
 import { useKeelState } from "@/components/KeelStateProvider";
 import { cardKeyOf } from "./Level2";
-import { Tiles, RuleChip } from "./RuleChip";
+import { Count, Tiles, RuleChip } from "./RuleChip";
 import { Timeline } from "./Timeline";
 import { StatusCard } from "@/components/box/StatusCard";
 import { C, CheckIcon, Chevron, DUR, EASE_OUT, SectionLabel, isDecisionKind, isRecordedRow, prose, toneColor } from "./parts";
@@ -275,23 +275,67 @@ export function Level1({ variant = "panel" }: { variant?: "panel" | "page" }) {
   );
 
   if (page) {
-    const card = asOf ? asOf.as_of!.status_card : pkg.status_card;
+    // The welcome board: the three tile counts head three columns, so a metric and its rows are one thing.
+    const tileOf = (k: DashboardTile["key"]) => tiles.find((t) => t.key === k);
+    const fly = (r: ControlRow) => `board-${r.control_id}`;
+    const nowCols: { key: DashboardTile["key"]; rows: React.ReactNode[] }[] = [
+      {
+        key: "need_you",
+        rows: [
+          ...groups.decide.map((r) => <Row key={r.control_id} flyId={fly(r)} row={r} locked={locked} onOpen={open} awaiting={awaiting.has(r.control_id)} />),
+          ...groups.ack.map((r) => <Row key={r.control_id} flyId={fly(r)} row={r} locked={locked} onOpen={open} hollow />),
+        ],
+      },
+      { key: "recorded", rows: groups.recorded.map((r) => <Row key={r.control_id} flyId={fly(r)} row={r} locked={locked} onOpen={open} receipt={receipts[r.control_id]?.receipt} recorded />) },
+      { key: "hold", rows: groups.holds.map((r) => <Row key={r.control_id} flyId={fly(r)} row={r} locked={locked} onOpen={open} />) },
+    ];
+    const pastCols = asOf
+      ? (["need_you", "recorded", "hold"] as const).map((key) => ({ key, rows: asOf.as_of!.controls.filter((c) => c.group === key).map((c) => <PastRow key={c.control_id} c={c} />) }))
+      : [];
+    const cols = asOf ? pastCols : nowCols;
     return (
       <div onKeyDown={onKeyDown} data-testid="welcome">
         {replayBanner}
         <ProjectTitle header={pkg.header} />
         {pkg.standards ? <StandardsHero standards={pkg.standards} /> : null}
-        <div className="mt-5 grid items-start gap-5 min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-          <div className="space-y-2 pt-1">
-            <StatusCard card={card} />
-            {changed}
+        <div className="mt-6 rounded-[8px] border px-6 pb-4 pt-4" style={{ borderColor: C.border }}>
+          <div className="mb-4 flex min-h-[20px] items-center justify-between gap-3">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div key={asOf?.snapshot_id ?? "now"} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18 }}>
+                {asOf ? (
+                  <span className="text-[14px] font-bold" style={{ color: C.text }}>
+                    Status on {prose(asOf.at)}
+                  </span>
+                ) : (
+                  changed
+                )}
+              </motion.div>
+            </AnimatePresence>
+            {asOf ? (
+              <button type="button" onClick={() => setAsOfId(null)} className="text-[12.5px] font-bold hover:underline" style={{ color: C.boxBlue }} data-testid="as-of-back">
+                Back to now
+              </button>
+            ) : null}
           </div>
-          {tilesEl}
-        </div>
-        <div className="mt-5 rounded-[8px] border px-6 pb-4 pt-6" style={{ borderColor: C.border }}>
           {timelineEl}
         </div>
-        <div className="mt-6">{body}</div>
+        {groups.pending.length && !asOf ? (
+          <div className="mt-6">
+            <Section label="Re-check pending">
+              {groups.pending.map((r) => (
+                <Row key={r.control_id} row={r} locked onOpen={open} />
+              ))}
+            </Section>
+          </div>
+        ) : null}
+        <LayoutGroup>
+          <div className="mt-6 grid gap-5 min-[900px]:grid-cols-3" data-testid="board">
+            {cols.map((col) => {
+              const t = tileOf(col.key);
+              return <Column key={col.key} tile={t} fallback={col.key} past={Boolean(asOf)} items={col.rows} />;
+            })}
+          </div>
+        </LayoutGroup>
       </div>
     );
   }
@@ -306,6 +350,52 @@ export function Level1({ variant = "panel" }: { variant?: "panel" | "page" }) {
       </header>
       {body}
     </div>
+  );
+}
+
+const COLUMN_TONE: Record<DashboardTile["tone"], string> = { teal: C.teal, amber: C.amber, blue: C.blue, grey: C.grey };
+const COLUMN_NAME: Record<DashboardTile["key"], string> = { need_you: "Need you", recorded: "Recorded", hold: "Hold" };
+
+/** One welcome-board column: the tile's count and label as the header, a tone rule, then its rows. */
+function Column({ tile, fallback, past, items }: { tile?: DashboardTile; fallback: DashboardTile["key"]; past: boolean; items: React.ReactNode[] }) {
+  const tone = COLUMN_TONE[tile?.tone ?? "grey"] ?? C.grey;
+  return (
+    <section aria-label={tile?.label ?? COLUMN_NAME[fallback]} data-column={fallback} className="min-w-0">
+      <header className="flex items-baseline gap-2 border-b-[3px] pb-2" style={{ borderColor: tone, transition: "border-color 300ms" }}>
+        <span className="text-[30px] font-bold leading-none tabular-nums" style={{ color: tone, transition: "color 300ms" }}>
+          <Count value={tile?.value ?? 0} />
+        </span>
+        <span className="text-[14px] font-bold" style={{ color: tone, transition: "color 300ms" }}>
+          {tile?.label ?? COLUMN_NAME[fallback]}
+        </span>
+      </header>
+      {items.length ? (
+        <ul className="mt-3 overflow-hidden rounded-[4px] border" style={{ borderColor: C.border }}>
+          {items}
+        </ul>
+      ) : (
+        <p className="mt-3 rounded-[4px] border border-dashed px-3 py-4 text-center text-[12.5px]" style={{ borderColor: C.border, color: C.secondary }}>
+          {past ? "None on this date" : "None"}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** A control's status on a past snapshot, read-only. */
+function PastRow({ c }: { c: NonNullable<TimelinePoint["as_of"]>["controls"][number] }) {
+  return (
+    <motion.li initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-2.5 border-b px-3 py-2 last:border-b-0" style={{ borderColor: C.border }} title={c.control_id}>
+      <span className="mt-[5px] block h-[9px] w-[9px] flex-none rounded-full" style={{ background: toneColor(c.tone) }} aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13.5px] font-bold" style={{ color: C.text }}>
+          {c.name}
+        </span>
+        <span className="mt-0.5 block text-[12px]" style={{ color: C.secondary }}>
+          {c.word}
+        </span>
+      </span>
+    </motion.li>
   );
 }
 
@@ -416,6 +506,7 @@ function Row({
   hollow,
   recorded,
   receipt,
+  flyId,
 }: {
   row: ControlRow;
   locked: boolean;
@@ -424,6 +515,8 @@ function Row({
   hollow?: boolean;
   recorded?: boolean;
   receipt?: FindingCard["receipt"];
+  /** Welcome board: a shared layout id, so a row flies between columns when its bucket changes. */
+  flyId?: string;
 }) {
   const s = row.status;
   const pending = s.kind === "pending_recheck";
@@ -432,7 +525,7 @@ function Row({
   // Recorded rows keep their receipt's first line (design decision 4); others show the status word.
   const word = recorded ? receipt?.line1 ?? statusWord(row) : statusWord(row);
   return (
-    <li className="border-b last:border-b-0" style={{ borderColor: C.border }}>
+    <motion.li layoutId={flyId} layout={flyId ? true : undefined} transition={{ type: "spring", stiffness: 320, damping: 32 }} className="border-b bg-white last:border-b-0" style={{ borderColor: C.border }}>
       <motion.button
         layout="position"
         type="button"
@@ -486,6 +579,6 @@ function Row({
           </span>
         ) : null}
       </motion.button>
-    </li>
+    </motion.li>
   );
 }

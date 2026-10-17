@@ -119,7 +119,7 @@ export function Tiles({
 }
 
 /** A tile count that ticks from its previous value to the new one (the value itself is the engine's). */
-function Count({ value }: { value: number }) {
+export function Count({ value }: { value: number }) {
   const reduce = useReducedMotion();
   const [shown, setShown] = useState(value);
   const from = useRef(value);

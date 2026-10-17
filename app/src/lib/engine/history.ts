@@ -41,7 +41,14 @@ export function snapshotStatus(store: Store, snap: Snapshot, rows: RowWithState[
   return {
     status_card: { ...card, tone: tone(card.tone) },
     tiles: dashboardTiles(store, rows),
-    controls: rows.map((r) => ({ control_id: r.control_id, name: r.rule_name ?? r.title, word: r.status.label.split(":")[0].trim(), tone: tone(r.status.tone) })),
+    controls: rows.map((r) => ({
+      control_id: r.control_id,
+      name: r.rule_name ?? r.title,
+      word: r.status.label.split(":")[0].trim(),
+      tone: tone(r.status.tone),
+      // The same buckets as the tiles: a recorded decision first, then open decisions, then holds.
+      group: hasRecordedDecision(store, r) ? "recorded" : needsDecision(store, r) ? "need_you" : r.status.kind === "verified_holds" ? "hold" : "other",
+    })),
   };
 }
 

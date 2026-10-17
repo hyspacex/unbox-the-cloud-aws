@@ -170,7 +170,7 @@ export interface SnapshotStatus {
   status_card: StatusCard;
   tiles: DashboardTile[];
   /** One entry per control: the engine's status word ("Needs review", "Verified, holds") and tone on that snapshot. */
-  controls: { control_id: string; name: string; word: string; tone: DisplayedStatus["tone"] }[];
+  controls: { control_id: string; name: string; word: string; tone: DisplayedStatus["tone"]; group?: DashboardTile["key"] | "other" }[];
 }
 
 /** Added (UI v4.1): a dashboard tile at the top of the panel. */

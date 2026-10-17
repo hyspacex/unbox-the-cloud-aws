@@ -137,7 +137,7 @@ export function Panel() {
     return () => clearTimeout(t);
   }, [key]);
 
-  const title = view.kind === "control" ? view.controlId : view.kind === "menu" ? MENU_TITLES[view.screen] : "Keel";
+  const title = view.kind === "control" ? view.controlId : view.kind === "menu" ? MENU_TITLES[view.screen] : "Control review";
 
   return (
     <AnimatePresence>
@@ -147,7 +147,7 @@ export function Panel() {
           ref={ref}
           role="dialog"
           aria-modal="false"
-          aria-label="Keel"
+          aria-label="Control review"
           initial={{ x: PANEL_WIDTH }}
           animate={{ x: 0 }}
           exit={{ x: PANEL_WIDTH }}
@@ -161,7 +161,7 @@ export function Panel() {
             {view.kind === "level1" ? (
               <span className="flex items-center gap-2 pl-1">
                 <OwlMark />
-                <span className="text-[15px] font-bold">Keel</span>
+                <span className="text-[15px] font-bold">Control review</span>
               </span>
             ) : (
               <>
@@ -175,7 +175,7 @@ export function Panel() {
               <button
                 type="button"
                 data-panel-menu-button
-                aria-label="Keel menu"
+                aria-label="Control review menu"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((o) => !o)}

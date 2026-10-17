@@ -24,7 +24,7 @@ export function StatusCard({ card, onOpen }: { card: StatusCardData | undefined;
   return (
     <Tag
       {...(onOpen ? { type: "button" as const, onClick: onOpen } : { role: "group" })}
-      aria-label={`Keel review: ${card.headline}. ${card.detail}`}
+      aria-label={`Control review: ${card.headline}. ${card.detail}`}
       className={`mb-3 inline-flex max-w-full items-center gap-2.5 rounded-md border px-3 py-1.5 text-left transition-colors ${onOpen ? "hover:brightness-[0.98]" : ""}`}
       style={{ background: tone.bg, borderColor: `${tone.fg}26` }}
       data-testid={onOpen ? "status-card" : "as-of-card"}

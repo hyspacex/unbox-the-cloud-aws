@@ -114,7 +114,7 @@ export function Owl({ state, size = 56, still = false }: { state: OwlState; size
   );
 }
 
-/** Static 20 px owl for headers (the panel's "Keel" mark). No animation, decorative. */
+/** Static 20 px owl for headers (the header and panel mark). No animation, decorative. */
 export function OwlMark({ size = 20 }: { size?: number }) {
   return (
     <span className="inline-flex shrink-0" aria-hidden>

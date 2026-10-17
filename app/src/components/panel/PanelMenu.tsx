@@ -40,7 +40,7 @@ export function PanelMenu({ onClose }: { onClose: () => void }) {
     <motion.div
       ref={ref}
       role="menu"
-      aria-label="Keel menu"
+      aria-label="Control review menu"
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}

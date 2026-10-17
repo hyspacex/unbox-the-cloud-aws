@@ -5,10 +5,10 @@
  * Every generated string passes the wording filter.
  */
 import type { Store } from "../store";
-import type { ControlProfile, DashboardTile, Snapshot, TimelinePoint } from "../types";
+import type { ControlProfile, DashboardTile, Snapshot, SnapshotStatus, TimelinePoint } from "../types";
 import { capWords } from "./display";
 import { buildRows, snapshotEvaluationState, type RowWithState } from "./state";
-import { changedFiles, hasRecordedDecision, holdRows, needsDecision } from "./summary";
+import { changedFiles, decisionFlags, hasRecordedDecision, holdRows, needsDecision, statusCard } from "./summary";
 import { bannedWords } from "./wording";
 
 export { ORIGIN_LABEL, parseStandard, ruleSource, ruleName, RULE_NAME_MAX_WORDS } from "./rule-source";
@@ -28,6 +28,21 @@ export function dashboardTiles(store: Store, rows: RowWithState[]): DashboardTil
     { key: "need_you", label: "Need you", value: need, tone: need ? "amber" : "grey" },
     { key: "recorded", label: "Recorded", value: recorded, tone: recorded ? "blue" : "grey" },
   ];
+}
+
+/**
+ * The package's status as it stood on one snapshot: the status card (named by date), the tiles and each control's
+ * status word. Green is only for a Verified on the current snapshot, so a past snapshot's green reads blue.
+ */
+export function snapshotStatus(store: Store, snap: Snapshot, rows: RowWithState[], state: "pending" | "complete" | "error", current: boolean): SnapshotStatus {
+  const flagged = rows.map((r) => ({ ...r, ...decisionFlags(store, r) }));
+  const card = statusCard(flagged, prose(snap.captured_at), state);
+  const tone = <T extends string>(t: T): T => (!current && t === "green" ? ("blue" as T) : t);
+  return {
+    status_card: { ...card, tone: tone(card.tone) },
+    tiles: dashboardTiles(store, rows),
+    controls: rows.map((r) => ({ control_id: r.control_id, name: r.rule_name ?? r.title, word: r.status.label.split(":")[0].trim(), tone: tone(r.status.tone) })),
+  };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -73,9 +88,9 @@ export function packageTimeline(store: Store, profile: ControlProfile): Timeline
   return store.data.snapshots.map((snap) => {
     const id = snap.snapshot_id;
     const { prior, names, tag, phrase } = snapshotChange(store, snap);
-    const base = { snapshot_id: id, at: snap.captured_at, changed_files: names, current: id === current };
     const state = snapshotEvaluationState(store.events, id).state;
     const rows = buildRows(store, profile, id, { withPrior: false });
+    const base = { snapshot_id: id, at: snap.captured_at, changed_files: names, current: id === current, as_of: snapshotStatus(store, snap, rows, state, id === current) };
     const n = rows.length;
     const t = tag(names);
     const withTag = (s: string) => (t && labelWords(`${t} · ${s}`) <= TIMELINE_LABEL_MAX_WORDS ? `${t} · ${s}` : s);

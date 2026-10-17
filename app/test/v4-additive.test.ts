@@ -976,3 +976,19 @@ describe("status_card (folder page)", () => {
     clean(pv.status_card!.detail);
   });
 });
+
+describe("timeline as_of (status on a past snapshot)", () => {
+  it("each point carries its own status; a past all-verified point reads blue, never green", async () => {
+    await runV3();
+    const tl = svc.getPackageView().timeline!;
+    const s2 = tl.find((p) => p.snapshot_id === "S2")!.as_of!;
+    expect(s2.status_card).toEqual({ tone: "blue", headline: "All verified", detail: "8 of 8 verified by a reviewer · Oct 7" });
+    expect(s2.tiles.map((t) => t.value)).toEqual([0, 0, 8]);
+    expect(s2.controls.every((c) => c.word === "Verified" && c.tone === "blue")).toBe(true);
+    const s3 = tl.find((p) => p.snapshot_id === "S3")!.as_of!;
+    expect(s3.status_card.detail).toBe("8 hold · Oct 12");
+    const s4 = tl.find((p) => p.current)!.as_of!;
+    expect(s4.status_card.headline).toBe("Needs review");
+    for (const p of tl) for (const t of [p.as_of!.status_card.headline, p.as_of!.status_card.detail, ...p.as_of!.controls.map((c) => c.word)]) clean(t);
+  });
+});

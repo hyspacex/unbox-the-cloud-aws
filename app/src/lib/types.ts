@@ -147,6 +147,16 @@ export interface TimelinePoint {
   tone: "grey" | "blue" | "amber" | "green" | "teal";
   changed_files: string[];
   current: boolean;
+  /** Added (UI v4.2): the package's status as it stood on this snapshot (package timeline only). */
+  as_of?: SnapshotStatus;
+}
+
+/** Added (UI v4.2): what the panel shows when a past timeline point is selected. Green only on the current snapshot. */
+export interface SnapshotStatus {
+  status_card: StatusCard;
+  tiles: DashboardTile[];
+  /** One entry per control: the engine's status word ("Needs review", "Verified, holds") and tone on that snapshot. */
+  controls: { control_id: string; name: string; word: string; tone: DisplayedStatus["tone"] }[];
 }
 
 /** Added (UI v4.1): a dashboard tile at the top of the panel. */

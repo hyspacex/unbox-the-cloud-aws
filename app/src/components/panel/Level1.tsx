@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { ControlRow, DashboardTile, FindingCard, PackageView } from "@/lib/types";
+import type { ControlRow, DashboardTile, FindingCard, PackageView, TimelinePoint } from "@/lib/types";
 import { api, peekFinding } from "@/lib/client";
 import { orderByAttention, orderById } from "@/lib/ui/order";
 import { useKeelState } from "@/components/KeelStateProvider";
 import { cardKeyOf } from "./Level2";
 import { Tiles, RuleChip } from "./RuleChip";
 import { Timeline } from "./Timeline";
-import { C, CheckIcon, Chevron, DUR, EASE_OUT, SectionLabel, isDecisionKind, isRecordedRow, toneColor } from "./parts";
+import { StatusCard } from "@/components/box/StatusCard";
+import { C, CheckIcon, Chevron, DUR, EASE_OUT, SectionLabel, isDecisionKind, isRecordedRow, prose, toneColor } from "./parts";
 
 /** First-seen attention order per snapshot, kept for the session so recorded rows do not jump. */
 const SEEN_ORDER = new Map<string, string[]>();
@@ -100,6 +101,8 @@ export function Level1() {
   const [holdsOpen, setHoldsOpen] = useState<boolean | null>(null);
   /** The selected dashboard tile filters the list to its group (Need you also covers Acknowledge); null shows all. */
   const [filter, setFilter] = useState<DashboardTile["key"] | null>(null);
+  /** A past timeline point the panel is showing (its snapshot id); null shows the current snapshot. */
+  const [asOfId, setAsOfId] = useState<string | null>(null);
 
   if (!pkg) {
     return (
@@ -112,12 +115,14 @@ export function Level1() {
   // v4.1 header (design 51): the engine's tiles, changed_line and package timeline. header_line is shown only while
   // a re-check runs, so the presenter sees that rows are pending.
   const line1 = pkg.changed_line ?? `snapshot ${pkg.snapshot.snapshot_id}`;
-  const tiles = pkg.dashboard?.tiles ?? [];
+  const asOf: TimelinePoint | null = (!locked && asOfId && pkg.timeline?.find((p) => p.snapshot_id === asOfId && !p.current && p.as_of)) || null;
+  if (asOfId && !asOf) setAsOfId(null);
+  const tiles = asOf ? asOf.as_of!.tiles : (pkg.dashboard?.tiles ?? []);
   // A filter whose tile dropped to 0 (the last decision was recorded) clears itself.
   const activeFilter = filter && (tiles.find((t) => t.key === filter)?.value ?? 0) > 0 ? filter : null;
   if (activeFilter !== filter) setFilter(null);
   // A re-check or replay shows every row; the tiles are not selectable then.
-  const view = locked ? null : activeFilter;
+  const view = locked || asOf ? null : activeFilter;
   const shown = (key: DashboardTile["key"]) => view === null || view === key;
   const showHolds = view === "hold" || (holdsOpen ?? onlyHolds);
   const holdTile = tiles.find((t) => t.key === "hold");
@@ -151,8 +156,8 @@ export function Level1() {
         </div>
       ) : null}
       <header className="mb-4 space-y-3">
-        {tiles.length ? <Tiles tiles={tiles} selected={view} onSelect={locked ? undefined : setFilter} /> : null}
-        <div>
+        {tiles.length ? <Tiles tiles={tiles} selected={view} onSelect={locked || asOf ? undefined : setFilter} /> : null}
+        <div hidden={Boolean(asOf)}>
           <div className="text-[13.5px] font-bold" style={{ color: C.text }}>
             {line1}
           </div>
@@ -162,8 +167,12 @@ export function Level1() {
             </div>
           ) : null}
         </div>
-        {pkg.timeline?.length ? <Timeline points={pkg.timeline} label="Package history, one point per snapshot" /> : null}
+        {pkg.timeline?.length ? (
+          <Timeline points={pkg.timeline} label="Package history, one point per snapshot" selected={asOf?.snapshot_id ?? null} onSelect={locked ? undefined : setAsOfId} />
+        ) : null}
       </header>
+
+      {asOf ? <AsOf point={asOf} onBack={() => setAsOfId(null)} /> : <>
 
       {groups.pending.length && view === null ? (
         <Section label="Re-check pending">
@@ -227,7 +236,39 @@ export function Level1() {
           </AnimatePresence>
         </section>
       ) : null}
+      </>}
     </div>
+  );
+}
+
+/** A past timeline point: the status card and each control's status as they stood then. Read-only. */
+function AsOf({ point, onBack }: { point: TimelinePoint; onBack: () => void }) {
+  const s = point.as_of!;
+  return (
+    <section aria-label={`Status on ${prose(point.at)}`} data-testid="as-of">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <SectionLabel>Status on {prose(point.at)}</SectionLabel>
+        <button type="button" onClick={onBack} className="text-[12.5px] font-bold hover:underline" style={{ color: C.boxBlue }} data-testid="as-of-back">
+          Back to now
+        </button>
+      </div>
+      <StatusCard card={s.status_card} />
+      <ul className="overflow-hidden rounded-[4px] border" style={{ borderColor: C.border }}>
+        {s.controls.map((c) => (
+          <li key={c.control_id} className="flex items-start gap-2.5 border-b px-3 py-2 last:border-b-0" style={{ borderColor: C.border }} title={c.control_id}>
+            <span className="mt-[5px] block h-[9px] w-[9px] flex-none rounded-full" style={{ background: toneColor(c.tone) }} aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] font-bold" style={{ color: C.text }}>
+                {c.name}
+              </span>
+              <span className="mt-0.5 block text-[12px]" style={{ color: C.secondary }}>
+                {c.word}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

@@ -19,7 +19,19 @@ const TONE: Record<TimelinePoint["tone"], string> = {
  * A horizontal history strip (design v4.1 decision 6): one point per snapshot, the engine's label under each, the
  * current point filled. Hover or focus shows the engine's detail line. Labels and details are the API's text.
  */
-export function Timeline({ points, label }: { points: TimelinePoint[]; label: string }) {
+export function Timeline({
+  points,
+  label,
+  selected = null,
+  onSelect,
+}: {
+  points: TimelinePoint[];
+  label: string;
+  /** The selected point's snapshot id (a past point the panel is showing); null when showing now. */
+  selected?: string | null;
+  /** With onSelect, clicking a point selects it; clicking the current or the selected point returns to now. */
+  onSelect?: (snapshotId: string | null) => void;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   if (!points.length) return null;
   const n = points.length;
@@ -37,22 +49,26 @@ export function Timeline({ points, label }: { points: TimelinePoint[]; label: st
         />
         {points.map((p, i) => {
           const color = TONE[p.tone] ?? C.grey;
+          const picked = selected === p.snapshot_id;
+          const filled = selected ? picked : p.current;
           return (
             <li key={p.snapshot_id + i} className="relative flex min-w-0 flex-col items-center px-0.5 text-center">
               <button
                 type="button"
-                className="relative z-[1] h-[14px] w-[14px] rounded-full"
-                style={p.current ? { background: color, boxShadow: `0 0 0 3px ${C.selected}` } : { background: "#FFFFFF", border: `2px solid ${color}` }}
+                className={`relative z-[1] h-[14px] w-[14px] rounded-full ${onSelect ? "cursor-pointer transition-transform hover:scale-125" : ""}`}
+                style={filled ? { background: color, boxShadow: `0 0 0 3px ${picked ? `${color}40` : C.selected}` } : { background: "#FFFFFF", border: `2px solid ${color}` }}
+                aria-pressed={onSelect ? picked : undefined}
+                onClick={onSelect ? () => onSelect(picked || p.current ? null : p.snapshot_id) : undefined}
                 aria-label={`${when(i)}${p.current ? ", current" : ""}: ${p.detail}`}
                 aria-current={p.current ? "step" : undefined}
                 onMouseEnter={() => setHover(i)}
                 onFocus={() => setHover(i)}
                 onBlur={() => setHover(null)}
               />
-              <span className="mt-1 whitespace-nowrap text-[11px] font-bold" style={{ color: p.current ? C.text : C.secondary }}>
+              <span className="mt-1 whitespace-nowrap text-[11px] font-bold" style={{ color: filled ? C.text : C.secondary }}>
                 {when(i)}
               </span>
-              <span className="line-clamp-2 text-[11px] leading-[1.3]" style={{ color: p.current ? C.text : C.secondary }}>
+              <span className="line-clamp-2 text-[11px] leading-[1.3]" style={{ color: filled ? C.text : C.secondary }}>
                 {p.label}
               </span>
             </li>

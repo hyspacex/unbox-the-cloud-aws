@@ -14,7 +14,7 @@ import { NORMALIZATION, quoteValid, sectionByLabel, sectionContaining } from "./
 import { buildRows, latestVerification, publicRow, verificationBinding, type ControlState, type RowWithState } from "./state";
 import { suggestedAction } from "./tasks";
 import { isSearchStep } from "./bubble";
-import { receiptFor } from "./summary";
+import { decisionFlags, receiptFor } from "./summary";
 import { bannedWords } from "./wording";
 
 /** A Finding for a control evaluated before this run (seed snapshots), built from its ledger event. */
@@ -277,7 +277,7 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
     finding,
     control,
     profile_version: profile.profile_version,
-    row: publicRow(row),
+    row: { ...publicRow(row), ...decisionFlags(store, row) },
     prior_version: prior
       ? {
           file: snapshotFile(store, prior.fileId, prior.versionId, prior.fileName),
@@ -305,7 +305,7 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
           text: nBlock.raw,
         }
       : null,
-    related: rows.filter((r) => r.control_id !== control.id).map(publicRow),
+    related: rows.filter((r) => r.control_id !== control.id).map((r) => ({ ...publicRow(r), ...decisionFlags(store, r) })),
     actions: {
       return_to_author: rta,
       verify: verifyAction(st, row, profile.attestation_phrase),

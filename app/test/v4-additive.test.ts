@@ -318,3 +318,52 @@ describe("upload-version route handler and the SSE stream", () => {
     vi.doUnmock("next/server");
   });
 });
+
+describe("follow-ups from lanes A and B", () => {
+  it("ControlRow.needs_decision / decision_recorded track the acknowledgment without a label change", async () => {
+    await runV3();
+    const row = (id: string) => svc.getPackageView().rows.find((r) => r.control_id === id)!;
+    expect(row("SEC-ARCH-05")).toMatchObject({ needs_decision: true, decision_recorded: false });
+    expect(row("SEC-ARCH-01")).toMatchObject({ needs_decision: false, decision_recorded: false });
+    const c5 = svc.getFindingCard("SEC-ARCH-05");
+    expect(c5.row.needs_decision).toBe(true);
+    const a = await svc.act({ finding_id: c5.finding.finding_id, control_id: "SEC-ARCH-05", decision_snapshot_id: "S4", action: "acknowledge", message: "Section rewrite reviewed." });
+    expect(a.row).toMatchObject({ needs_decision: false, decision_recorded: true });
+    expect(row("SEC-ARCH-05")).toMatchObject({ needs_decision: false, decision_recorded: true, status: { kind: "acknowledge" } });
+    expect(svc.getFindingCard("SEC-ARCH-05").receipt!.tone).toBe("blue");
+    svc.reset();
+  });
+
+  it("Trace.outcome carries open_decisions and decision_summary; old outcomes get them on read", async () => {
+    const sub = await runV3();
+    const o = svc.getRun(sub.run_id).outcome!;
+    expect(o.open_decisions).toBe(3);
+    expect(o.decision_summary).toBe("1 Critical needs your decision. 2 more to look at.");
+    expect(o.rows!.filter((r) => r.needs_decision).map((r) => r.control_id)).toEqual(["SEC-ARCH-05", "SEC-ARCH-07", "SEC-ARCH-22"]);
+    // A run recorded before Round 5: strip the new fields from the stored record; the read fills them in.
+    const stored = svc.internals.store().data.runs[sub.run_id].outcome!;
+    delete stored.open_decisions;
+    delete stored.decision_summary;
+    for (const r of stored.rows!) {
+      delete r.needs_decision;
+      delete r.decision_recorded;
+      delete r.status.short;
+    }
+    const o2 = svc.getRun(sub.run_id).outcome!;
+    expect(o2.open_decisions).toBe(3);
+    expect(o2.decision_summary).toBe("1 Critical needs your decision. 2 more to look at.");
+    expect(o2.rows!.find((r) => r.control_id === "SEC-ARCH-22")!.status.short).toBe("Same sentence, now in runbook.md");
+    expect(svc.listRuns().runs[0].outcome!.open_decisions).toBe(3);
+    svc.reset();
+  });
+
+  it("upload-version accepts every submit scenario (fabricated_quote on architecture.md)", async () => {
+    svc.reset();
+    const r = await svc.uploadVersion({ file_name: "architecture.md", scenario: "fabricated_quote" });
+    await r.done!;
+    const pv = svc.getPackageView();
+    expect(pv.files![0].version_label).toBe("v3");
+    checkView(pv);
+    svc.reset();
+  });
+});

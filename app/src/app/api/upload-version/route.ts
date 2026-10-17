@@ -1,7 +1,8 @@
 import { handle, readJson } from "@/lib/http";
 import { uploadVersion, ServiceError, type UploadVersionRequest } from "@/lib/service";
 
-const SCENARIOS = ["architecture_v3", "contradiction", "injection", "unreadable"];
+/** The same scenarios POST /api/submit accepts (mock); live ignores the scenario except for the architecture.md v3 fixture text. */
+const SCENARIOS = ["none", "architecture_v3", "contradiction", "injection", "unreadable", "fabricated_quote", "missing_finding", "unknown_control", "disposition_field"];
 
 /**
  * POST /api/upload-version { file_name, file_id?, scenario?, content_base64? } -> SubmitResponse (202).

@@ -187,3 +187,8 @@ Examples: "Key-management evidence missing", "Same sentence, now in runbook.md",
   - Returned (blue): "Returned to author by Dana Okafor" / "Box task 77120934 for J. Park (Eng) · due Oct 23" / "on architecture.md v3 · snapshot S4"
   - Acknowledged (blue): "Acknowledged by Dana Okafor" / "on architecture.md v3 §4.2 · snapshot S4" / "Box task 77120933 completed · 16:45Z"
   - `event_ids` are listed newest first. They are the disposition or acknowledgment event, the author `box_task_created` event (returns only), the `box_task_response_ingested` event, and the `control_evaluated` event.
+
+**Round 5 follow-ups.**
+- `ControlRow.needs_decision?` and `ControlRow.decision_recorded?` are booleans, computed by `decisionFlags()` in `summary.ts`. An acknowledgment sets `decision_recorded` without changing the label.
+- `Trace.outcome.open_decisions?` and `Trace.outcome.decision_summary?` are written when the outcome is recorded. Older runs get them on read, from the recorded rows.
+- `POST /api/upload-version` accepts the same `scenario` values as `POST /api/submit`.

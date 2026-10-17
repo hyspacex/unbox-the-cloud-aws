@@ -34,7 +34,7 @@ import { buildFindingCard, findingFromState } from "./engine/card";
 import { canonicalJSON, CHAIN_ALGORITHM, sha256Hex, utcNow, verifyChain } from "./engine/ledger";
 import { createLiveAdapters } from "./live-adapters";
 import { withBubble } from "./engine/bubble";
-import { decisionSummary, needsDecision, packageFiles, type FolderItemInfo } from "./engine/summary";
+import { decisionFlags, decisionSummary, decisionSummaryFromRows, needsDecision, needsDecisionOnRow, openDecisionsFromRows, packageFiles, packageFilesFromRows, recordedOnRow, type FolderItemInfo } from "./engine/summary";
 
 export class ServiceError extends Error {
   constructor(
@@ -134,7 +134,7 @@ export function getPackageView(): PackageView {
     prior_snapshot_id: s.previousSnapshot(snap.snapshot_id)?.snapshot_id,
     profile: { profile_id: p.profile_id, profile_version: p.profile_version, name: p.name },
     evaluation_state: snapshotEvaluationState(s.events, snap.snapshot_id).state,
-    rows: rows.map(publicRow),
+    rows: rows.map((r) => ({ ...publicRow(r), ...decisionFlags(s, r) })),
     count_line: countLine(rows, snap.snapshot_id),
     counts: displayedCounts(rows),
     projection: currentProjection(s, p),
@@ -233,10 +233,24 @@ export function listRuns(): { runs: RunSummary[] } {
   return { runs };
 }
 
-/** Recorded outcome rows from before UI v4 get their computed short line on read. */
-function outcomeWithShort(o: RunRecord["outcome"]): RunRecord["outcome"] {
+/**
+ * Recorded outcomes from before UI v4 get their computed fields on read: each row's short line and
+ * decision flags, the badge count and the owl sentence, all from the recorded rows (no live state).
+ */
+function outcomeWithShort(o: RunRecord["outcome"], s: Store = store()): RunRecord["outcome"] {
   if (!o?.rows) return o;
-  return { ...o, rows: o.rows.map((row) => (row.status.short ? row : { ...row, status: { ...row.status, short: shortStatus(row.status, row.evidencing?.fileName) } })) };
+  const rows = o.rows.map((row) => {
+    const status = row.status.short ? row.status : { ...row.status, short: shortStatus(row.status, row.evidencing?.fileName) };
+    return { ...row, status, needs_decision: row.needs_decision ?? needsDecisionOnRow(row, false), decision_recorded: row.decision_recorded ?? recordedOnRow(row, false) };
+  });
+  const state = rows.some((r) => r.status.kind === "pending_recheck") ? "pending" : "complete";
+  return {
+    ...o,
+    rows,
+    open_decisions: o.open_decisions ?? openDecisionsFromRows(rows),
+    decision_summary: o.decision_summary ?? decisionSummaryFromRows(rows, o.snapshot_id, state),
+    ...(o.files ? { files: o.files } : o.snapshot ? { files: packageFilesFromRows(s, o.snapshot, rows) } : {}),
+  };
 }
 
 /** A stored run with every step's owl bubble computed (UI v4), so runs recorded before bubbles replay with them. */
@@ -394,7 +408,8 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
 export interface UploadVersionRequest {
   file_name: string;
   file_id?: string;
-  scenario?: SubmitRequest["scenario"];
+  /** Any scenario POST /api/submit accepts (mock). */
+  scenario?: SubmitRequest["scenario"] | (string & {});
   /** Live: the new version's bytes, base64. Absent: the demo's fixture text for architecture.md v3, else no upload. */
   content_base64?: string;
 }
@@ -415,7 +430,7 @@ function fixtureUploadText(fileName: string, scenario?: string): string | null {
 export async function uploadVersion(req: UploadVersionRequest, o: SubmitOptions = {}): Promise<SubmitResponse & { done?: Promise<RunRecord>; upload?: { uploaded: boolean; fileId: string; versionId?: string } }> {
   const c = getConfig();
   if (!req.file_name || typeof req.file_name !== "string") throw new ServiceError("FILE_NAME_REQUIRED", "upload-version needs file_name", 400);
-  if (c.mockMode) return submit({ scenario: req.scenario ?? "architecture_v3", fileName: req.file_name, fileId: req.file_id }, o);
+  if (c.mockMode) return submit({ scenario: (req.scenario ?? "architecture_v3") as SubmitRequest["scenario"], fileName: req.file_name, fileId: req.file_id }, o);
   const s = store();
   const active = Object.values(s.data.runs).find((r) => !r.done);
   if (active) throw new ServiceError("RUN_ACTIVE", `run ${active.run_id} is still running`, 409);
@@ -486,7 +501,10 @@ function actionResponse(s: Store, controlId: string, r: IngestResult): ActionRes
     result: r.result === "reapplied" ? "reapplied" : r.result === "applied" ? "applied" : "rejected",
     explanation: r.explanation,
     events: r.events,
-    row: publicRow(rows.find((x) => x.control_id === controlId)!),
+    row: (() => {
+      const row = rows.find((x) => x.control_id === controlId)!;
+      return { ...publicRow(row), ...decisionFlags(s, row) };
+    })(),
     author_task: r.author_task,
     count_line: countLine(rows, snapId),
     ...(r.awaiting_draft

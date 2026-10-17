@@ -18,7 +18,7 @@
   "chain": {
     "algorithm": "sha256(previous chain_hash + canonical JSON of event without chain_hash)",
     "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
-    "head": "130607795fc27ba93f6b80e73ece3fd9fce1c775e2ba00d1d1e3fa8c5d5fed6b",
+    "head": "80644ac34dd96681558936202e7b6a712894eb6f305a23c585cdacd1bbec6528",
     "note": "Events with ts LIVE are re-chained by the app when the real timestamp is known."
   },
   "population": {
@@ -152,6 +152,56 @@
       "phase": "seed",
       "snapshot_id": "S2",
       "control_id": null,
+      "event_type": "texts_fetched",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S2",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
+      "files": [
+        {
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "readable": true
+        },
+        {
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "readable": true
+        }
+      ],
+      "chain_hash": "62c2cea0acdd7d951c8933fb20ca4eddc9184b162015c0d73532ad6f9c05c4d0"
+    },
+    {
+      "event_id": "EVT-0005",
+      "ts": "2026-10-07T13:00:31Z",
+      "phase": "seed",
+      "snapshot_id": "S2",
+      "control_id": null,
       "event_type": "evaluation_attempt",
       "machine_assessment": null,
       "prior_machine_assessment": null,
@@ -187,10 +237,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "e7e8bbc2321ce06a523792fe1845bbd31dddf6bcc70382e753647d2973dc3fa7"
+      "chain_hash": "261cfe58b85c53d97bff2ab3c17a8de5a9bd7105ae499eea2254c4f44543d9eb"
     },
     {
-      "event_id": "EVT-0005",
+      "event_id": "EVT-0006",
       "ts": "2026-10-07T13:00:32Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -338,10 +388,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "1cbaf73b87d02c123058f83afea14f62c24f69a7804487b9d104abd300f392d0"
+      "chain_hash": "d494acfed58c2b11c51d369e10844976d4d786fb7f06e47c6705f6d91e1f7a21"
     },
     {
-      "event_id": "EVT-0006",
+      "event_id": "EVT-0007",
       "ts": "2026-10-07T13:00:33Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -430,10 +480,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "c062a66214cc6ce1c7cc7b39c2b2bb105bae1ab57c345535602fde0f9debfe01"
+      "chain_hash": "41c799e796cd4f36f452b521908f8ebe3d723206307968bb8cb93f8c12c7127e"
     },
     {
-      "event_id": "EVT-0007",
+      "event_id": "EVT-0008",
       "ts": "2026-10-07T13:00:34Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -538,10 +588,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "c113aff62ab3a21c867482b0382500a7299c7a254a8e48a31281ebb09f299b0c"
+      "chain_hash": "8c36ab94bb19e2fc80b873c8be44fbafae030316a5975abd3948ab529415c567"
     },
     {
-      "event_id": "EVT-0008",
+      "event_id": "EVT-0009",
       "ts": "2026-10-07T13:00:40Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -600,10 +650,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "77643db8905b57ffa17faaa75dbf78671ca10906f26a0c50978605a27eacd856"
+      "chain_hash": "b3535964e939bf0bc6c6a100072d88ceb2d20a5515e4e4d5ca1519b98af3db95"
     },
     {
-      "event_id": "EVT-0009",
+      "event_id": "EVT-0010",
       "ts": "2026-10-07T13:00:41Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -651,10 +701,10 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
       "last_projected_snapshot": "S2",
-      "chain_hash": "d1931382775735ba0bbae10d727b151c3f41cc97beb7ec18ef6dbe62b99f8f6b"
+      "chain_hash": "37f925eb9289db3f99f4d668b73df6bbef4aa83ff0429f8af1c560ded955c447"
     },
     {
-      "event_id": "EVT-0010",
+      "event_id": "EVT-0011",
       "ts": "2026-10-07T15:00:00Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -690,10 +740,10 @@
         "date": "2026-10-07",
         "chair": "R. Alvarez"
       },
-      "chain_hash": "99975adf8d589b0c4d52d1f11c3576d1491a48e875c8fe779d2d7bb4c4cb6a8d"
+      "chain_hash": "2d94e2909b67d45ca5eb199a7d7f0480c8897cb70e1f8095f9bffd73c39ad4d3"
     },
     {
-      "event_id": "EVT-0011",
+      "event_id": "EVT-0012",
       "ts": "2026-10-07T15:46:31Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -801,10 +851,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "7c6718c738fae98511d53b1f4276ecef548c3ca92516090395f14113366891e8"
+      "chain_hash": "a7048a83687cf41f5557b920c77a5faba41c232da326f83ef75cb4fde3bcee0d"
     },
     {
-      "event_id": "EVT-0012",
+      "event_id": "EVT-0013",
       "ts": "2026-10-07T15:52:08Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -896,10 +946,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "f1713e4d914bb58e6fbdbf3f23081e55e70ab0fb4276974fb96f61cab41b9634"
+      "chain_hash": "ca0d3403f98d7d881894e7d31aa4e13578b5f4b0d23129f0cd16614796215084"
     },
     {
-      "event_id": "EVT-0013",
+      "event_id": "EVT-0014",
       "ts": "2026-10-08T10:32:00Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1039,10 +1089,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "08a0b53bf80fd771c23c06c703cf84397488b38457a6250f75d265192b89448a"
+      "chain_hash": "ca1f984c27cdb27602bce42d60343f9ea420adcb707c524c737c8c1e9f4ad189"
     },
     {
-      "event_id": "EVT-0014",
+      "event_id": "EVT-0015",
       "ts": "2026-10-08T10:32:30Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1090,10 +1140,10 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
       "last_projected_snapshot": "S2",
-      "chain_hash": "dac3a3a4b8f10d850871465cd8f8eea03bb23c64dcc67a48215a80df6babdb2a"
+      "chain_hash": "1c894961072068e1a9d3f748d72283ee0f3e0022db4c30463950a79197399981"
     },
     {
-      "event_id": "EVT-0015",
+      "event_id": "EVT-0016",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1125,10 +1175,10 @@
       "version_comment": "Section 4 rewrite for clarity",
       "confluence_editor": "J. Park (Eng)",
       "jira": "LAN-2291",
-      "chain_hash": "8d6d441bcf4748c4847d4ebc4a059851fef4874e8355068609bd1e0f227ee05b"
+      "chain_hash": "225169ad9c9b642039acec43d9ffbf8a46919c8fa7c5b32f441e69f256af7d27"
     },
     {
-      "event_id": "EVT-0016",
+      "event_id": "EVT-0017",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1171,10 +1221,110 @@
           "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7"
         }
       ],
-      "chain_hash": "9319daf865d350405678e6ae8b739659c3e16df8d31a76b230d519692f1bc313"
+      "chain_hash": "17fff36816e57169e9acae173d4682dc34a6feda526a0dcf6bd52fb1cf2913c9"
     },
     {
-      "event_id": "EVT-0017",
+      "event_id": "EVT-0018",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": null,
+      "event_type": "texts_fetched",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S4",
+      "attempt": 1,
+      "coverage": {
+        "readable": 2,
+        "total": 2
+      },
+      "files": [
+        {
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "readable": true
+        },
+        {
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "readable": true
+        }
+      ],
+      "chain_hash": "a9140d60b3ee0e3dbb7894697952eb618b6b95d73abbcf4eeb75bfe662c509a3"
+    },
+    {
+      "event_id": "EVT-0019",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": null,
+      "event_type": "input_gate",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "gate",
+        "name": "Strands Decider 2B",
+        "model_id": "strands-decider-2b",
+        "runtime": "local"
+      },
+      "fileId": "1650233401",
+      "fileName": "architecture.md",
+      "versionId": "1801102233",
+      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "detail": {
+        "injection": {
+          "answer": "no",
+          "probability": 0.03
+        },
+        "material_change": {
+          "answer": "evaluate_now",
+          "probability": 0.91
+        },
+        "options": [
+          "evaluate_now",
+          "batch",
+          "noise"
+        ],
+        "latency_ms": 118
+      },
+      "note": "gate result recorded; never writes a status",
+      "chain_hash": "1de8c4abacdf298c28d1e88f4c146125eac261bf82f561c9911ddbcc1f645e05"
+    },
+    {
+      "event_id": "EVT-0020",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1214,10 +1364,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "6db8c1d3fcad06cde6049755068a06b634b9221da0b3e358ceb860299feb35a5"
+      "chain_hash": "32ad69f24a148db2330737d2c8639fea16fdf114bf3db666e53d1d5bda096401"
     },
     {
-      "event_id": "EVT-0018",
+      "event_id": "EVT-0021",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1242,7 +1392,7 @@
       "basis": [
         "Verified quote from architecture.md v2 §4.3 ¶1 not found in v3 after normalization.",
         "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. The key model and rotation clauses have no support.",
-        "2 files in the snapshot searched for customer-managed keys: 0 candidates."
+        "Box AI ask over 2 files for customer-managed keys: 0 cited statements."
       ],
       "clause_support": [
         {
@@ -1316,10 +1466,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0405",
-      "chain_hash": "f1c79227c80575695d77e12a589c66271ee0f54498748e382aa1794b441c1348"
+      "chain_hash": "fd1e150284c0bac5ee9e294ff7f506091fe0eb49985d9bd180d8d6add5e1f26c"
     },
     {
-      "event_id": "EVT-0019",
+      "event_id": "EVT-0022",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1343,7 +1493,7 @@
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 not found in v3 after normalization.",
-        "The same statement matched verbatim in runbook.md §3; 2 of 2 required clauses supported.",
+        "Box AI ask over 2 files for RTO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 2 of 2 required clauses supported.",
         "The runbook quote already existed at the reviewed baseline, so the binding moved from architecture.md v2 to runbook.md and the support did not."
       ],
       "clause_support": [
@@ -1410,10 +1560,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0408",
-      "chain_hash": "79c036f4ac293e4d02f404ea3a4ef02cea03aad0e72baf321944a2529aeabf62"
+      "chain_hash": "4a3a5f05dbd8fe7a7b23214c8834a95915ee5b4dae6ea1a6de0d3e913c8f2378"
     },
     {
-      "event_id": "EVT-0020",
+      "event_id": "EVT-0023",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1519,10 +1669,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0406",
-      "chain_hash": "9284551febd0cc4c24630b9c2abf95462a5b8104af004cfaef333aef05cecce0"
+      "chain_hash": "4a103a0eeadfa1f386a9f5b320e47d07c9c4e021662dbc64a985f66edc56af91"
     },
     {
-      "event_id": "EVT-0021",
+      "event_id": "EVT-0024",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1573,10 +1723,10 @@
         "severity": "Low"
       },
       "note": "selected binding moved from architecture.md v2 to runbook.md v1; the quote is new in that file",
-      "chain_hash": "e7c96a7512cd2191c4e482900e69247044595d71bbd0a3a1b27ea115ef88445f"
+      "chain_hash": "42b2d3db7c0c2be1e9ccd2d1b9a9c4b240c16e9c7ea4987d677e2998e104de13"
     },
     {
-      "event_id": "EVT-0022",
+      "event_id": "EVT-0025",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1613,10 +1763,10 @@
       },
       "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "31ad572daa242907555df4a9c3389b7a3b9cb736f06e22fb7fb4da1cd6cbe709"
+      "chain_hash": "be9def5e55a11892ff28518b7706fe8292bed4fd1a0902fe1399e867c58480ff"
     },
     {
-      "event_id": "EVT-0023",
+      "event_id": "EVT-0026",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1676,10 +1826,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "quotes_validated": "3 of 3",
-      "chain_hash": "b8ba09ffe2c515278230ad08437eb93828f2755a72355f474082602f3e260d8c"
+      "chain_hash": "241f193deaa1f3c614c223cd4380e74a2d49c99ebe82f6a3024ba683e5a93f67"
     },
     {
-      "event_id": "EVT-0024",
+      "event_id": "EVT-0027",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1727,10 +1877,10 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "e53b73a3179760d3aacf37f78c09944e73d7d334be60ebaae1f7a60907758ac1"
+      "chain_hash": "2b0b417e40f28b3cd3cde582767af19e8fdbc965e40a2d291623628545a25fba"
     },
     {
-      "event_id": "EVT-0025",
+      "event_id": "EVT-0028",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1780,10 +1930,10 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "73d52c4025c41e8470d6f419adb7cc9198af03b56a021d030463314074c949ca"
+      "chain_hash": "47660e5ed9c3bf5e9ea22529a11d35bc573ad2f419632312271f7b36c82c8145"
     },
     {
-      "event_id": "EVT-0026",
+      "event_id": "EVT-0029",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1833,10 +1983,10 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "f9e72f0f556dadb9eeeddb23fffb4388a49e730876e483d50600796f35f76c87"
+      "chain_hash": "51d7fa208bf9f27834ad1b77ffb25a5b96dd126bac539b3638aeb0bb4ab3cc9e"
     },
     {
-      "event_id": "EVT-0027",
+      "event_id": "EVT-0030",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1883,10 +2033,10 @@
         "source": "identity as returned by Box (task assignment assigned_to)"
       },
       "mapped_action": "returned_to_author",
-      "chain_hash": "5cc40225743dc3f66a6e538e5d7d4b9977f00bccf420ebe7c53d7d60a18bd563"
+      "chain_hash": "e1587a8f63798298db5ba3258161d4ef31dde789d0b202f689d2cf63424c1f09"
     },
     {
-      "event_id": "EVT-0028",
+      "event_id": "EVT-0031",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1946,10 +2096,10 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "ed8b32682a1b315c41f1969c3681fb68c299c3640b8fb46176d2c20040565422"
+      "chain_hash": "7aae5323977a98725e44867ddb8458eebc8d7b9034c0ec8bdc060fa9af7bf089"
     },
     {
-      "event_id": "EVT-0029",
+      "event_id": "EVT-0032",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -2050,10 +2200,10 @@
       "due_at": "2026-10-23T17:00:00Z",
       "author_task_id": "box-task-77120944",
       "recorded_after": "author task created successfully",
-      "chain_hash": "ef3e0b821f5e5ee7416e09543c2d87b3c7e4cdb035e3ff327e7fc58670f1fd1c"
+      "chain_hash": "87059007f4b676a92ece95445ce92571e29b39dca26a7d730bb752d39734af17"
     },
     {
-      "event_id": "EVT-0030",
+      "event_id": "EVT-0033",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -2102,10 +2252,10 @@
       },
       "mapped_action": "verified",
       "acknowledgment_duration_s": 30,
-      "chain_hash": "ac3b6af7d23715010f4c45953ecfce44b1be979e0bf8031c435ae70e11d86ca6"
+      "chain_hash": "5f4e3b7c1bcef19ee018e92eab350438ecb9c40e12ad72aed3108b2dc0f13d14"
     },
     {
-      "event_id": "EVT-0031",
+      "event_id": "EVT-0034",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -2196,10 +2346,10 @@
       },
       "finding_id": "KEEL-2026-0408",
       "rebinding": "re-verified on runbook.md",
-      "chain_hash": "6816a242c9d896448192a7b4eaec7590879a579e72ecc7ac54a2ad2fd0de53f9"
+      "chain_hash": "d40fed39771d17963b46249f86ac312489c446ef385aeb8be7927e60e4758252"
     },
     {
-      "event_id": "EVT-0032",
+      "event_id": "EVT-0035",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -2247,7 +2397,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "130607795fc27ba93f6b80e73ece3fd9fce1c775e2ba00d1d1e3fa8c5d5fed6b"
+      "chain_hash": "80644ac34dd96681558936202e7b6a712894eb6f305a23c585cdacd1bbec6528"
     }
   ]
 }

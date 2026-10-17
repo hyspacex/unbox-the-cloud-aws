@@ -241,6 +241,9 @@ ALVAREZ = {"type": "human", "name": "R. Alvarez", "role": "ARB chair", "box_user
 JPARK = {"name": "J. Park (Eng)", "box_user_id": "30118811", "box_login": "j.park@meridiantrust.example"}
 AGENT = {"type": "agent", "name": "keel-evaluator", "role": "machine assessment", "model_id": MODEL_ID, "inference_profile": INFERENCE_PROFILE}
 APP = {"type": "app", "name": "keel", "role": "snapshot, validation, staleness and projection"}
+GATE = {"type": "gate", "name": "Strands Decider 2B", "model_id": "strands-decider-2b", "runtime": "local"}
+GATE_DETAIL = {"injection": {"answer": "no", "probability": 0.03}, "material_change": {"answer": "evaluate_now", "probability": 0.91},
+               "options": ["evaluate_now", "batch", "noise"], "latency_ms": 118}
 def human(p): return {k: p[k] for k in ("type", "name", "role", "box_user_id")}
 def box_identity(p): return {"assigned_to": {"id": p["box_user_id"], "login": p["box_login"], "name": p["name"]}, "source": "identity as returned by Box (task assignment assigned_to)"}
 
@@ -349,10 +352,16 @@ class Scenario:
                    files=[{"fileName": f["fileName"], "versionId": f["versionId"], "contentHash": f["contentHash"]} for f in s["files"]])
         self.current = snap
         for c in self.ids: self.state[c]["eval_state"] = "pending"
-    def evaluate(self, phase, snap, ts, attempt=1, unreadable=(), only=None, basis_for=None, extra_for=None):
+    def evaluate(self, phase, snap, ts, attempt=1, unreadable=(), only=None, basis_for=None, extra_for=None, gate=None):
         readable = [k for k in self.keys[snap] if k not in unreadable]
         ev_id = f"EVAL-{snap}"
         coverage = {"readable": len(readable), "total": len(self.keys[snap])}
+        self.L.add(ts, phase, snap, "texts_fetched", APP, evaluation_id=ev_id, attempt=attempt, coverage=coverage,
+                   files=[{"fileName": self.V[k]["fileName"], "versionId": self.V[k]["versionId"], "readable": k in readable} for k in self.keys[snap]])
+        if gate:
+            g = self.V[gate]
+            self.L.add(ts, phase, snap, "input_gate", GATE, fileId=g["fileId"], fileName=g["fileName"], versionId=g["versionId"], contentHash=g["contentHash"],
+                       detail=copy.deepcopy(GATE_DETAIL), note="gate result recorded; never writes a status")
         self.L.add(ts, phase, snap, "evaluation_attempt", AGENT, evaluation_id=ev_id, attempt=attempt, coverage=coverage, prompt_hash=PROMPT_HASH,
                    model_id=MODEL_ID, inference_profile=INFERENCE_PROFILE, prompt_version=PROMPT_VERSION)
         results = {}
@@ -537,13 +546,13 @@ for old, new in CHANGED_43:
 BASIS_S4 = {
  "SEC-ARCH-07": [f"Verified quote from architecture.md v2 {p7['section']} ¶{p7['paragraph']} not found in v3 after normalization ({NORMALIZATION}).",
                  f"Encryption is still stated at {w7['section'].split(' ')[0]} ¶{w7['paragraph']}; 1 of 5 required clauses supported. AES-256, the key model, the rotation period and the custodians are unsupported.",
-                 "4 other files searched for customer-managed keys, CipherTrust, rotation and key custodians: 0 candidates.",
+                 "Box AI ask over 4 other files for customer-managed keys, CipherTrust, rotation and key custodians: 0 cited statements.",
                  f"{len(CHANGED_43)} other assertions changed in {w7['section'].split(' ')[0]}."],
  "SEC-ARCH-22": [f"Verified quote from architecture.md v2 {p22['section']} ¶{p22['paragraph']} not found in v3 after normalization.",
-                 "The same statement matched verbatim in runbook.md v2 §3 Deployment and rollback; 3 of 3 required clauses supported.",
+                 "Box AI ask over 4 other files for RTO, RPO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 3 of 3 required clauses supported.",
                  "The runbook quote already existed before v3 (runbook.md v1 and v2), so the binding moved and the support did not."],
 }
-r4 = FS.evaluate("live_v3", "S4", "2026-10-17T15:30:16Z", basis_for=BASIS_S4,
+r4 = FS.evaluate("live_v3", "S4", "2026-10-17T15:30:16Z", basis_for=BASIS_S4, gate="arch-v3",
                  extra_for={c: {"finding_id": FIND[c]} for c in CIDS})
 assert {c: (r4[c]["ma"], r4[c]["cc"]) for c in CIDS} == {**{c: ("evidence_found", "unchanged") for c in CIDS}, "SEC-ARCH-07": ("evidence_weakened", "weakened"), "SEC-ARCH-22": ("evidence_found", "moved")}
 FS.staleness("live_v3", "S4", "2026-10-17T15:30:25Z", r4)
@@ -587,6 +596,10 @@ FS.record_disposition("2026-10-17T15:34:23Z", "live_v3", "S4", "SEC-ARCH-22", DA
 display_after = {c: FS.display(c) for c in CIDS}
 FS.project("live_v3", "S4", "2026-10-17T15:34:24Z")
 L.verify()
+def gate_order(led):
+    ev = [e["event_type"] for e in led.events if e["snapshot_id"] == "S4"]
+    i = ev.index("input_gate"); assert ev[i - 1] == "texts_fetched" and ev[i + 1] == "evaluation_attempt" and ev.count("input_gate") == 1, ev[:6]
+gate_order(L)
 assert [display_before[c][0] for c in CIDS].count("VERIFIED_HOLDS") == 6
 assert display_before["SEC-ARCH-07"][0] == "NEEDS_REVIEW_WEAKENED" and display_before["SEC-ARCH-22"][0] == "NEEDS_REVIEW_BINDING"
 assert [display_after[c][0] for c in CIDS].count("VERIFIED_HOLDS") == 6 and display_after["SEC-ARCH-07"][0] == "RETURNED_TO_AUTHOR" and display_after["SEC-ARCH-22"][0] == "VERIFIED"
@@ -675,11 +688,15 @@ def agent_substeps(t0, vers, snap, ids, prior, search_keys, n_files, read_ms, wr
         s("tool_call", f"get_prior_evidence({c})", 55, tool="get_prior_evidence", args={"control_id": c},
           result={"quote": pv["binding"]["quote"], "fileName": pv["binding"]["fileName"], "versionId": pv["binding"]["versionId"], "verified_by": pv["by"], "verified_at": pv["at"]})
     hits = [vers[k]["fileName"] for k in search_keys if has_term(vers.text(k), "customer-managed keys")]
-    s("tool_call", 'search_snapshot("customer-managed keys")', 140, tool="search_snapshot", args={"query": "customer-managed keys", "snapshot_id": snap},
-      result={"files_searched": [vers[k]["fileName"] for k in search_keys], "match_count": len(hits), "matches": []})
+    NOTE = "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code"
+    s("tool_call", f"Box AI ask over {len(search_keys)} files, {len(hits)} cited statements", 140, tool="box_ai_ask",
+      args={"agent_tool": "search_snapshot", "query": "customer-managed keys", "snapshot_id": snap, "mode": "multiple_item_qa", "include_citations": True},
+      detail=NOTE, result={"files_asked": [vers[k]["fileName"] for k in search_keys], "cited_statements": len(hits), "citations": []})
     rto = [k for k in search_keys if has_term(vers.text(k), "RTO")]
-    s("tool_call", 'search_snapshot("RTO")', 130, tool="search_snapshot", args={"query": "RTO", "snapshot_id": snap},
-      result={"files_searched": [vers[k]["fileName"] for k in search_keys], "match_count": len(rto), "matches": [vers.ev(k, Q["22"]) for k in rto]})
+    s("tool_call", f"Box AI ask over {len(search_keys)} files, {len(rto)} cited statement in " + ", ".join(vers[k]["fileName"] for k in rto), 130, tool="box_ai_ask",
+      args={"agent_tool": "search_snapshot", "query": "RTO", "snapshot_id": snap, "mode": "multiple_item_qa", "include_citations": True},
+      detail=NOTE, result={"files_asked": [vers[k]["fileName"] for k in search_keys], "cited_statements": len(rto),
+                           "citations": [{**vers.ev(k, Q["22"]), "validated_against_pinned_text": True} for k in rto]})
     s("model_turn", f"Writing {len(ids)} typed findings with per-clause support", write_ms, output_tokens=out_tokens)
     assert not hits and [vers[k]["fileName"] for k in rto] == ["runbook.md"]
     return sub, st - t0
@@ -690,6 +707,10 @@ def build_trace(S, snap, prior_snap, ids, results, prior, hints, search_keys, fi
             detail={"snapshot_id": snap, "manifest_hash": s["manifest_hash"], "files": s["files"]})
     tr.step("app", "texts_fetched", f"Texts fetched by version: coverage {n} of {n} readable", step_ms[1],
             detail={"coverage": f"{n} of {n}", "downloaded": [{"fileName": "architecture.md", "versionId": S.V["arch-v3"]["versionId"]}], "cached": [f["fileName"] for f in s["files"] if f["fileName"] != "architecture.md"]})
+    g = GATE_DETAIL
+    tr.step("decider", "input_gate", "Decider 2B input gate", g["latency_ms"], model_id=GATE["model_id"], runtime="local",
+            detail=f"injection: {g['injection']['answer']} ({g['injection']['probability']:.2f}) · material change: evaluate now ({g['material_change']['probability']:.2f}) · {g['latency_ms']} ms, local",
+            gate_result=copy.deepcopy(g), fileName="architecture.md", versionId=S.V["arch-v3"]["versionId"])
     w = sum(1 for h in hints if h["status"] == "weakened"); rm = sum(1 for h in hints if h["status"] == "removed")
     tr.step("app", "prior_quotes_diffed", f"Prior quotes diffed: {w} weakened, {rm} removed, 0 added", step_ms[2], detail={"prior_snapshot_id": prior_snap, "hints": hints, "added_bound_quotes": 0})
     sub, ms = agent_substeps(tr.t, S.V, snap, ids, prior, search_keys, n, read_ms, write_ms, tokens)
@@ -699,7 +720,7 @@ def build_trace(S, snap, prior_snap, ids, results, prior, hints, search_keys, fi
     tr.step("app", "quotes_validated", f"{len(ids)} of {len(ids)} quotes matched; a failed match would set the finding to not_evaluated. Coverage complete.", step_ms[3],
             detail={"normalization": NORMALIZATION, "downgraded": []})
     tr.step("app", "findings_applied", findings_label, step_ms[4], detail={"assessment_rule": profile_us["assessment_rule"]})
-    ev_ids = [e["event_id"] for e in S.L.events if e["snapshot_id"] == snap and e["event_type"] in ("evaluation_attempt", "control_evaluated", "verification_holds", "binding_changed", "evaluation_completed")]
+    ev_ids = [e["event_id"] for e in S.L.events if e["snapshot_id"] == snap and e["event_type"] in ("texts_fetched", "input_gate", "evaluation_attempt", "control_evaluated", "verification_holds", "binding_changed", "evaluation_completed")]
     tr.step("app", "ledger_events_written", f"Ledger events written: {len(ev_ids)} events, hash chain extended", step_ms[5], detail={"event_ids": ev_ids})
     tr.step("app", "box_folder_metadata_written", "Box folder metadata written: keel_snapshot_id, one status field per control, keel_last_human_review, keel_record_url", step_ms[6],
             detail={"pointer_check": "current snapshot matches", "fields": meta, "outcome": "ok"})
@@ -708,7 +729,7 @@ def build_trace(S, snap, prior_snap, ids, results, prior, hints, search_keys, fi
 tr = build_trace(FS, "S4", "S3", CIDS, r4, prior_snapshot_quotes, hints, OTHERS, "5 files", S4_META,
                  ("Box review tasks created: task A for SEC-ARCH-07, task C for SEC-ARCH-22 (both Dana Okafor)", {"tasks": [TASK_A, TASK_C]}),
                  4100, 6700, 2690, "Findings applied: 1 weakened, 1 binding moved, 6 verifications hold", [240, 720, 80, 55, 40, 35, 470, 520])
-assert 12500 <= tr.t <= 13500, tr.t
+assert 13400 <= tr.t <= 13600, tr.t
 trace_full = {"run_id": "run-20261017-153004-lantern", "mode_label": "Live", "snapshot_id": "S4", "prior_snapshot_id": "S3", "started_at": SNAP_TS["S4"],
               "total_duration_ms": tr.t, "model_id": MODEL_ID, "inference_profile": INFERENCE_PROFILE, "mrm_model_id": MRM_MODEL_ID, "steps": tr.steps}
 
@@ -753,11 +774,11 @@ LFIND = {c: FIND[c] for c in LCIDS}
 lw7 = LV.locate("arch-v3", Q["07w"])
 LBASIS = {"SEC-ARCH-07": ["Verified quote from architecture.md v2 §4.3 ¶1 not found in v3 after normalization.",
                           f"Encryption is still stated at §4.3 ¶{lw7['paragraph']}; 1 of 5 required clauses supported. The key model and rotation clauses have no support.",
-                          "2 files in the snapshot searched for customer-managed keys: 0 candidates."],
+                          "Box AI ask over 2 files for customer-managed keys: 0 cited statements."],
           "SEC-ARCH-22": ["Verified quote from architecture.md v2 §4.6 not found in v3 after normalization.",
-                          "The same statement matched verbatim in runbook.md §3; 2 of 2 required clauses supported.",
+                          "Box AI ask over 2 files for RTO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 2 of 2 required clauses supported.",
                           "The runbook quote already existed at the reviewed baseline, so the binding moved from architecture.md v2 to runbook.md and the support did not."]}
-lr4 = LS.evaluate("live_v3", "S4", "LIVE", basis_for=LBASIS, extra_for={c: {"finding_id": LFIND[c]} for c in LCIDS})
+lr4 = LS.evaluate("live_v3", "S4", "LIVE", basis_for=LBASIS, gate="arch-v3", extra_for={c: {"finding_id": LFIND[c]} for c in LCIDS})
 assert {c: (lr4[c]["ma"], lr4[c]["cc"]) for c in LCIDS} == {"SEC-ARCH-07": ("evidence_weakened", "weakened"), "SEC-ARCH-22": ("evidence_found", "moved"), "SEC-ARCH-17": ("evidence_found", "unchanged")}
 LS.staleness("live_v3", "S4", "LIVE", lr4)
 LS.completed("live_v3", "S4", "LIVE", attempts=1, quotes_validated="3 of 3")
@@ -791,7 +812,7 @@ LS.record_disposition("LIVE", "live_v3", "S4", "SEC-ARCH-22", DANA, "verified", 
                       finding_id=LFIND["SEC-ARCH-22"], rebinding="re-verified on runbook.md")
 ldisp_after = {c: LS.display(c) for c in LCIDS}
 LS.project("live_v3", "S4", "LIVE")
-LS.L.verify()
+LS.L.verify(); gate_order(LS.L)
 assert ldisp_before["SEC-ARCH-07"][1] == "Needs review: key-management evidence missing"
 lfindings = make_findings(LS, lr4, LFIND, lprior, "S4", ldisp_before, ldisp_after,
                           {"SEC-ARCH-07": "Return to author: restore the KMS customer-managed key and rotation statement (IS-STD-014 §5.1).",
@@ -813,7 +834,7 @@ lexpected = {**PROJECT, "expected_count_line_before": LCL_BEFORE, "expected_coun
              "findings": lfindings}
 ltr = build_trace(LS, "S4", "S2", LCIDS, lr4, lprior, lhints, ["arch-v3", "run-v1"], "2 files", LMETA,
                   ("Box review tasks created: task A for SEC-ARCH-07, task C for SEC-ARCH-22 (both Dana Okafor)", {"tasks": [LTASK_A, LTASK_C]}), 3600, 5900, 1240, "Findings applied: 3", [220, 610, 60, 40, 30, 30, 450, 390])
-assert 11500 <= ltr.t <= 12500, ltr.t
+assert 11800 <= ltr.t <= 12000, ltr.t
 ltrace = {"run_id": "run-live-slice", "mode_label": "Live", "snapshot_id": "S4", "prior_snapshot_id": "S2", "started_at": "LIVE", "total_duration_ms": ltr.t,
           "model_id": MODEL_ID, "inference_profile": INFERENCE_PROFILE, "mrm_model_id": MRM_MODEL_ID, "steps": ltr.steps}
 

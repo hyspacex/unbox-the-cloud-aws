@@ -19,7 +19,7 @@
   "chain": {
     "algorithm": "sha256(previous chain_hash + canonical JSON of event without chain_hash)",
     "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
-    "head": "b28f70b0b04995fc70aac7d0c47ff2bb2ef9c78821217190c86554aab3f49940"
+    "head": "30a2e77eab51073c6ac0d1d3133bbda6f7f5b1e2f3fd3eda169bf1cc685ceab1"
   },
   "population": {
     "file_version_observed": 8,
@@ -267,6 +267,71 @@
       "phase": "seed",
       "snapshot_id": "S1",
       "control_id": null,
+      "event_type": "texts_fetched",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S1",
+      "attempt": 1,
+      "coverage": {
+        "readable": 4,
+        "total": 5
+      },
+      "files": [
+        {
+          "fileName": "architecture.md",
+          "versionId": "1801102231",
+          "readable": true
+        },
+        {
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "readable": true
+        },
+        {
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "readable": true
+        },
+        {
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "readable": true
+        },
+        {
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "readable": false
+        }
+      ],
+      "chain_hash": "8b3789922d2fcaac0f2bcdad3ebf5de45d646d45b76a46abced95d7bc4c8e500"
+    },
+    {
+      "event_id": "EVT-0008",
+      "ts": "2026-10-03T15:00:40Z",
+      "phase": "seed",
+      "snapshot_id": "S1",
+      "control_id": null,
       "event_type": "evaluation_attempt",
       "machine_assessment": null,
       "prior_machine_assessment": null,
@@ -302,10 +367,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "464b339cd60a6c895f0ff11c8390fef45cfccbcf723313a5ce91a77d8b960f13"
+      "chain_hash": "8a9d25c627e190e002419d56c9a45ef6a20dda48da9a86ce758635703768949c"
     },
     {
-      "event_id": "EVT-0008",
+      "event_id": "EVT-0009",
       "ts": "2026-10-03T15:00:41Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -347,10 +412,10 @@
         "code": "TEXT_REPRESENTATION_NOT_READY",
         "message": "Box text representation still processing after upload (HTTP 202). File temporarily unreadable."
       },
-      "chain_hash": "025276efe03814c53a1673a7b54a45d9a44724465bf6080c777f6c4f9465a228"
+      "chain_hash": "700dca5ee696853510c32d629dfa0b9cfb1bae92ca45b03bc051080d98f0cbe6"
     },
     {
-      "event_id": "EVT-0009",
+      "event_id": "EVT-0010",
       "ts": "2026-10-03T15:00:42Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -466,10 +531,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "bd9e19ba41ecbee10b78426a191435865f58a7e55396c3c3990390811e5e186e"
+      "chain_hash": "2cb89d159c9c2ef010c8161758447b0d04cadfd5bfc8927716a7e851211ff47b"
     },
     {
-      "event_id": "EVT-0010",
+      "event_id": "EVT-0011",
       "ts": "2026-10-03T15:00:43Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -533,10 +598,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "f7a4e60f188e0092c81f09826abd6044e57c240abdeeaf67479e32b6aefeec2f"
+      "chain_hash": "7922a07b6b9a9b93a29fa12c5e1a6ec6b8c7c591d10a0d0504209bf6db971159"
     },
     {
-      "event_id": "EVT-0011",
+      "event_id": "EVT-0012",
       "ts": "2026-10-03T15:00:44Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -606,10 +671,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "649b64087dbae1892bbeec294014dfa4177e2b63b670f953d3e4d54739cc7328"
+      "chain_hash": "72b3570d56f2b9631bae372b86ee6e10f66ee4d0c696ceefe09b2961b5842752"
     },
     {
-      "event_id": "EVT-0012",
+      "event_id": "EVT-0013",
       "ts": "2026-10-03T15:00:45Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -707,10 +772,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "1653a49a7a382b7185a56ea0747a086562bbcb89b5303341e7222090ce267fc0"
+      "chain_hash": "2d3a52fe24ab562098a8c12e390b47c7fe6dcc88a756f9a7cafd0662ff9ca4a0"
     },
     {
-      "event_id": "EVT-0013",
+      "event_id": "EVT-0014",
       "ts": "2026-10-03T15:00:46Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -774,10 +839,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "10e8770c4d37f810bd62e2c658a9276d049a9d2dedf30064b16d28c78a5e6cba"
+      "chain_hash": "5673eeef423cc96fa92f935dfa6b3216fa0fee013aae9e01a3cf0019a289c49d"
     },
     {
-      "event_id": "EVT-0014",
+      "event_id": "EVT-0015",
       "ts": "2026-10-03T15:00:47Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -898,10 +963,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "388547aefe95185d917050b3e307b9fe7583f938547c9252098b9e0bb6d3b789"
+      "chain_hash": "5e543a572cf67195b44b7b666232c14ea221109938f8e0a6ccbab32c78bcace2"
     },
     {
-      "event_id": "EVT-0015",
+      "event_id": "EVT-0016",
       "ts": "2026-10-03T15:00:48Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -1017,10 +1082,75 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "fbfd7d463f428bb0e20f75f8927c67ccae065a37b1f52bdeb1118a4e40814967"
+      "chain_hash": "6d34d56e4ee6c7685a3d195a23299d9a8cfb77516caee08c178312c8c8b40d58"
     },
     {
-      "event_id": "EVT-0016",
+      "event_id": "EVT-0017",
+      "ts": "2026-10-03T15:04:40Z",
+      "phase": "seed",
+      "snapshot_id": "S1",
+      "control_id": null,
+      "event_type": "texts_fetched",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S1",
+      "attempt": 2,
+      "coverage": {
+        "readable": 5,
+        "total": 5
+      },
+      "files": [
+        {
+          "fileName": "architecture.md",
+          "versionId": "1801102231",
+          "readable": true
+        },
+        {
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "readable": true
+        },
+        {
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "readable": true
+        },
+        {
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "readable": true
+        },
+        {
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "readable": true
+        }
+      ],
+      "chain_hash": "ca7dc76b9491834616aa6112e2ef57bd272db62ed0c6f35cf16a2696f318aedd"
+    },
+    {
+      "event_id": "EVT-0018",
       "ts": "2026-10-03T15:04:40Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -1060,10 +1190,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "ab55b31bdb9631e08fb68d2401d40e7b9531d23c05fa65845c40c9d94b05fc1d"
+      "chain_hash": "11a36c63b83773abf7178ee9cf7279bc522d4c5ade2a576220f4d53004e290a1"
     },
     {
-      "event_id": "EVT-0017",
+      "event_id": "EVT-0019",
       "ts": "2026-10-03T15:04:41Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -1163,10 +1293,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "127f5c46683e65342a676cee2353523b9d1fb1c92e63577fa1b99ef62492e27a"
+      "chain_hash": "aa2ea417f10fa02940de2e3126bdc2217bcef8989bd85fc15f412d8cc2cd4142"
     },
     {
-      "event_id": "EVT-0018",
+      "event_id": "EVT-0020",
       "ts": "2026-10-03T15:04:50Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -1250,10 +1380,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "8a5cb60aed5035f099f898ca6934a518450302fbe9703632b5131b4983d1b7e8"
+      "chain_hash": "8b2d9d6572701ab05e63924aa04fd0a2a18c936cd6039fe5021d4dd811b31e23"
     },
     {
-      "event_id": "EVT-0019",
+      "event_id": "EVT-0021",
       "ts": "2026-10-03T15:04:51Z",
       "phase": "seed",
       "snapshot_id": "S1",
@@ -1306,10 +1436,10 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S1"
       },
       "last_projected_snapshot": "S1",
-      "chain_hash": "f1a30cf78b4b99bfcefdf3f3d19b3ec8e07bdc8f8a8453e63208895312a590e1"
+      "chain_hash": "ed1f8527d413dfa043b80c74fae164e712a69a9993fac1e85dda42116e26ca5d"
     },
     {
-      "event_id": "EVT-0020",
+      "event_id": "EVT-0022",
       "ts": "2026-10-07T12:58:31Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1338,10 +1468,10 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233401?version=1801102232",
-      "chain_hash": "69fb6590b8e3100c013e058e5e59b9d0703846adbdf3ad31422a7ce036bbb562"
+      "chain_hash": "a773a1b9f771feed13586684fa1b448b5d235b4f0d47056400de40cf87bc1e88"
     },
     {
-      "event_id": "EVT-0021",
+      "event_id": "EVT-0023",
       "ts": "2026-10-07T13:00:05Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1399,10 +1529,75 @@
           "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
         }
       ],
-      "chain_hash": "9b1ab020aa8d78a68c242590afdd61281ca0ecec7c619ae738ee4fa7fd26a39b"
+      "chain_hash": "967e336d39cd5a7db96da103fa2a50d77bab53e1e627ad7a68e44f72008753ab"
     },
     {
-      "event_id": "EVT-0022",
+      "event_id": "EVT-0024",
+      "ts": "2026-10-07T13:00:31Z",
+      "phase": "seed",
+      "snapshot_id": "S2",
+      "control_id": null,
+      "event_type": "texts_fetched",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S2",
+      "attempt": 1,
+      "coverage": {
+        "readable": 5,
+        "total": 5
+      },
+      "files": [
+        {
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "readable": true
+        },
+        {
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "readable": true
+        },
+        {
+          "fileName": "runbook.md",
+          "versionId": "1801102251",
+          "readable": true
+        },
+        {
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "readable": true
+        },
+        {
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "readable": true
+        }
+      ],
+      "chain_hash": "11b82c37549740eba82de213ad552d06b826ea2220042a6b06c20a9a9ecc36af"
+    },
+    {
+      "event_id": "EVT-0025",
       "ts": "2026-10-07T13:00:31Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1442,10 +1637,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "086dd10c9696742d0fc98711c9cc3c24255695052f8744d8bfdd81a4072756da"
+      "chain_hash": "fea86502d567e16393b1ff56bcada2909c21e2d33dfb40f7166f794a3ae6d140"
     },
     {
-      "event_id": "EVT-0023",
+      "event_id": "EVT-0026",
       "ts": "2026-10-07T13:00:32Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1545,10 +1740,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "9b25ca2cbe51b4f6136148d6dbfcacefd550faaca13fc7fa60b6ca92ef006649"
+      "chain_hash": "87ccb450b9f0e2c052938f2726456eb9a1bb646b202e8cd02f434a460c836cb8"
     },
     {
-      "event_id": "EVT-0024",
+      "event_id": "EVT-0027",
       "ts": "2026-10-07T13:00:33Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1664,10 +1859,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "909fa34a16c3704ebd8c9847ab5d9e0bbb04e724c8115266a18f0b9b99a5620b"
+      "chain_hash": "db1b0487285d45c1e94a43c69ddf30282e46843197a098181d97fad1aed28ec1"
     },
     {
-      "event_id": "EVT-0025",
+      "event_id": "EVT-0028",
       "ts": "2026-10-07T13:00:34Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1772,10 +1967,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "ea23bc7bdafa2be3624107f20655c00e8bf60c213c7de74daabe773d2e871fe6"
+      "chain_hash": "9da3b8daba673188086345d3a351c941c5d513da83a4b45d7a77b71d0e2b5130"
     },
     {
-      "event_id": "EVT-0026",
+      "event_id": "EVT-0029",
       "ts": "2026-10-07T13:00:35Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -1907,10 +2102,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "9628f7317e47b2b1a5b2e0eb06b492ce2a7d9a32b4a864d80e7a746ab0e09dad"
+      "chain_hash": "aa7da5e53fd062213d2198b2c2d9789ee5058f646237db1f8f5beba53505b814"
     },
     {
-      "event_id": "EVT-0027",
+      "event_id": "EVT-0030",
       "ts": "2026-10-07T13:00:36Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2059,10 +2254,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "5d6e948ca9d30142ab0251b59a35cdb486ea10abdfd0ff73a36d8bb8c9386ec8"
+      "chain_hash": "16bf242d25cf4ff62441359a21de867816637c6bea2c9e3596bec4aae40990e7"
     },
     {
-      "event_id": "EVT-0028",
+      "event_id": "EVT-0031",
       "ts": "2026-10-07T13:00:37Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2167,10 +2362,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "51a6b30dcdf2b9e69e951b08f54f53ec707680b290a7f58f1dca136c1926af53"
+      "chain_hash": "91733c3c5a07f4b1f0aded28000b9e913d154194fd37c6b04b6412448e57c8e5"
     },
     {
-      "event_id": "EVT-0029",
+      "event_id": "EVT-0032",
       "ts": "2026-10-07T13:00:38Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2291,10 +2486,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "4a508c93e67bba0448bc808208697f725f5a1979d44078fca93ad9b980755111"
+      "chain_hash": "0b6617a16644eb2282cc9a806bf2423209abfcf3eaffefdaa185e28a4c360218"
     },
     {
-      "event_id": "EVT-0030",
+      "event_id": "EVT-0033",
       "ts": "2026-10-07T13:00:39Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2409,10 +2604,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "8a6fc55f3f5c8dce17e8833d47408a385035a306399626013089b2608c59f56d"
+      "chain_hash": "3520688fefc31271e22fd6a75af69a4f1d5f310da2d509b68b768f587de98385"
     },
     {
-      "event_id": "EVT-0031",
+      "event_id": "EVT-0034",
       "ts": "2026-10-07T13:00:45Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2496,10 +2691,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "ba9a80af8c42b86a42e4f10ab9260708dacdedbd93928ee7eddd0d31a85ea7e9"
+      "chain_hash": "0233d1abaf1fc5b1a83cecaaa9cfc04f30cd05061c326e9e3851339b2d926c8a"
     },
     {
-      "event_id": "EVT-0032",
+      "event_id": "EVT-0035",
       "ts": "2026-10-07T13:00:46Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2552,10 +2747,10 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
       "last_projected_snapshot": "S2",
-      "chain_hash": "3d0ba11b51ac3f87a8c0a6fafff2720241d541d57149349f3d64fd8c5f0b9546"
+      "chain_hash": "d3fc0229117fc864ce2810de88482db2934719e75a5402e26010b7479515e0ef"
     },
     {
-      "event_id": "EVT-0033",
+      "event_id": "EVT-0036",
       "ts": "2026-10-07T15:00:00Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2595,10 +2790,10 @@
         "Confirm the two approved Bedrock model ids with Model Risk Management by 20 Oct 2026.",
         "Load test at 2x expected peak by 23 Oct 2026."
       ],
-      "chain_hash": "bc5628014df5c5b85bbeaacbe3961016002e3a5682fab34327d9ee5fe65c515f"
+      "chain_hash": "ad161e623776dcc14913ef0e67468d4b7b8f3dd473afb97c6b34da691bc43c25"
     },
     {
-      "event_id": "EVT-0034",
+      "event_id": "EVT-0037",
       "ts": "2026-10-07T15:40:12Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2722,10 +2917,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "3307516db36a226686b9b05b946b908feac25cbd7e601fb35e7653833f947f31"
+      "chain_hash": "dd8f5a2f146a41765a2696f6683d856ee830b5920a906ca55f61daf852755e7d"
     },
     {
-      "event_id": "EVT-0035",
+      "event_id": "EVT-0038",
       "ts": "2026-10-07T15:46:31Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2833,10 +3028,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "0b063cd26d08c4915cc3c235bf0f90de5c7332b360e420b2b0f9c21e82fa820d"
+      "chain_hash": "19ec76963991923fcd7be46900fd191863a7120962bacd84fdb8edac5042de1a"
     },
     {
-      "event_id": "EVT-0036",
+      "event_id": "EVT-0039",
       "ts": "2026-10-07T15:52:08Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -2944,10 +3139,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "da2ae2c938b2bf3f40846c75011035972beb2530571b60cfe1f47e7a6c92c883"
+      "chain_hash": "61f05b40b2f60cbd2e84704c5a9439c6caeaf9845dc02ab0853cc1385c613c35"
     },
     {
-      "event_id": "EVT-0037",
+      "event_id": "EVT-0040",
       "ts": "2026-10-08T09:05:44Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -3039,10 +3234,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "318375fd7faa304b8f74bc7c19c36230ec263747166f7e718cdc24b6cf1e9af0"
+      "chain_hash": "1e7a65e6b8a9cc22608b941e7441e088028761ac40889fb11c632a6b2d255347"
     },
     {
-      "event_id": "EVT-0038",
+      "event_id": "EVT-0041",
       "ts": "2026-10-08T09:11:20Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -3150,10 +3345,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "70487b1819a8436ab37654bcfea588e99f12c75dc7f2e06a351040f778e8f20b"
+      "chain_hash": "4733d4b307b099a81d0f538f5800e61c431e8b8b5c34ce0d83c363d9ea076c2c"
     },
     {
-      "event_id": "EVT-0039",
+      "event_id": "EVT-0042",
       "ts": "2026-10-08T09:16:02Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -3261,10 +3456,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "cccc9f2f04b2e57d5a6833891c623c506de296894c91a41674714578ecced8cd"
+      "chain_hash": "3823fa096eeb60371bdea26f1a20070f92af3408e9b414e3233cea280c8585a3"
     },
     {
-      "event_id": "EVT-0040",
+      "event_id": "EVT-0043",
       "ts": "2026-10-08T09:22:47Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -3388,10 +3583,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "0d8007597f0b66720c701efaccbb973a4e0e9c57fad94aaa19a5163fea48eba0"
+      "chain_hash": "8da089dd0bd9476cafb9742bba5e240df520f5fa3e631bd10416b881219a826d"
     },
     {
-      "event_id": "EVT-0041",
+      "event_id": "EVT-0044",
       "ts": "2026-10-08T10:32:00Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -3531,10 +3726,10 @@
         "current_snapshot_id": "S2",
         "result": "pass"
       },
-      "chain_hash": "005c6860a8db549388a3f15c230e22d1df8f94c1fb870f45c88ea36af8bcd070"
+      "chain_hash": "eab86735d817b32d96c880f4f738aa24921e9367767ddf086b7ed22153efc4f9"
     },
     {
-      "event_id": "EVT-0042",
+      "event_id": "EVT-0045",
       "ts": "2026-10-08T10:32:30Z",
       "phase": "seed",
       "snapshot_id": "S2",
@@ -3587,10 +3782,10 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S2"
       },
       "last_projected_snapshot": "S2",
-      "chain_hash": "d3611ea5384c624f3076e5f535e96de18eb8324d36425f727d255699fb4d34fd"
+      "chain_hash": "c39887d285cb660629866d1ee44886f923cd5565b169e72de573b4e8293c9ce6"
     },
     {
-      "event_id": "EVT-0043",
+      "event_id": "EVT-0046",
       "ts": "2026-10-12T14:18:07Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -3619,10 +3814,10 @@
       "mrm_model_id": "MRM-AI-0271",
       "normalization": "whitespace, quotes, hyphens, case",
       "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252",
-      "chain_hash": "64be5d452aa4c9db2536a518da88d9a246f050cb2ccf8234a349154461df2950"
+      "chain_hash": "bf4525ff0e4a67f52f0af6341a0d39a288d0932785dab7984239bbf26312dbd1"
     },
     {
-      "event_id": "EVT-0044",
+      "event_id": "EVT-0047",
       "ts": "2026-10-12T14:20:44Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -3680,10 +3875,75 @@
           "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
         }
       ],
-      "chain_hash": "9c50be1b6dbeb43fe4a7e5aa1d90371005792154175b94624b93e2c6a569a131"
+      "chain_hash": "50770436abd2cdb95a5c3afd305cbc542d3d206b1addb20870c80cbec6053858"
     },
     {
-      "event_id": "EVT-0045",
+      "event_id": "EVT-0048",
+      "ts": "2026-10-12T14:21:09Z",
+      "phase": "seed",
+      "snapshot_id": "S3",
+      "control_id": null,
+      "event_type": "texts_fetched",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S3",
+      "attempt": 1,
+      "coverage": {
+        "readable": 5,
+        "total": 5
+      },
+      "files": [
+        {
+          "fileName": "architecture.md",
+          "versionId": "1801102232",
+          "readable": true
+        },
+        {
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "readable": true
+        },
+        {
+          "fileName": "runbook.md",
+          "versionId": "1801102252",
+          "readable": true
+        },
+        {
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "readable": true
+        },
+        {
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "readable": true
+        }
+      ],
+      "chain_hash": "8972735f6a87b34fc7fee7be0f20aff23659f37357eb4e6bbae05c8e824b0b1c"
+    },
+    {
+      "event_id": "EVT-0049",
       "ts": "2026-10-12T14:21:09Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -3723,10 +3983,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "7f27c100eca7d0139945e6b0b4f22823f8ff4e35706adf645aaf03fd1ec002b7"
+      "chain_hash": "b7b8c0a90bfcb542a967053976e085e15b95c0bb7b6ad698909e3a9e1d45134a"
     },
     {
-      "event_id": "EVT-0046",
+      "event_id": "EVT-0050",
       "ts": "2026-10-12T14:21:10Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -3826,10 +4086,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "764ec47284c4c9fc16f32f039bc387500fdcdec4aae4946425023d54790885c0"
+      "chain_hash": "b88d475f8bc0663ff0b9eef2e61bbefad9d3966c0ccd19729159da3c8524f345"
     },
     {
-      "event_id": "EVT-0047",
+      "event_id": "EVT-0051",
       "ts": "2026-10-12T14:21:11Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -3945,10 +4205,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "b5d882614d8adacde6b31628a3f2189c94bf6253c7a3931afd4acbd244c94f92"
+      "chain_hash": "b2106b95a29e2f7cdfc257e01f8c835dcd90af0ae390181319b746cafacf24e1"
     },
     {
-      "event_id": "EVT-0048",
+      "event_id": "EVT-0052",
       "ts": "2026-10-12T14:21:12Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4053,10 +4313,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "8cadb1f5614007b23b7bef4c30bd2039cd6605d0ffcc8d3d861652bdb16a36c0"
+      "chain_hash": "7154ebf3a318cdc8fc9fca6eaf6e295d65be67c9fec4e6df838f0abaf6baf0d9"
     },
     {
-      "event_id": "EVT-0049",
+      "event_id": "EVT-0053",
       "ts": "2026-10-12T14:21:13Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4188,10 +4448,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "413d968189c63d5bea5fabb124fd00ea64ca579a1df6ac61cd4df7b05a94a96f"
+      "chain_hash": "ae0d482fa2a16300a8442fbfe4c5ef4b62ee63d325a8137015d1220a2feed92c"
     },
     {
-      "event_id": "EVT-0050",
+      "event_id": "EVT-0054",
       "ts": "2026-10-12T14:21:14Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4339,10 +4599,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "20f23373c7bbe20f4362381635859f7bda5161f359688c387381cd66a9e91818"
+      "chain_hash": "25a8cc22821dcc291f006972347543187cc02efef29105a6cda696fb1d393e4a"
     },
     {
-      "event_id": "EVT-0051",
+      "event_id": "EVT-0055",
       "ts": "2026-10-12T14:21:15Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4447,10 +4707,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "638d2da8f9858df8b1e0054b881407c4c6d86ba2adae750b26dbf84427662344"
+      "chain_hash": "33b03e9b8f6b741221f8aba3776de4c7008cc18f0dec20ba237649edf6abcb66"
     },
     {
-      "event_id": "EVT-0052",
+      "event_id": "EVT-0056",
       "ts": "2026-10-12T14:21:16Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4571,10 +4831,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "3ea92ed27d29a68ab4ddcd3b80b883c6246da40972a51245d0cec4eb1164b190"
+      "chain_hash": "41ffc095d7597e8dcd6f294c072d64357335a65215d8c9898f636a062fca5000"
     },
     {
-      "event_id": "EVT-0053",
+      "event_id": "EVT-0057",
       "ts": "2026-10-12T14:21:17Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4690,10 +4950,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "cd1e544e9fdf788b5851c39a5b377e5016e2c34121519f64da2a4c86a93e8b05"
+      "chain_hash": "83c36df40b51edb6a5dbe628569927be7e6a43f2c8f850c351ecb593c0e18937"
     },
     {
-      "event_id": "EVT-0054",
+      "event_id": "EVT-0058",
       "ts": "2026-10-12T14:21:18Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4730,10 +4990,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier Medium holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "02b873cc9b694b1508cbb23e4f85be4832b724354227ca26def49cc780cf611c"
+      "chain_hash": "f977903cd455000eb125ea2d695a398886d85039b66ab5c93c8692a99d0bf584"
     },
     {
-      "event_id": "EVT-0055",
+      "event_id": "EVT-0059",
       "ts": "2026-10-12T14:21:18Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4770,10 +5030,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier High holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "b7eda87f09983b0c99a3ff557b7243b1bb97411af12d74ad0da0d148c7438c86"
+      "chain_hash": "16922c85358dafb7da09a565573caada3f86d7e8d173fec57b8b7b0dac2de875"
     },
     {
-      "event_id": "EVT-0056",
+      "event_id": "EVT-0060",
       "ts": "2026-10-12T14:21:18Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4810,10 +5070,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier Medium holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "8df219411ceb82413475c93ae903d5e1fb8b764d6eedc672d8a7ec4ee20b68ba"
+      "chain_hash": "a55bc118e1f768694eb29da79a559094f3fdeeea55757f5faf6b1f1dc1696aa2"
     },
     {
-      "event_id": "EVT-0057",
+      "event_id": "EVT-0061",
       "ts": "2026-10-12T14:21:18Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4850,10 +5110,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier High holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "12d38d9d94645afe295b3f1926ebc08060c8cdb683e4cadc1ee94b1a3cf6083c"
+      "chain_hash": "3a03889c3085095e57de78b62153344344bc1888d93ea5a4b1a7ff6d4dd188a1"
     },
     {
-      "event_id": "EVT-0058",
+      "event_id": "EVT-0062",
       "ts": "2026-10-12T14:21:18Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4890,10 +5150,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier Critical holds without acknowledgment",
       "materiality": "acknowledge_on_evidencing_file_change",
-      "chain_hash": "b5fe7785f0e06fbcfe616c8ea51d0e354be651d8caa51c6cde002fc59729076c"
+      "chain_hash": "a15b07c21361c18bf601366d183b12c2bc32a0334fea80db3c0cf2e90b2f73c7"
     },
     {
-      "event_id": "EVT-0059",
+      "event_id": "EVT-0063",
       "ts": "2026-10-12T14:21:18Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4930,10 +5190,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier High holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "7d500e04151ed4f0b7c32d6d8f4bf9f424ea846a2dd018ed029cf6c58fe9e913"
+      "chain_hash": "89b2170b70ef84f866308e691741c6b95ce18961e234ef3d6326a2ffad0dd2a4"
     },
     {
-      "event_id": "EVT-0060",
+      "event_id": "EVT-0064",
       "ts": "2026-10-12T14:21:18Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -4970,10 +5230,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier Medium holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "0cc27a4b34f8b60eb589bd6cbe41537c4601582c29ec5ff87bb036614873d101"
+      "chain_hash": "3f4937ec019c925cbb2132f9ffe24e0da2db2112d445d2180a8115c8c2a05f35"
     },
     {
-      "event_id": "EVT-0061",
+      "event_id": "EVT-0065",
       "ts": "2026-10-12T14:21:18Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -5010,10 +5270,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier High holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "46d025ecd0222756567d4e022bbf67a59da99664ebed8943ffd2f5a772fd61e2"
+      "chain_hash": "224f16c17297dfec2723d97bf94cf5170fa552853f13c5ffa320309d93aff306"
     },
     {
-      "event_id": "EVT-0062",
+      "event_id": "EVT-0066",
       "ts": "2026-10-12T14:21:19Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -5097,10 +5357,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "30a346e1d94d160a664fd4a0ec3f270ba105d09969f7fc41845b2b1b7d42bd1b"
+      "chain_hash": "051382f3ff731fa3ea09a6c745af60e70a709dafe750d8b648c35d506fd1b9fa"
     },
     {
-      "event_id": "EVT-0063",
+      "event_id": "EVT-0067",
       "ts": "2026-10-12T14:21:20Z",
       "phase": "seed",
       "snapshot_id": "S3",
@@ -5153,10 +5413,10 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S3"
       },
       "last_projected_snapshot": "S3",
-      "chain_hash": "ef19cf6c0874f194b7e32c933709452489d576223d2ee6db9dd0db3da8160c24"
+      "chain_hash": "d6866b92af8a17b0a4ec2fe62733eec64e3dfa5a3d7effedc07885f38ee43f9f"
     },
     {
-      "event_id": "EVT-0064",
+      "event_id": "EVT-0068",
       "ts": "2026-10-17T15:30:00Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5188,10 +5448,10 @@
       "version_comment": "Section 4 rewrite for clarity",
       "confluence_editor": "J. Park (Eng)",
       "jira": "LAN-2291",
-      "chain_hash": "650b5f4ca0e0545487fcf6c63dd8395fdce9a49778d4524976f1fa44c7336d5e"
+      "chain_hash": "5f11887031cf32e612c0db2146a1c4e8c5269dfffd47bce892481cd787d3b056"
     },
     {
-      "event_id": "EVT-0065",
+      "event_id": "EVT-0069",
       "ts": "2026-10-17T15:30:04Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5249,10 +5509,125 @@
           "contentHash": "sha256:f1f4a370528348bf007294429b138de8859ccbf0e59c87aa0d2994ba24c2b6ca"
         }
       ],
-      "chain_hash": "5b78d603da7d4793f3c3dd7035a1754a5b6d5340c5eafa1bc35fe024fe754c94"
+      "chain_hash": "46b35ca0d6d5012e4b047f32086541ff28389d62f130c6fb6cb5b0db4eb81794"
     },
     {
-      "event_id": "EVT-0066",
+      "event_id": "EVT-0070",
+      "ts": "2026-10-17T15:30:16Z",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": null,
+      "event_type": "texts_fetched",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "evaluation_id": "EVAL-S4",
+      "attempt": 1,
+      "coverage": {
+        "readable": 5,
+        "total": 5
+      },
+      "files": [
+        {
+          "fileName": "architecture.md",
+          "versionId": "1801102233",
+          "readable": true
+        },
+        {
+          "fileName": "data-flow-and-classification.md",
+          "versionId": "1801102241",
+          "readable": true
+        },
+        {
+          "fileName": "runbook.md",
+          "versionId": "1801102252",
+          "readable": true
+        },
+        {
+          "fileName": "vendor-contract-summary.md",
+          "versionId": "1801102261",
+          "readable": true
+        },
+        {
+          "fileName": "approved-services-and-exceptions.md",
+          "versionId": "1801102271",
+          "readable": true
+        }
+      ],
+      "chain_hash": "469251c4c18f15bcf92e29679fbfad3db0e6ce6679353e98377dcae774b10c23"
+    },
+    {
+      "event_id": "EVT-0071",
+      "ts": "2026-10-17T15:30:16Z",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": null,
+      "event_type": "input_gate",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "gate",
+        "name": "Strands Decider 2B",
+        "model_id": "strands-decider-2b",
+        "runtime": "local"
+      },
+      "fileId": "1650233401",
+      "fileName": "architecture.md",
+      "versionId": "1801102233",
+      "contentHash": "sha256:375c178a776abf0f8454483c643fca1e17badd2007495e9d92db4c9fe208f302",
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/file/1650233401?version=1801102233",
+      "detail": {
+        "injection": {
+          "answer": "no",
+          "probability": 0.03
+        },
+        "material_change": {
+          "answer": "evaluate_now",
+          "probability": 0.91
+        },
+        "options": [
+          "evaluate_now",
+          "batch",
+          "noise"
+        ],
+        "latency_ms": 118
+      },
+      "note": "gate result recorded; never writes a status",
+      "chain_hash": "9c1aa99f5bb86f0d13931e19304b3ebb0bb3b4cc4f7b2dc26defa1d81bfa5271"
+    },
+    {
+      "event_id": "EVT-0072",
       "ts": "2026-10-17T15:30:16Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5292,10 +5667,10 @@
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
-      "chain_hash": "e8c9a1403db580ef50fd6a120435c896c9ba947a3efa9374646b6e9b9466dbff"
+      "chain_hash": "6f3b0bddf3856a0366d1bcb82757b0ba5ad200c8d260ffcb325e0551c031082b"
     },
     {
-      "event_id": "EVT-0067",
+      "event_id": "EVT-0073",
       "ts": "2026-10-17T15:30:17Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5396,10 +5771,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0401",
-      "chain_hash": "9155393346c0ffc7161ae4cddaee0237fbc08c3b9dd8b0d4b63b3eebdf7f99b0"
+      "chain_hash": "82d85dc2c217d6adacf29d10629a6b5415a569a84d2b58e824bcf180005900e5"
     },
     {
-      "event_id": "EVT-0068",
+      "event_id": "EVT-0074",
       "ts": "2026-10-17T15:30:18Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5516,10 +5891,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0402",
-      "chain_hash": "daad1b520bd4e9751c4520e49c3b4e793758a9dee1e522b830393e387c1f1ad8"
+      "chain_hash": "e7eed8d0ef8ee0006c547705368338be1df8e306db87dc0c12d2d4ada77a7c56"
     },
     {
-      "event_id": "EVT-0069",
+      "event_id": "EVT-0075",
       "ts": "2026-10-17T15:30:19Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5625,10 +6000,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0403",
-      "chain_hash": "11dd6f2b74d1e9674e92b9bde91a8e329244bf34e480ab6a2a61e113253b79a1"
+      "chain_hash": "62616d4794cd147cb785e0907498f7c418c4abbb95d04e67d969818336d27408"
     },
     {
-      "event_id": "EVT-0070",
+      "event_id": "EVT-0076",
       "ts": "2026-10-17T15:30:20Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5761,10 +6136,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0404",
-      "chain_hash": "e40fe76e1743cb13ae5196b9e709f9d1c4c04af5c4d5184a020f6262f6a25451"
+      "chain_hash": "96e37f8102ff3b69c80e50e11955826392113eed2fc449e49a701be6f04f9a61"
     },
     {
-      "event_id": "EVT-0071",
+      "event_id": "EVT-0077",
       "ts": "2026-10-17T15:30:21Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5789,7 +6164,7 @@
       "basis": [
         "Verified quote from architecture.md v2 §4.3 Encryption at rest and key management ¶1 not found in v3 after normalization (whitespace, quotes, hyphens, case).",
         "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. AES-256, the key model, the rotation period and the custodians are unsupported.",
-        "4 other files searched for customer-managed keys, CipherTrust, rotation and key custodians: 0 candidates.",
+        "Box AI ask over 4 other files for customer-managed keys, CipherTrust, rotation and key custodians: 0 cited statements.",
         "3 other assertions changed in §4.3."
       ],
       "clause_support": [
@@ -5864,10 +6239,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0405",
-      "chain_hash": "4b83394ad9a00aedd3bacd023b25f31510d4f49a075b8703b0ba4cc54a2d4061"
+      "chain_hash": "6a4c409d4b65d4b4e3fab01671fd388ef4c02d8abffbd53048330da6beb70664"
     },
     {
-      "event_id": "EVT-0072",
+      "event_id": "EVT-0078",
       "ts": "2026-10-17T15:30:22Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -5973,10 +6348,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0406",
-      "chain_hash": "65aaf18f1734d2248315ac8129c43c782b68f710a17f106fd29745b2d25fffa4"
+      "chain_hash": "0c44c28c59d32a6313f4fa9915b14d342bb91ca20e60c0286456b3c372abe037"
     },
     {
-      "event_id": "EVT-0073",
+      "event_id": "EVT-0079",
       "ts": "2026-10-17T15:30:23Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6098,10 +6473,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0407",
-      "chain_hash": "54d832ead4cd6ef7055856a15d006fd655cbc4e5f993585cae0ab0a612d16ca1"
+      "chain_hash": "ac4e4d96e3a4f1d4cb0fae7779819e0ccb2510abb1bded22ff0afc056b2e521c"
     },
     {
-      "event_id": "EVT-0074",
+      "event_id": "EVT-0080",
       "ts": "2026-10-17T15:30:24Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6125,7 +6500,7 @@
       "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 Resilience and recovery ¶1 not found in v3 after normalization.",
-        "The same statement matched verbatim in runbook.md v2 §3 Deployment and rollback; 3 of 3 required clauses supported.",
+        "Box AI ask over 4 other files for RTO, RPO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 3 of 3 required clauses supported.",
         "The runbook quote already existed before v3 (runbook.md v1 and v2), so the binding moved and the support did not."
       ],
       "clause_support": [
@@ -6219,10 +6594,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "finding_id": "KEEL-2026-0408",
-      "chain_hash": "1426dddc6bc316af60c680d10b5b2b3b9a71324a2420bd9213834c0aa77cf0ca"
+      "chain_hash": "3c32ad57e92d0156da26fc8f4be96faaead8094a26e0c3dd53bec278bed3c6d2"
     },
     {
-      "event_id": "EVT-0075",
+      "event_id": "EVT-0081",
       "ts": "2026-10-17T15:30:25Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6259,10 +6634,10 @@
       },
       "note": "evidencing file version unchanged; another file in the package changed; tier Medium holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "9240c2698a98c097096270321ed99c8929408f301d2ee2990bfc9589a0ce0899"
+      "chain_hash": "a596bb0a7b054465c0eb66242fb6a3b95a7fa506832f9d996cfc39435b6157bb"
     },
     {
-      "event_id": "EVT-0076",
+      "event_id": "EVT-0082",
       "ts": "2026-10-17T15:30:25Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6299,10 +6674,10 @@
       },
       "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "e9587679964b3acd9bdf49b22de92761cc5e3addbc9414b80a068594b580578b"
+      "chain_hash": "caa38c27013168878a321d5854f93798a4a4b8f85e0c250a3b27220ad7342b59"
     },
     {
-      "event_id": "EVT-0077",
+      "event_id": "EVT-0083",
       "ts": "2026-10-17T15:30:25Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6339,10 +6714,10 @@
       },
       "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier Medium holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "7c21d8e68293682d08e72e4dccd1c706f3eff8c8bf986cd1c2bf1366770e63a1"
+      "chain_hash": "1f3f2197c4279fc812780034c99190f4810e9c57aabe943712b68aaaa00758dc"
     },
     {
-      "event_id": "EVT-0078",
+      "event_id": "EVT-0084",
       "ts": "2026-10-17T15:30:25Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6379,10 +6754,10 @@
       },
       "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "405b968140a25910555d9449a78a9fbe996d1ceea5f34a0ebb2b99a294d76065"
+      "chain_hash": "66fd2c9899ae94d406873eae08b4611b433ac3059f716bac2ab6a1b544ea3d51"
     },
     {
-      "event_id": "EVT-0079",
+      "event_id": "EVT-0085",
       "ts": "2026-10-17T15:30:25Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6419,10 +6794,10 @@
       },
       "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier High holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "e6fe62c78a92a2b2950fe6f9746c58690379f391f5628158c1feb37ca3e013c9"
+      "chain_hash": "4f60d886879326df6d2b7ff55972dcbf69bd54e896f1ec5bc9240bdd1b5f19bd"
     },
     {
-      "event_id": "EVT-0080",
+      "event_id": "EVT-0086",
       "ts": "2026-10-17T15:30:25Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6459,10 +6834,10 @@
       },
       "note": "evidencing file version changed (architecture.md v2 to v3); cited quote unchanged; tier Medium holds without acknowledgment",
       "materiality": "hold_if_unchanged",
-      "chain_hash": "ebdde3a843d0f1037d1b223af009a6c6e15ff909dd6cbc522648b7ac6335dd9e"
+      "chain_hash": "77c13eec63ec37d43856920f979270a9cab7b31a94dcb32b53ff58b258b3f697"
     },
     {
-      "event_id": "EVT-0081",
+      "event_id": "EVT-0087",
       "ts": "2026-10-17T15:30:25Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6513,10 +6888,10 @@
         "severity": "Low"
       },
       "note": "selected binding moved from architecture.md v2 to runbook.md v2; the quote already existed in that file, so the binding moved and the support did not",
-      "chain_hash": "66e5a2d6c774c205e2fde1e5bcb8464c24d8f148a65491be699dcd4e28d3af6d"
+      "chain_hash": "e3a10c8c6e3c37b63ef553f517165ce46920ade04f79131e4e2f063e0cab7766"
     },
     {
-      "event_id": "EVT-0082",
+      "event_id": "EVT-0088",
       "ts": "2026-10-17T15:30:26Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6601,10 +6976,10 @@
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",
       "quotes_validated": "8 of 8",
-      "chain_hash": "ba46ecbef3385bda5a0f7762c3427a6a1542439e4e4a4b0865cd34acc189a92e"
+      "chain_hash": "72ac476c1f35699ad3c9b3996b933acbf8624cd15f49d1efb5fa64c9f6f9c38b"
     },
     {
-      "event_id": "EVT-0083",
+      "event_id": "EVT-0089",
       "ts": "2026-10-17T15:30:27Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6657,10 +7032,10 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "e8845f63c0c6ba87ae65e0075ef2e5d9d0461298c75068a8f53321efdf4857f6"
+      "chain_hash": "2a618c405b7b3b22a1b515d8e4296f8a41dbcf16ed595958a0cd9a68620cab19"
     },
     {
-      "event_id": "EVT-0084",
+      "event_id": "EVT-0090",
       "ts": "2026-10-17T15:30:28Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6710,10 +7085,10 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "db3521e6d73166320dc38b8df8414ee4245513ab9d92c9ebfff7b564402479f1"
+      "chain_hash": "72b79b6e8622a7cb0e783bf7788cffe276c68e98a2a5c6b8871a6533b11d6bf2"
     },
     {
-      "event_id": "EVT-0085",
+      "event_id": "EVT-0091",
       "ts": "2026-10-17T15:30:29Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6763,10 +7138,10 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "ad9e7dd84d6718be9a5b85db495001d7fb9767260e49f03bf2dd85132f510845"
+      "chain_hash": "d44c48eccd4e62408ebfa90a212d7202e7f46ac7bef3fb09650c1c19922a0955"
     },
     {
-      "event_id": "EVT-0086",
+      "event_id": "EVT-0092",
       "ts": "2026-10-17T15:33:52Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6814,10 +7189,10 @@
         "source": "identity as returned by Box (task assignment assigned_to)"
       },
       "mapped_action": "returned_to_author",
-      "chain_hash": "6f825c549d361bfdb2132f30f59965eceff5246ad4f0c3ff2dd32790867263e3"
+      "chain_hash": "66423173539473bbc2cba8bb51b858c97436308eebba4215045df3b696571bfb"
     },
     {
-      "event_id": "EVT-0087",
+      "event_id": "EVT-0093",
       "ts": "2026-10-17T15:33:53Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6877,10 +7252,10 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "8694ab8c7117df4e08168758751e0c7477883349c1ab72432b062f2ed7e1287c"
+      "chain_hash": "8d49071091ac6ba620ddab32d3b21fdc2f35314a68b9e18a5891d0032ff196a7"
     },
     {
-      "event_id": "EVT-0088",
+      "event_id": "EVT-0094",
       "ts": "2026-10-17T15:33:54Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -6982,10 +7357,10 @@
       "author_task_id": "box-task-77120944",
       "jira": "LAN-2291",
       "recorded_after": "author task created successfully",
-      "chain_hash": "86378fc80eba91473f2becf8e068de991458b7276d4a3734bfa2eaa4cb3ce81a"
+      "chain_hash": "d4ff7614bd4c7045c7f6bde4dc7b63ace4437ffd1b4335a5d6357abe3255d6b5"
     },
     {
-      "event_id": "EVT-0089",
+      "event_id": "EVT-0095",
       "ts": "2026-10-17T15:34:22Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7035,10 +7410,10 @@
       },
       "mapped_action": "verified",
       "acknowledgment_duration_s": 30,
-      "chain_hash": "b8cf7b2a036ad3f5ca3cc134edbd7adac5e9f5c45fd978c1be7da496f1989c2c"
+      "chain_hash": "168145276ef57ed8077e933c0ae67ac5e6423d85633fac0a89e94de46a831404"
     },
     {
-      "event_id": "EVT-0090",
+      "event_id": "EVT-0096",
       "ts": "2026-10-17T15:34:23Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7145,10 +7520,10 @@
       },
       "finding_id": "KEEL-2026-0408",
       "rebinding": "re-verified on runbook.md v2",
-      "chain_hash": "bca0adb7644c55634c5ef5d78aebd1d258af05ed08fb1a67ca8fc71ab1d830b7"
+      "chain_hash": "d3447cc55f3be6ac65d2a5f54aae83c83c9dc821ec6094f5e5ce226982aa167e"
     },
     {
-      "event_id": "EVT-0091",
+      "event_id": "EVT-0097",
       "ts": "2026-10-17T15:34:24Z",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -7201,7 +7576,7 @@
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "b28f70b0b04995fc70aac7d0c47ff2bb2ef9c78821217190c86554aab3f49940"
+      "chain_hash": "30a2e77eab51073c6ac0d1d3133bbda6f7f5b1e2f3fd3eda169bf1cc685ceab1"
     }
   ]
 }

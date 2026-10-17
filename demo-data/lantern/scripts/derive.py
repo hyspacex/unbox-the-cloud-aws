@@ -69,8 +69,7 @@ v3 = rep(v3, "- Average handle time for card disputes is 11.5 minutes. Most of t
  "- Average handle time for card disputes is 11.5 minutes, most of it spent reading prior ticket history and account notes. The target is a 20 percent reduction.")
 v3 = rep(v3, "The only inbound path is from the agent desktop VLAN through the internal ALB. Security groups allow",
  "The agent desktop VLAN, through the internal ALB, is the only inbound path. Security groups allow")
-v3 = rep(v3, "Application audit logs record, for each request: agent id, ticket id, model id, latency, and whether the draft was accepted, edited or discarded. They do not record the ticket text.",
- "For each request, application audit logs record the agent id, ticket id, model id, latency, and whether the draft was accepted, edited or discarded. Ticket text is not logged.")
+# §6 left verbatim so the High-tier SEC-ARCH-17 section is byte-identical between v2 and v3
 v3 = swap(v3, "## 4. Security architecture", "## 5. Network segmentation", """## 4. Security architecture
 
 Lantern's security architecture follows a defense-in-depth model that combines strong identity controls, robust data protection, and resilient operations. The subsections below describe how each layer keeps customer data safe across its full lifecycle.

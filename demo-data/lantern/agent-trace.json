@@ -4,7 +4,7 @@
   "snapshot_id": "S4",
   "prior_snapshot_id": "S3",
   "started_at": "2026-10-17T15:30:04Z",
-  "total_duration_ms": 13395,
+  "total_duration_ms": 13513,
   "model_id": "anthropic.claude-sonnet-4-6",
   "inference_profile": "us.anthropic.claude-sonnet-4-6",
   "mrm_model_id": "MRM-AI-0271",
@@ -78,8 +78,37 @@
     },
     {
       "seq": 3,
-      "source": "app",
+      "source": "decider",
       "startMs": 960,
+      "durationMs": 118,
+      "kind": "input_gate",
+      "label": "Decider 2B input gate",
+      "model_id": "strands-decider-2b",
+      "runtime": "local",
+      "detail": "injection: no (0.03) · material change: evaluate now (0.91) · 118 ms, local",
+      "gate_result": {
+        "injection": {
+          "answer": "no",
+          "probability": 0.03
+        },
+        "material_change": {
+          "answer": "evaluate_now",
+          "probability": 0.91
+        },
+        "options": [
+          "evaluate_now",
+          "batch",
+          "noise"
+        ],
+        "latency_ms": 118
+      },
+      "fileName": "architecture.md",
+      "versionId": "1801102233"
+    },
+    {
+      "seq": 4,
+      "source": "app",
+      "startMs": 1078,
       "durationMs": 80,
       "kind": "prior_quotes_diffed",
       "label": "Prior quotes diffed: 1 weakened, 1 removed, 0 added",
@@ -150,9 +179,9 @@
       }
     },
     {
-      "seq": 4,
+      "seq": 5,
       "source": "agent",
-      "startMs": 1040,
+      "startMs": 1158,
       "durationMs": 11235,
       "kind": "agent_evaluation",
       "label": "Agent evaluation: one Claude Sonnet 4.6 call, 8 controls",
@@ -169,14 +198,14 @@
             "source": "agent",
             "kind": "model_turn",
             "label": "Reading requirement, required clauses, applicability and evidence for 8 controls with 5 file texts and diff hints",
-            "startMs": 1040,
+            "startMs": 1158,
             "durationMs": 4100
           },
           {
             "source": "agent",
             "kind": "tool_call",
             "label": "get_prior_evidence(SEC-ARCH-07)",
-            "startMs": 5140,
+            "startMs": 5258,
             "durationMs": 55,
             "tool": "get_prior_evidence",
             "args": {
@@ -194,7 +223,7 @@
             "source": "agent",
             "kind": "tool_call",
             "label": "get_prior_evidence(SEC-ARCH-22)",
-            "startMs": 5195,
+            "startMs": 5313,
             "durationMs": 55,
             "tool": "get_prior_evidence",
             "args": {
@@ -212,7 +241,7 @@
             "source": "agent",
             "kind": "tool_call",
             "label": "get_prior_evidence(SEC-ARCH-17)",
-            "startMs": 5250,
+            "startMs": 5368,
             "durationMs": 55,
             "tool": "get_prior_evidence",
             "args": {
@@ -229,45 +258,53 @@
           {
             "source": "agent",
             "kind": "tool_call",
-            "label": "search_snapshot(\"customer-managed keys\")",
-            "startMs": 5305,
+            "label": "Box AI ask over 4 files, 0 cited statements",
+            "startMs": 5423,
             "durationMs": 140,
-            "tool": "search_snapshot",
+            "tool": "box_ai_ask",
             "args": {
+              "agent_tool": "search_snapshot",
               "query": "customer-managed keys",
-              "snapshot_id": "S4"
+              "snapshot_id": "S4",
+              "mode": "multiple_item_qa",
+              "include_citations": true
             },
+            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code",
             "result": {
-              "files_searched": [
+              "files_asked": [
                 "data-flow-and-classification.md",
                 "runbook.md",
                 "vendor-contract-summary.md",
                 "approved-services-and-exceptions.md"
               ],
-              "match_count": 0,
-              "matches": []
+              "cited_statements": 0,
+              "citations": []
             }
           },
           {
             "source": "agent",
             "kind": "tool_call",
-            "label": "search_snapshot(\"RTO\")",
-            "startMs": 5445,
+            "label": "Box AI ask over 4 files, 1 cited statement in runbook.md",
+            "startMs": 5563,
             "durationMs": 130,
-            "tool": "search_snapshot",
+            "tool": "box_ai_ask",
             "args": {
+              "agent_tool": "search_snapshot",
               "query": "RTO",
-              "snapshot_id": "S4"
+              "snapshot_id": "S4",
+              "mode": "multiple_item_qa",
+              "include_citations": true
             },
+            "detail": "search_snapshot via Box AI ask (multiple_item_qa, include_citations); citations validated against pinned text by code",
             "result": {
-              "files_searched": [
+              "files_asked": [
                 "data-flow-and-classification.md",
                 "runbook.md",
                 "vendor-contract-summary.md",
                 "approved-services-and-exceptions.md"
               ],
-              "match_count": 1,
-              "matches": [
+              "cited_statements": 1,
+              "citations": [
                 {
                   "fileId": "1650233403",
                   "fileName": "runbook.md",
@@ -277,7 +314,8 @@
                   "paragraph": 2,
                   "page": 1,
                   "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
-                  "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252"
+                  "box_deep_link": "https://app.box.com/file/1650233403?version=1801102252",
+                  "validated_against_pinned_text": true
                 }
               ]
             }
@@ -286,7 +324,7 @@
             "source": "agent",
             "kind": "model_turn",
             "label": "Writing 8 typed findings with per-clause support",
-            "startMs": 5575,
+            "startMs": 5693,
             "durationMs": 6700,
             "output_tokens": 2690
           }
@@ -328,9 +366,9 @@
       }
     },
     {
-      "seq": 5,
+      "seq": 6,
       "source": "app",
-      "startMs": 12275,
+      "startMs": 12393,
       "durationMs": 55,
       "kind": "quotes_validated",
       "label": "8 of 8 quotes matched; a failed match would set the finding to not_evaluated. Coverage complete.",
@@ -340,9 +378,9 @@
       }
     },
     {
-      "seq": 6,
+      "seq": 7,
       "source": "app",
-      "startMs": 12330,
+      "startMs": 12448,
       "durationMs": 40,
       "kind": "findings_applied",
       "label": "Findings applied: 1 weakened, 1 binding moved, 6 verifications hold",
@@ -351,18 +389,14 @@
       }
     },
     {
-      "seq": 7,
+      "seq": 8,
       "source": "app",
-      "startMs": 12370,
+      "startMs": 12488,
       "durationMs": 35,
       "kind": "ledger_events_written",
-      "label": "Ledger events written: 17 events, hash chain extended",
+      "label": "Ledger events written: 19 events, hash chain extended",
       "detail": {
         "event_ids": [
-          "EVT-0066",
-          "EVT-0067",
-          "EVT-0068",
-          "EVT-0069",
           "EVT-0070",
           "EVT-0071",
           "EVT-0072",
@@ -375,14 +409,20 @@
           "EVT-0079",
           "EVT-0080",
           "EVT-0081",
-          "EVT-0082"
+          "EVT-0082",
+          "EVT-0083",
+          "EVT-0084",
+          "EVT-0085",
+          "EVT-0086",
+          "EVT-0087",
+          "EVT-0088"
         ]
       }
     },
     {
-      "seq": 8,
+      "seq": 9,
       "source": "app",
-      "startMs": 12405,
+      "startMs": 12523,
       "durationMs": 470,
       "kind": "box_folder_metadata_written",
       "label": "Box folder metadata written: keel_snapshot_id, one status field per control, keel_last_human_review, keel_record_url",
@@ -405,9 +445,9 @@
       }
     },
     {
-      "seq": 9,
+      "seq": 10,
       "source": "app",
-      "startMs": 12875,
+      "startMs": 12993,
       "durationMs": 520,
       "kind": "box_task_created",
       "label": "Box review tasks created: task A for SEC-ARCH-07, task C for SEC-ARCH-22 (both Dana Okafor)",

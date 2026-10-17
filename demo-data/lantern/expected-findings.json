@@ -618,7 +618,7 @@
       "basis": [
         "Verified quote from architecture.md v2 §4.3 Encryption at rest and key management ¶1 not found in v3 after normalization (whitespace, quotes, hyphens, case).",
         "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. AES-256, the key model, the rotation period and the custodians are unsupported.",
-        "4 other files searched for customer-managed keys, CipherTrust, rotation and key custodians: 0 candidates.",
+        "Box AI ask over 4 other files for customer-managed keys, CipherTrust, rotation and key custodians: 0 cited statements.",
         "3 other assertions changed in §4.3."
       ],
       "evidence": [
@@ -948,7 +948,7 @@
       "change_classification": "moved",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 Resilience and recovery ¶1 not found in v3 after normalization.",
-        "The same statement matched verbatim in runbook.md v2 §3 Deployment and rollback; 3 of 3 required clauses supported.",
+        "Box AI ask over 4 other files for RTO, RPO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 3 of 3 required clauses supported.",
         "The runbook quote already existed before v3 (runbook.md v1 and v2), so the binding moved and the support did not."
       ],
       "evidence": [

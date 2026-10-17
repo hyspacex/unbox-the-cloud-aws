@@ -119,7 +119,7 @@
       "basis": [
         "Verified quote from architecture.md v2 §4.3 ¶1 not found in v3 after normalization.",
         "Encryption is still stated at §4.3 ¶2; 1 of 5 required clauses supported. The key model and rotation clauses have no support.",
-        "2 files in the snapshot searched for customer-managed keys: 0 candidates."
+        "Box AI ask over 2 files for customer-managed keys: 0 cited statements."
       ],
       "evidence": [
         {
@@ -218,7 +218,7 @@
       "change_classification": "moved",
       "basis": [
         "Verified quote from architecture.md v2 §4.6 not found in v3 after normalization.",
-        "The same statement matched verbatim in runbook.md §3; 2 of 2 required clauses supported.",
+        "Box AI ask over 2 files for RTO and rollback: 1 cited statement in runbook.md §3, validated against pinned text; 2 of 2 required clauses supported.",
         "The runbook quote already existed at the reviewed baseline, so the binding moved from architecture.md v2 to runbook.md and the support did not."
       ],
       "evidence": [

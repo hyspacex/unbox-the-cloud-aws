@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { BoxTask, BoxTaskResponse, FindingCard, LedgerEvent, RunMode, Snapshot, SnapshotFile, TaskMapping, Trace } from "./types";
-import { appendEvent as ledgerAppend, GENESIS, type EventInput, type LedgerState } from "./engine/ledger";
+import { appendEvent as ledgerAppend, GENESIS, verifyChain, type EventInput, type LedgerState } from "./engine/ledger";
 import { fixture, FIXTURE_DOCUMENTS } from "./fixture";
 import { seedMockBoxState, type MockBoxState } from "./box/mock";
 import type { Finding } from "./types";
@@ -88,9 +88,55 @@ export interface StoreData {
   run_order: string[];
   counters: { finding: number; run: number };
   findings: Record<string, StoredFinding>;
-  drafts: Record<string, { text: string; drafted_by: "box_ai_text_gen" | "template"; at: string; reason: string }>;
+  drafts: Record<string, { text: string; drafted_by: "box_ai_text_gen" | "template"; at: string; reason: string; snapshot_id?: string }>;
   mock_box: MockBoxState | null;
+  /** Input-gate decisions by `${fileId}@${versionId}`; a quarantined version stays withheld on every later evaluation. */
+  gate_decisions: Record<string, GateDecision>;
+  /** Human-response processing stages by dedup key, so a retry resumes instead of deduplicating away. */
+  processing: Record<string, ProcessingRecord>;
+  /** Author-task drafts the reviewer approved, by finding id (spec 3 step 11: shown before sending). */
+  approved_drafts: Record<string, ApprovedDraft>;
 }
+
+export interface GateDecision {
+  fileId: string;
+  fileName: string;
+  versionId: string;
+  contentHash: string;
+  quarantined: boolean;
+  injection: { answer: "yes" | "no"; probability: number };
+  snapshot_id: string;
+  event_id: string;
+}
+
+export type ProcessingStage = "response_ingested" | "author_task_created" | "awaiting_draft" | "disposition_recorded" | "rejected" | "acknowledged" | "recorded";
+
+export interface ProcessingRecord {
+  dedup_key: string;
+  task_id: string;
+  assignment_id: string;
+  control_id: string;
+  finding_id: string;
+  stage: ProcessingStage;
+  mapped_action: string | null;
+  target_snapshot_id?: string;
+  author_task_id?: string;
+  due_at?: string;
+  ingest_event_id?: string;
+  updated_at: string;
+}
+
+export interface ApprovedDraft {
+  finding_id: string;
+  snapshot_id: string;
+  reason: string;
+  text: string;
+  drafted_by: "box_ai_text_gen" | "template";
+  approved_at: string;
+  edited_before_sending: boolean;
+}
+
+export const TERMINAL_STAGES: ProcessingStage[] = ["disposition_recorded", "rejected", "acknowledged", "recorded"];
 
 export class Store {
   data: StoreData;
@@ -218,6 +264,9 @@ export function seedData(mode: RunMode = "mock"): StoreData {
     findings: {},
     drafts: {},
     mock_box: mode === "mock" ? seedMockBoxState() : null,
+    gate_decisions: {},
+    processing: {},
+    approved_drafts: {},
   };
 }
 
@@ -241,6 +290,9 @@ export function emptyData(): StoreData {
     findings: {},
     drafts: {},
     mock_box: null,
+    gate_decisions: {},
+    processing: {},
+    approved_drafts: {},
   };
 }
 
@@ -251,30 +303,79 @@ export function createMemoryStore(mode: RunMode = "mock"): Store {
 
 const G = globalThis as unknown as { __keelStore?: Store };
 
-/** The process-wide store. Loads app/data/store.json if valid, else seeds. */
-export function getStore(opts: { path: string; mode: RunMode }): Store {
-  if (G.__keelStore) return G.__keelStore;
-  let data: StoreData | null = null;
+/** The store file exists but cannot be trusted. Keel fails closed and leaves the file untouched. */
+export class StoreLoadError extends Error {
+  constructor(
+    readonly path: string,
+    readonly reason: string,
+  ) {
+    super(`Keel store ${path} is unreadable or inconsistent (${reason}); it was left untouched. Move it aside, or POST /api/reset in mock mode.`);
+  }
+}
+
+/** Parse and validate a persisted store: structure, mode and the full hash chain (Codex finding 12). */
+export function loadStoreFile(filePath: string, mode: RunMode): StoreData {
+  let parsed: StoreData;
   try {
-    if (fs.existsSync(opts.path)) {
-      const parsed = JSON.parse(fs.readFileSync(opts.path, "utf8")) as StoreData;
-      if (parsed.version === 1 && parsed.mode === opts.mode && Array.isArray(parsed.ledger?.events)) data = parsed;
-    }
-  } catch {
-    data = null;
+    parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as StoreData;
+  } catch (err) {
+    throw new StoreLoadError(filePath, `not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
   }
-  const store = new Store(data ?? (opts.mode === "mock" ? seedData("mock") : emptyData()), opts.path);
-  // Runs interrupted by a restart can never finish; mark them so the UI stops waiting.
-  for (const r of Object.values(store.data.runs)) {
-    if (!r.done) {
-      r.done = true;
-      r.status = "error";
-      r.error = "interrupted by a server restart";
-    }
-  }
-  if (!data) store.save();
+  if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.ledger?.events) || !Array.isArray(parsed.snapshots)) throw new StoreLoadError(filePath, "unexpected structure");
+  if (parsed.mode !== mode) throw new StoreLoadError(filePath, `written in ${parsed.mode} mode, running in ${mode} mode`);
+  const v = verifyChain(parsed.ledger.events, parsed.ledger.genesis);
+  if (!v.ok || v.head !== parsed.ledger.head) throw new StoreLoadError(filePath, `hash chain does not verify${v.first_bad_event_id ? ` at ${v.first_bad_event_id}` : " to the recorded head"}`);
+  parsed.gate_decisions ??= {};
+  parsed.processing ??= {};
+  parsed.approved_drafts ??= {};
+  return parsed;
+}
+
+/**
+ * The process-wide store. A missing file is seeded (mock) or started empty (live); an existing
+ * file that does not validate throws StoreLoadError and is never overwritten.
+ */
+export function getStore(opts: { path: string; mode: RunMode; mrmModelId?: string; folderId?: string }): Store {
+  if (G.__keelStore) return G.__keelStore;
+  const exists = fs.existsSync(opts.path);
+  const data = exists ? loadStoreFile(opts.path, opts.mode) : opts.mode === "mock" ? seedData("mock") : emptyData();
+  const store = new Store(data, opts.path);
+  recoverInterruptedRuns(store, { mrmModelId: opts.mrmModelId ?? "MRM-AI-0271", folderId: opts.folderId });
+  if (!exists) store.save();
   G.__keelStore = store;
   return store;
+}
+
+/** Tests and reset: drop the process-wide instance. */
+export function forgetStore(): void {
+  G.__keelStore = undefined;
+}
+
+/**
+ * Runs interrupted by a restart can never finish (Codex finding 13): mark the run, and give its
+ * snapshot a terminal evaluation outcome in the ledger so the next submit retries as attempt N+1.
+ */
+export function recoverInterruptedRuns(store: Store, opts: { mrmModelId: string; folderId?: string }): void {
+  let changed = false;
+  for (const r of Object.values(store.data.runs)) {
+    if (r.done) continue;
+    r.done = true;
+    r.status = "error";
+    r.error = "interrupted by a server restart";
+    changed = true;
+    const snap = r.snapshot_id;
+    const evs = store.events;
+    const lastAttempt = evs.map((e, i) => (e.snapshot_id === snap && e.event_type === "evaluation_attempt" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+    const lastDone = evs.map((e, i) => (e.snapshot_id === snap && e.event_type === "evaluation_completed" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+    const captured = evs.some((e) => e.snapshot_id === snap && e.event_type === "snapshot_captured");
+    if (captured && lastDone < Math.max(lastAttempt, evs.findIndex((e) => e.snapshot_id === snap && e.event_type === "snapshot_captured"))) {
+      const error = { code: "RUN_INTERRUPTED", message: `run ${r.run_id} was interrupted by a server restart before the evaluation finished` };
+      const actor = { type: "app" as const, name: "keel", role: "snapshot, validation, staleness and projection" };
+      ledgerAppend(store.data.ledger, { event_type: "evaluation_error", actor, snapshot_id: snap, phase: "live", run_id: r.run_id, evaluation_id: `EVAL-${snap}`, error }, opts);
+      ledgerAppend(store.data.ledger, { event_type: "evaluation_completed", actor, snapshot_id: snap, phase: "live", run_id: r.run_id, evaluation_id: `EVAL-${snap}`, evaluation_state: "error", error }, opts);
+    }
+  }
+  if (changed) store.save();
 }
 
 /** Reset to the seed (mock) or empty (live) and persist. */

@@ -79,7 +79,7 @@ export function verifyAction(st: ControlState, row: RowWithState, attestation: s
   return { enabled: false, reason: `Verify is disabled: no document in this package supports the ${listJoin(nouns, "or")} clause.`, attestation_phrase: attestation };
 }
 
-export function buildFindingCard(store: Store, profile: ControlProfile, config: KeelConfig, finding: Finding & { run_id?: string }): FindingCard & { opened_at?: string } {
+export function buildFindingCard(store: Store, profile: ControlProfile, config: KeelConfig, finding: Finding & { run_id?: string }): FindingCard {
   const control = profile.controls.find((c) => c.id === finding.control_id)!;
   const currentId = store.data.current_snapshot_id ?? finding.snapshot_id;
   const rows = buildRows(store, profile, currentId);
@@ -103,7 +103,7 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   const newInfo = newFile ? store.versionInfo(newFile.fileId, newFile.versionId) : undefined;
   const newLoc = newQuote && binding ? binding : null;
 
-  const needsReview = NEEDS_REVIEW_KINDS.includes(row.status.kind) || row.status.kind === "not_evaluated";
+  const needsReview = NEEDS_REVIEW_KINDS.includes(row.status.kind) || row.status.kind === "not_evaluated" || row.status.kind === "pending_review";
   const rta: FindingCard["actions"]["return_to_author"] = {
     enabled: needsReview && !!st.open_task && st.evaluation_state !== "pending",
     reason: !needsReview ? `Return to author applies to rows that need review; this row reads "${row.status.label}".` : !st.open_task ? `No open review task for ${control.id}.` : st.evaluation_state === "pending" ? "Re-check pending." : undefined,
@@ -112,7 +112,7 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   };
   // A starting point for the reviewer's reason, built from the unsupported clauses; the reviewer edits it.
   const uns = st.clause_support.filter((c) => c.support !== "supported").map((c) => clauseNoun(c.clause));
-  if (rta.enabled && uns.length) (rta as typeof rta & { suggested_reason?: string }).suggested_reason = `${listJoin(uns)} ${uns.length === 1 ? "is" : "are"} no longer supported. ${control.standard} requires ${uns.length === 1 ? "it" : "them"} restored.`;
+  if (rta.enabled && uns.length) rta.suggested_reason = `${listJoin(uns)} ${uns.length === 1 ? "is" : "are"} no longer supported. ${control.standard} requires ${uns.length === 1 ? "it" : "them"} restored.`;
 
   const thread = store.events
     .filter((e) => e.control_id === control.id)
@@ -131,8 +131,12 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   const binding_fresh = decision === currentId || bindingsEqual(decisionRow?.state.binding, st.binding);
 
   const opened = store.events.find((e) => e.control_id === control.id && e.snapshot_id === finding.snapshot_id && e.finding_id === finding.finding_id);
+  const waiting = Object.values(store.data.processing ?? {}).filter((p) => p.stage === "awaiting_draft" && p.control_id === control.id).at(-1);
+  const waitingResponse = waiting ? store.events.find((e) => e.event_id === waiting.ingest_event_id)?.response as { message?: string } | undefined : undefined;
+  const draft = waiting ? store.data.drafts[waiting.finding_id] : undefined;
   return {
     opened_at: opened?.ts,
+    ...(waiting ? { pending_author_draft: { reason: waitingResponse?.message ?? "", draft: draft?.text, drafted_by: draft?.drafted_by, task_id: waiting.task_id, snapshot_id: waiting.target_snapshot_id } } : {}),
     finding,
     control,
     profile_version: profile.profile_version,

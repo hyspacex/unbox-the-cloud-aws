@@ -9,6 +9,7 @@
  * the current snapshot and binding (rule 9).
  */
 import type { DisplayedStatus, DisplayInputs, DisplayKind, ProjectionCode, Severity } from "../types";
+import { norm } from "./normalize";
 
 export interface DisplayOptions {
   now?: Date;
@@ -101,12 +102,20 @@ function secondaryFromDisposition(i: DisplayInputs, o: DisplayOptions): string |
 
 const tierSeverity = (t: DisplayInputs["tier"]): Severity => t;
 
-function onCurrentBinding(i: DisplayInputs): boolean {
+/**
+ * A disposition applies only to the binding it was recorded on: same snapshot, and same file,
+ * version and normalized quote as the control's current binding. Fails closed when the current
+ * binding is unknown; a disposition recorded with no binding matches only a control with none.
+ */
+export function onCurrentBinding(i: DisplayInputs): boolean {
   const d = i.current_disposition;
   if (!d || d.snapshot_id !== i.current_snapshot_id) return false;
-  if (!i.current_binding) return true;
-  return d.binding.fileId === i.current_binding.fileId && d.binding.versionId === i.current_binding.versionId;
+  const db = d.binding && d.binding.fileId ? d.binding : null;
+  const cb = i.current_binding ?? null;
+  if (!db || !cb) return !db && !cb && i.machine_assessment !== "evidence_found";
+  return db.fileId === cb.fileId && db.versionId === cb.versionId && normQ(db.quote) === normQ(cb.quote);
 }
+const normQ = (q?: string) => norm(q ?? "");
 
 /** Spec 4, the sixteen ordered rules. First match wins. */
 export function displayStatus(i: DisplayInputs, o: DisplayOptions = {}): DisplayedStatus {
@@ -140,7 +149,7 @@ export function displayStatus(i: DisplayInputs, o: DisplayOptions = {}): Display
   if (dispOnSnapshot === "exception_requested") return mk(6, "exception_requested", "Exception requested", "EXCEPTION", "blue");
   if (dispOnSnapshot === "compensating_control") return mk(7, "compensating_control", "Compensating control", "EXCEPTION", "blue");
   // Rule 8
-  if (dispOnSnapshot === "returned_to_author") {
+  if (dispOnSnapshot === "returned_to_author" && onCurrentBinding(i)) {
     return mk(8, "returned_to_author", "Returned to author, open", "RETURNED_TO_AUTHOR", "blue", { secondary: secondaryFromDisposition(i, o) });
   }
   // Rule 9

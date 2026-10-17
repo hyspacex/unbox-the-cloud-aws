@@ -288,6 +288,11 @@ export class MockBoxAdapter implements BoxAdapter {
     throw new Error(`mock Box: assignment ${assignmentId} not found`);
   }
 
+  /** Remove a file from the package folder (Codex finding 11 probe). */
+  removeFile(fileName: string) {
+    this.s.files = this.s.files.filter((f) => f.fileName !== fileName);
+    this.onChange();
+  }
   failNextMetadataWrite(n = 1) {
     this.s.hooks.failNextMetadataWrite += n;
     this.onChange();

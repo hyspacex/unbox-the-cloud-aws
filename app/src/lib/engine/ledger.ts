@@ -44,7 +44,25 @@ function pyNumber(n: number): string {
   return String(n);
 }
 
-/** Canonical JSON = Python json.dumps(v, sort_keys=True). Keys with undefined values are dropped (JSON semantics). */
+/** Python sorts str keys by Unicode code point; JS sort compares UTF-16 units, which differs for astral characters. */
+function byCodePoint(a: string, b: string): number {
+  const A = Array.from(a);
+  const B = Array.from(b);
+  for (let i = 0; i < Math.min(A.length, B.length); i++) {
+    const d = A[i].codePointAt(0)! - B[i].codePointAt(0)!;
+    if (d) return d;
+  }
+  return A.length - B.length;
+}
+
+/**
+ * Canonical JSON = Python json.dumps(v, sort_keys=True). Keys with undefined values are dropped (JSON semantics).
+ *
+ * Supported value domain (restriction, documented): strings, booleans, null, arrays, objects, safe
+ * integers and finite non-integral floats. JSON parsing cannot distinguish 1 from 1.0 or 0 from -0.0,
+ * so events must not carry integral floats or negative zero (Python would print "1.0" / "-0.0"); the
+ * engine only writes integers and probabilities such as 0.03. Keys sort by Unicode code point as Python does.
+ */
 export function canonicalJSON(v: unknown): string {
   if (v === null || v === undefined) return "null";
   if (v === true) return "true";
@@ -56,7 +74,7 @@ export function canonicalJSON(v: unknown): string {
     const o = v as Record<string, unknown>;
     const keys = Object.keys(o)
       .filter((k) => o[k] !== undefined)
-      .sort();
+      .sort(byCodePoint);
     return "{" + keys.map((k) => pyStr(k) + ": " + canonicalJSON(o[k])).join(", ") + "}";
   }
   throw new Error(`canonicalJSON: unsupported value ${typeof v}`);

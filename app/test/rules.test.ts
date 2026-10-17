@@ -14,7 +14,7 @@ const disp = (d: DispositionRecord["disposition"], extra: Partial<DispositionRec
   actor: { name: "Dana Okafor", role: "ARB reviewer, Technology Resilience" },
   recorded_at: "2026-10-17T15:33:54Z",
   snapshot_id: "S4",
-  binding: { fileId: "f1", fileName: "architecture.md", versionId: "v3id" },
+  binding: { fileId: "f1", fileName: "architecture.md", versionId: "v3id", quote: "q" },
   ...extra,
 });
 const base = (o: Partial<DisplayInputs> = {}): DisplayInputs => ({

@@ -93,7 +93,9 @@ export async function publishProjection(args: { store: Store; box: BoxAdapter; p
   } catch {
     readback = null;
   }
-  const ambiguous = readback?.[SNAPSHOT_FIELD] === snapshotId;
+  // Ambiguous write confirmed only when Box holds every attempted field (statuses, last review, url).
+  const mismatched = Object.keys(fields).filter((k) => (readback?.[k] ?? null) !== fields[k]);
+  const ambiguous = !!readback && mismatched.length === 0;
   const event = store.append(
     {
       event_type: ambiguous ? "box_metadata_written" : "box_metadata_write_failed",
@@ -104,7 +106,7 @@ export async function publishProjection(args: { store: Store; box: BoxAdapter; p
       fields_attempted: fields,
       ...(ambiguous ? { fields_written: readback } : {}),
       error: res.error,
-      readback: readback ? { [SNAPSHOT_FIELD]: readback[SNAPSHOT_FIELD] ?? null } : null,
+      readback: readback ? { [SNAPSHOT_FIELD]: readback[SNAPSHOT_FIELD] ?? null, fields_differing: mismatched } : null,
       projection: { box_metadata: ambiguous ? "ambiguous" : "failed" },
       last_projected_snapshot: ambiguous ? snapshotId : lastProjectedSnapshot(store.events),
       ...args.extra,

@@ -20,7 +20,7 @@
  */
 import type { BoxAdapter, BoxTaskAssignmentView } from "../box/adapter";
 import type { KeelConfig } from "../config";
-import type { Store, StoredTask } from "../store";
+import { TERMINAL_STAGES, type ProcessingRecord, type ProcessingStage, type Store, type StoredTask } from "../store";
 import type { BoxTask, BoxTaskResponse, ControlProfile, EvidenceRef, LedgerEvent, TaskMapping } from "../types";
 import { bindingsEqual, verifyPrecondition } from "./assess";
 import { clauseNoun } from "./display";
@@ -28,6 +28,10 @@ import { listJoin } from "./basis";
 import { utcNow } from "./ledger";
 import { quoteValid } from "./normalize";
 import { APP_ACTOR, eventOpts, publishProjection } from "./publish";
+import { withPackageLock } from "./lock";
+import { bannedWords } from "./wording";
+import { norm } from "./normalize";
+import { boxAssignee } from "../config";
 import { deriveControlState, latestVerification, snapshotEvaluationState, verificationBinding, type ControlState } from "./state";
 import { draftFromBrief, type AuthorDraftBrief } from "./draft";
 
@@ -87,7 +91,12 @@ export async function draftAuthorMessage(args: { store: Store; box: BoxAdapter; 
   const fileIds = [st.binding?.fileId ?? brief.fileName].filter(Boolean);
   try {
     const r = await box.aiTextGen(fileIds, prompt);
-    if (!("unavailable" in r && r.unavailable)) return { text: (r as { text: string }).text, drafted_by: "box_ai_text_gen" };
+    if (!("unavailable" in r && r.unavailable)) {
+      const text = (r as { text: string }).text;
+      // Box AI wording is machine text: the reviewer's reason and the lost source quotes are exempt (Codex finding 18).
+      if (!bannedWords(text, [reason, ...brief.lost_quotes]).length) return { text, drafted_by: "box_ai_text_gen" };
+      console.warn("[keel] Box AI draft used wording reserved for a human disposition; using the template draft");
+    }
   } catch {
     /* fall through to the labelled template */
   }
@@ -100,11 +109,13 @@ export async function draftAuthorMessage(args: { store: Store; box: BoxAdapter; 
 
 export interface IngestInput {
   view: BoxTaskAssignmentView;
+  /** The immutable server-side mapping: the only source of finding, control and decision snapshot. */
   mapping: TaskMapping;
-  /** The snapshot the reviewer's card was opened on (mock /api/action); defaults to the task's snapshot. */
+  /**
+   * Client claim of the snapshot the card was opened on. Never used for state (Codex finding 5);
+   * only compared with the current snapshot to word the stale notice.
+   */
   decision_snapshot_id?: string;
-  /** Reviewer-approved draft for the author task (stored verbatim). */
-  author_message?: string;
   due_at?: string;
 }
 
@@ -115,6 +126,9 @@ export interface IngestResult {
   events: LedgerEvent[];
   author_task?: BoxTask;
   fallback?: "confirm_finding";
+  /** Live: a return to author waits for the reviewer to approve the author-task draft in Keel. */
+  awaiting_draft?: { finding_id: string; reason: string; snapshot_id: string; dedup_key: string };
+  stage?: ProcessingStage;
 }
 
 export interface DispositionDeps {
@@ -126,8 +140,42 @@ export interface DispositionDeps {
 }
 
 const bindingText = (store: Store, b: EvidenceRef | null) => (b ? `${b.fileName} ${b.versionLabel ?? store.versionLabel(b.fileId, b.versionId) ?? b.versionId} ${b.section.split(" ")[0]}`.trim() : "no binding");
+const boxTime = (e: LedgerEvent | null | undefined) => {
+  if (!e) return null;
+  const t = (e.response_times as { box_completed_at?: string } | undefined)?.box_completed_at ?? (e.via as { completed_at?: string } | undefined)?.completed_at ?? e.ts;
+  const n = Date.parse(t);
+  return Number.isFinite(n) ? n : null;
+};
 
-export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInput): Promise<IngestResult> {
+/** Record a reviewer-approved author-task draft, bound to finding, reason and snapshot (spec 3 step 11). */
+export function approveDraft(store: Store, args: { finding_id: string; snapshot_id: string; reason: string; text: string; drafted_by?: "box_ai_text_gen" | "template" }): void {
+  const prev = store.data.drafts[args.finding_id];
+  store.data.approved_drafts[args.finding_id] = {
+    finding_id: args.finding_id,
+    snapshot_id: args.snapshot_id,
+    reason: args.reason,
+    text: args.text,
+    drafted_by: args.drafted_by ?? prev?.drafted_by ?? "box_ai_text_gen",
+    approved_at: utcNow(),
+    edited_before_sending: !!prev && prev.text !== args.text,
+  };
+  store.save();
+}
+
+function approvedDraftFor(store: Store, findingIds: string[], reason: string) {
+  for (const id of findingIds) {
+    const d = store.data.approved_drafts[id];
+    if (d && norm(d.reason) === norm(reason)) return d;
+  }
+  return null;
+}
+
+/** Serialized per package (Codex finding 6): no snapshot capture can interleave with a response. */
+export function ingestTaskResponse(deps: DispositionDeps, input: IngestInput): Promise<IngestResult> {
+  return withPackageLock(deps.config.box.folderId, () => ingestLocked(deps, input));
+}
+
+async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<IngestResult> {
   const { store, box, profile, config } = deps;
   const now = deps.now ?? (() => new Date());
   const opts = eventOpts(config);
@@ -156,9 +204,30 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
   };
   const reviewer_identity = { assigned_to: view.assigned_to, source: REVIEWER_IDENTITY_SOURCE };
   const base = { actor: APP_ACTOR, control_id: control.id, finding_id: mapping.finding_id, response, reviewer_identity };
+  const proc = store.data.processing[dedup_key];
+  const setStage = (stage: ProcessingStage, extra: Partial<ProcessingRecord> = {}) => {
+    const cur = store.data.processing[dedup_key];
+    store.data.processing[dedup_key] = {
+      ...(cur ?? { dedup_key, task_id: mapping.task_id, assignment_id: view.assignment_id, control_id: control.id, finding_id: mapping.finding_id, mapped_action: null }),
+      ...extra,
+      stage,
+      updated_at: utcNow(now()),
+    } as ProcessingRecord;
+    if (TERMINAL_STAGES.includes(stage)) {
+      if (!store.data.dedup_keys.includes(dedup_key)) store.data.dedup_keys.push(dedup_key);
+      const task = store.data.tasks.find((t) => t.task_id === mapping.task_id);
+      if (task) {
+        task.status = "completed";
+        task.resolution_state = view.resolution_state;
+        task.response = { ...response, assigned_to: view.assigned_to };
+        task.completed_at = view.completed_at ?? undefined;
+      }
+    }
+    store.save();
+  };
 
-  // 1. Dedup (acceptance 12).
-  if (store.data.dedup_keys.includes(dedup_key)) {
+  // 1. Dedup on a finished response (acceptance 12). Unfinished processing resumes instead (Codex finding 7).
+  if ((proc && TERMINAL_STAGES.includes(proc.stage)) || (!proc && store.data.dedup_keys.includes(dedup_key))) {
     append({
       event_type: "box_task_response_ingested",
       snapshot_id: mapping.snapshot_id,
@@ -170,13 +239,14 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
     return { result: "duplicate", mapped_action: null, explanation: "Duplicate delivery recorded as an attempt; nothing applied twice.", events };
   }
 
-  // 2. Identity: on the configured reviewer list, not the configured author.
+  // 2. Identity, freshness and preconditions, from server records only.
   const who = view.assigned_to;
   const reviewer = config.reviewers.find((r) => r.box_user_id === who.id || r.login === who.login);
   const isAuthor = config.author.box_user_id === who.id || config.author.login === who.login;
   const attestation = view.message.includes(profile.attestation_phrase);
-  let mapped: IngestResult["mapped_action"] =
-    view.resolution_state === "rejected" && view.message.trim()
+  const mapped: IngestResult["mapped_action"] = proc
+    ? (proc.mapped_action as IngestResult["mapped_action"])
+    : view.resolution_state === "rejected" && view.message.trim()
       ? "returned_to_author"
       : view.resolution_state === "approved" && attestation
         ? "verified"
@@ -188,10 +258,8 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
     all_clauses_supported: null,
     attestation_present: view.resolution_state === "approved" ? attestation : null,
   };
-
-  // 3. Freshness against the authoritative current snapshot.
   const current = store.data.current_snapshot_id ?? mapping.snapshot_id;
-  const decision = input.decision_snapshot_id ?? mapping.snapshot_id;
+  const decision = mapping.snapshot_id; // immutable task binding; client claims are never trusted
   const decisionState = deriveControlState(store, control, decision);
   const currentState = deriveControlState(store, control, current);
   const unchanged = bindingsEqual(decisionState.binding, currentState.binding);
@@ -199,21 +267,26 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
   let freshness: "applied" | "reapplied" | "rejected" = decision === current ? "applied" : unchanged ? "reapplied" : "rejected";
   if (pending) freshness = "rejected";
   checks.binding_current = freshness !== "rejected";
-  const freshness_check = { decision_snapshot_id: decision, current_snapshot_id: current, binding_unchanged: decision === current || unchanged, result: freshness };
+  const freshness_check = {
+    decision_snapshot_id: decision,
+    current_snapshot_id: current,
+    binding_unchanged: decision === current || unchanged,
+    result: freshness,
+    ...(input.decision_snapshot_id && input.decision_snapshot_id !== decision ? { client_snapshot_id: input.decision_snapshot_id, note: "client-supplied snapshot ignored; the task mapping decides" } : {}),
+  };
 
   let rejection: string | null = null;
   if (!reviewer) rejection = `${who.name} (${who.id}) is not on the configured reviewer list`;
   else if (isAuthor) rejection = `${who.name} is the configured author of the evidencing file and cannot review it`;
   else if (pending) rejection = `snapshot ${current} is being re-checked; respond again when the evaluation completes`;
 
-  // A newer human decision on the current snapshot already exists: this response is history only (acceptance 9).
-  // Compare on Box's clock: the completed_at behind the standing decision vs this response's completed_at.
-  const standing = currentState.current_disposition_event;
-  const standingAt = standing ? ((standing.response_times as { box_completed_at?: string } | undefined)?.box_completed_at ?? standing.ts) : null;
-  const supersededBy = !rejection && decision !== current && standing && standingAt && standingAt > (view.completed_at ?? "") ? standing : null;
-
-  // Verify preconditions on the snapshot the disposition would be recorded on.
   const target = freshness === "applied" ? decisionState : currentState;
+  // A newer standing decision (by Box completion time, on any snapshot path) wins: this one is history (Codex finding 15).
+  const standing = target.current_disposition_event;
+  const standingAt = boxTime(standing);
+  const thisAt = Date.parse(view.completed_at);
+  const supersededBy = !rejection && !proc && standing && standingAt !== null && Number.isFinite(thisAt) && standingAt > thisAt ? standing : null;
+
   if (!rejection && !supersededBy && mapped === "verified") {
     const pre = verifyPrecondition(target.machine_assessment, target.clause_support);
     checks.all_clauses_supported = pre.unsupported.length === 0 && target.clause_support.length > 0;
@@ -229,27 +302,21 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
   if (!rejection && !supersededBy && freshness === "rejected") {
     rejection = `binding changed since the decision: ${bindingText(store, decisionState.binding)} on ${decision} is now ${bindingText(store, currentState.binding)} on ${current}`;
   }
-  if (rejection || supersededBy) mapped = supersededBy ? mapped : "rejected";
+  const clientNote = input.decision_snapshot_id && input.decision_snapshot_id !== current ? `The card was opened on ${input.decision_snapshot_id}; the current snapshot is ${current}. ` : "";
 
-  append({
-    event_type: "box_task_response_ingested",
-    snapshot_id: decision,
-    ...base,
-    mapped_action: mapped,
-    attestation_present: attestation,
-    checks,
-    freshness_check,
-    ...(rejection ? { rejection } : {}),
-  });
-  store.data.dedup_keys.push(dedup_key);
-  const task = store.data.tasks.find((t) => t.task_id === mapping.task_id);
-  if (task) {
-    task.status = "completed";
-    task.resolution_state = view.resolution_state;
-    task.response = { ...response, assigned_to: who };
-    task.completed_at = view.completed_at;
+  if (!proc) {
+    append({
+      event_type: "box_task_response_ingested",
+      snapshot_id: decision,
+      ...base,
+      mapped_action: rejection ? "rejected" : mapped,
+      attestation_present: attestation,
+      checks,
+      freshness_check,
+      ...(rejection ? { rejection } : {}),
+    });
+    setStage("response_ingested", { mapped_action: rejection ? "rejected" : mapped, target_snapshot_id: target.snapshot_id, ingest_event_id: events[events.length - 1].event_id });
   }
-  store.save();
 
   if (supersededBy) {
     append({
@@ -260,9 +327,10 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
       finding_id: mapping.finding_id,
       superseded_by: supersededBy.event_id,
       current_snapshot_id: current,
-      note: `response for ${decision} arrived after ${supersededBy.event_id} on ${current}; recorded as history, displayed status unchanged`,
+      note: `response completed in Box at ${view.completed_at}, before the standing decision ${supersededBy.event_id}; recorded as history, displayed status unchanged`,
     });
-    return { result: "recorded", mapped_action: null, explanation: `Recorded as history: a newer decision (${supersededBy.event_id}) on ${current} stands.`, events };
+    setStage("recorded");
+    return { result: "recorded", mapped_action: null, explanation: `Recorded as history: a newer decision (${supersededBy.event_id}) stands.`, events };
   }
   if (rejection) {
     if (freshness === "rejected" && !pending && reviewer && !isAuthor) {
@@ -275,13 +343,15 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
         freshness_check,
         previous_binding: decisionState.binding,
         current_binding: currentState.binding,
+        ...(proc?.author_task_id ? { orphaned_author_task_id: proc.author_task_id, note: "an author task was created before the binding changed; it is recorded here and no disposition is written" } : {}),
         explanation: rejection,
       });
     }
-    return { result: "rejected", mapped_action: "rejected", explanation: rejection, events };
+    setStage("rejected");
+    return { result: "rejected", mapped_action: "rejected", explanation: clientNote + rejection, events };
   }
 
-  if (freshness === "reapplied") {
+  if (freshness === "reapplied" && (!proc || proc.stage === "response_ingested")) {
     append({
       event_type: "action_reapplied",
       snapshot_id: current,
@@ -293,10 +363,11 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
     });
   }
   const snap = target.snapshot_id;
-  const human = { type: "human" as const, name: reviewer!.name, role: reviewer!.role, box_user_id: reviewer!.box_user_id };
+  const human = { type: "human" as const, name: reviewer!.name, role: reviewer!.role, box_user_id: who.id || reviewer!.box_user_id };
   const b = target.binding;
   const via = { channel: "Box task", task_id: mapping.task_id, assignment_id: view.assignment_id, resolution_state: view.resolution_state };
   const contentHash = b ? store.snapshot(snap)?.files.find((f) => f.versionId === b.versionId)?.contentHash ?? null : null;
+  const resultKind = freshness === "reapplied" ? ("reapplied" as const) : ("applied" as const);
   const dispBase = {
     event_type: "human_disposition_recorded" as const,
     actor: human,
@@ -319,6 +390,8 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
     freshness_check: { ...freshness_check, result: freshness === "applied" ? "pass" : "reapplied" },
     projection: { box_metadata: "pending" as const },
   };
+  /** Revalidate after an await: the pointer and the binding must still be the ones decided on. */
+  const stillFresh = () => store.data.current_snapshot_id === current && bindingsEqual(deriveControlState(store, control, snap).binding, b);
 
   if (mapped === "acknowledged") {
     append({
@@ -335,7 +408,8 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
           ? "approved without the attestation phrase: recorded as an acknowledgment; no disposition"
           : "task completed: acknowledgment recorded; no disposition; the row label is unchanged",
     });
-    return { result: freshness === "reapplied" ? "reapplied" : "applied", mapped_action: "acknowledged", explanation: "Acknowledgment recorded; no disposition written.", events };
+    setStage("acknowledged");
+    return { result: resultKind, mapped_action: "acknowledged", explanation: clientNote + "Acknowledgment recorded; no disposition written.", events };
   }
 
   if (mapped === "verified") {
@@ -348,89 +422,132 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
       checks,
       ...(rebinding ? { rebinding } : {}),
     });
+    setStage("disposition_recorded");
     await publishProjection({ store, box, profile, config, snapshotId: snap, extra: { phase: "live" } }).then((r) => events.push(r.event));
-    return { result: freshness === "reapplied" ? "reapplied" : "applied", mapped_action: "verified", explanation: freshness === "reapplied" ? `Verified, re-applied to ${snap}: the binding is unchanged.` : `Verified on ${bindingText(store, b)}.`, events };
+    return { result: resultKind, mapped_action: "verified", explanation: clientNote + (freshness === "reapplied" ? `Verified, re-applied to ${snap}: the binding is unchanged.` : `Verified on ${bindingText(store, b)}.`), events };
   }
 
-  // returned_to_author: the author task first, the disposition only after it exists.
-  const due_at = input.due_at ?? addBusinessDays(now(), profile.default_remediation_window_business_days);
-  const draft = input.author_message ? null : await draftAuthorMessage({ store, box, config, st: target, reason: view.message });
-  const stored = store.data.drafts[mapping.finding_id];
-  const authorMessage = input.author_message ?? draft!.text;
-  const drafted_by = input.author_message ? (stored?.drafted_by ?? "box_ai_text_gen") : draft!.drafted_by;
-  const edited_before_sending = input.author_message ? !!stored && stored.text !== input.author_message : false;
+  // returned_to_author: needs the reviewer-approved draft, then the author task, then the disposition.
+  const approved = approvedDraftFor(store, [mapping.finding_id, target.finding_id ?? ""], view.message);
+  if (!approved && !proc?.author_task_id) {
+    const awaiting = { finding_id: mapping.finding_id, reason: view.message, snapshot_id: snap, dedup_key };
+    if (proc?.stage !== "awaiting_draft") {
+      append({
+        event_type: "acknowledgment_recorded",
+        snapshot_id: snap,
+        actor: human,
+        control_id: control.id,
+        finding_id: mapping.finding_id,
+        comment: view.message,
+        via,
+        reviewer_identity,
+        fallback: "confirm_finding",
+        author_routing: "awaiting reviewer-approved draft",
+        awaiting_draft: awaiting,
+        note: "Confirm finding recorded. The author task awaits the reviewer's approval of its draft in Keel (spec 3 step 11: the draft is shown before sending); no disposition yet.",
+      });
+      setStage("awaiting_draft", { target_snapshot_id: snap });
+    }
+    return {
+      result: resultKind,
+      mapped_action: "acknowledged",
+      fallback: "confirm_finding",
+      awaiting_draft: awaiting,
+      stage: "awaiting_draft",
+      explanation: clientNote + "Author task awaiting reviewer-approved draft: the finding is confirmed; approve the drafted author message to create the author task.",
+      events,
+    };
+  }
+
+  const due_at = proc?.due_at ?? input.due_at ?? addBusinessDays(now(), profile.default_remediation_window_business_days);
+  const authorMessage = approved?.text ?? "";
+  const drafted_by = approved?.drafted_by ?? "box_ai_text_gen";
   const lost_clauses = target.clause_support.filter((c) => c.support !== "supported").map((c) => c.clause);
   const authorFileId = b?.fileId ?? target.prior_verification?.fileId ?? "";
-  let authorTask: StoredTask | null = null;
-  try {
-    const { task_id } = await box.createTask(authorFileId, authorMessage, "complete", due_at);
-    const asg = await box.assignTask(task_id, { id: config.author.box_user_id });
-    authorTask = {
-      task_id,
-      assignment_id: asg.assignment_id,
-      action: "complete",
-      kind: "author",
-      fileId: authorFileId,
-      assignee: asg.assigned_to.name,
-      assignee_box_user_id: asg.assigned_to.id,
-      finding_id: mapping.finding_id,
-      control_id: control.id,
-      snapshot_id: snap,
-      message: authorMessage,
-      due_at,
-      due_rule: `${profile.default_remediation_window_business_days} business days (profile default remediation window)`,
-      drafted_by,
-      status: "open",
-      created_at: utcNow(now()),
-    };
-  } catch (err) {
-    // Confirm-finding fallback (acceptance 18): acknowledgment only, row unchanged, routing proposed.
+  let authorTask: StoredTask | null = proc?.author_task_id ? store.data.tasks.find((t) => t.task_id === proc.author_task_id) ?? null : null;
+  if (!authorTask) {
+    try {
+      // Resume: the author task may already exist in Box from an interrupted attempt (Codex finding 7).
+      const existingId = store.data.processing[dedup_key]?.author_task_id;
+      const task_id = existingId ?? (await box.createTask(authorFileId, authorMessage, "complete", due_at)).task_id;
+      if (!existingId) setStage("author_task_created", { author_task_id: task_id, due_at }); // persisted before anything else can fail
+      const prior = existingId ? (await box.listTaskAssignments(task_id))[0] : undefined;
+      const asg = prior ? { assignment_id: prior.assignment_id, assigned_to: prior.assigned_to } : await box.assignTask(task_id, boxAssignee(config.author, config.mockMode));
+      authorTask = {
+        task_id,
+        assignment_id: asg.assignment_id,
+        action: "complete",
+        kind: "author",
+        fileId: authorFileId,
+        assignee: asg.assigned_to.name,
+        assignee_box_user_id: asg.assigned_to.id,
+        finding_id: mapping.finding_id,
+        control_id: control.id,
+        snapshot_id: snap,
+        message: authorMessage,
+        due_at,
+        due_rule: `${profile.default_remediation_window_business_days} business days (profile default remediation window)`,
+        drafted_by,
+        status: "open",
+        created_at: utcNow(now()),
+      };
+    } catch (err) {
+      if (store.data.processing[dedup_key]?.author_task_id) throw err; // assignment failed after creation: retry resumes
+      // Confirm-finding fallback (acceptance 18): acknowledgment only, row unchanged, routing proposed.
+      append({
+        event_type: "box_task_create_failed",
+        snapshot_id: snap,
+        actor: APP_ACTOR,
+        control_id: control.id,
+        finding_id: mapping.finding_id,
+        error: { code: "AUTHOR_TASK_CREATE_FAILED", message: err instanceof Error ? err.message : String(err) },
+        intended: { kind: "author", assignee: config.author.name, due_at },
+      });
+      append({
+        event_type: "acknowledgment_recorded",
+        snapshot_id: snap,
+        actor: human,
+        control_id: control.id,
+        finding_id: mapping.finding_id,
+        comment: view.message,
+        via,
+        reviewer_identity,
+        fallback: "confirm_finding",
+        author_routing: "proposed",
+        note: "Confirm finding: the reviewer's finding is recorded against these versions; author task creation failed, so no disposition is written and the row keeps its Needs review label. Routing to the author is proposed.",
+      });
+      setStage("acknowledged");
+      return {
+        result: "applied",
+        mapped_action: "acknowledged",
+        fallback: "confirm_finding",
+        explanation: "Author task creation failed: recorded Confirm finding (acknowledgment), no disposition; routing to the author is proposed.",
+        events,
+      };
+    }
+    const mappingB: TaskMapping = { task_id: authorTask.task_id, assignment_id: authorTask.assignment_id, finding_id: mapping.finding_id, control_id: control.id, snapshot_id: snap, immutable: true };
+    store.data.tasks.push(authorTask);
+    store.data.task_mappings[authorTask.assignment_id] = Object.freeze(mappingB) as TaskMapping;
+    const { status: _s, created_at: _c, ...boxTaskB } = authorTask;
     append({
-      event_type: "box_task_create_failed",
+      event_type: "box_task_created",
       snapshot_id: snap,
       actor: APP_ACTOR,
       control_id: control.id,
       finding_id: mapping.finding_id,
-      error: { code: "AUTHOR_TASK_CREATE_FAILED", message: err instanceof Error ? err.message : String(err) },
-      intended: { kind: "author", assignee: config.author.name, due_at },
+      task: { ...boxTaskB, message_drafted_by: drafted_by === "box_ai_text_gen" ? "Box AI text generation from the finding and the reviewer's reason" : "template (Box AI text generation unavailable)", shown_to_reviewer_before_sending: true, stored_verbatim: true } as never,
+      drafted_by,
+      edited_before_sending: approved?.edited_before_sending ?? false,
+      lost_clauses,
+      server_mapping: mappingB,
     });
-    append({
-      event_type: "acknowledgment_recorded",
-      snapshot_id: snap,
-      actor: human,
-      control_id: control.id,
-      finding_id: mapping.finding_id,
-      comment: view.message,
-      via,
-      reviewer_identity,
-      fallback: "confirm_finding",
-      author_routing: "proposed",
-      note: "Confirm finding: the reviewer's finding is recorded against these versions; author task creation failed, so no disposition is written and the row keeps its Needs review label. Routing to the author is proposed.",
-    });
-    return {
-      result: "applied",
-      mapped_action: "acknowledged",
-      fallback: "confirm_finding",
-      explanation: "Author task creation failed: recorded Confirm finding (acknowledgment), no disposition; routing to the author is proposed.",
-      events,
-    };
   }
-  const mappingB: TaskMapping = { task_id: authorTask.task_id, assignment_id: authorTask.assignment_id, finding_id: mapping.finding_id, control_id: control.id, snapshot_id: snap, immutable: true };
-  store.data.tasks.push(authorTask);
-  store.data.task_mappings[authorTask.assignment_id] = Object.freeze(mappingB) as TaskMapping;
-  const { status: _s, created_at: _c, ...boxTask } = authorTask;
-  append({
-    event_type: "box_task_created",
-    snapshot_id: snap,
-    actor: APP_ACTOR,
-    control_id: control.id,
-    finding_id: mapping.finding_id,
-    task: { ...boxTask, message_drafted_by: drafted_by === "box_ai_text_gen" ? "Box AI text generation from the finding and the reviewer's reason" : "template (Box AI text generation unavailable)", shown_to_reviewer_before_sending: !!input.author_message, stored_verbatim: true } as never,
-    drafted_by,
-    edited_before_sending,
-    lost_clauses,
-    server_mapping: mappingB,
-  });
+  if (!stillFresh()) {
+    const msg = `binding changed while the author task was being created: ${bindingText(store, b)} on ${snap} is no longer current`;
+    append({ event_type: "action_rejected_stale", snapshot_id: store.data.current_snapshot_id, actor: APP_ACTOR, control_id: control.id, finding_id: mapping.finding_id, orphaned_author_task_id: authorTask.task_id, explanation: msg });
+    setStage("rejected");
+    return { result: "rejected", mapped_action: "rejected", explanation: msg, events };
+  }
   append({
     ...dispBase,
     human_disposition: "returned_to_author" as never,
@@ -440,24 +557,44 @@ export async function ingestTaskResponse(deps: DispositionDeps, input: IngestInp
     author_task_id: authorTask.task_id,
     recorded_after: "author task created successfully",
   });
+  setStage("disposition_recorded");
   await publishProjection({ store, box, profile, config, snapshotId: snap, extra: { phase: "live" } }).then((r) => events.push(r.event));
+  const { status: _s2, created_at: _c2, ...boxTask } = authorTask;
   return {
-    result: freshness === "reapplied" ? "reapplied" : "applied",
+    result: resultKind,
     mapped_action: "returned_to_author",
-    explanation: `${freshness === "reapplied" ? `Re-applied to ${snap} (binding unchanged). ` : ""}Returned to author: task ${authorTask.task_id} for ${authorTask.assignee}, due ${due_at}.`,
+    explanation: `${clientNote}${freshness === "reapplied" ? `Re-applied to ${snap} (binding unchanged). ` : ""}Returned to author: task ${authorTask.task_id} for ${authorTask.assignee}, due ${due_at}.`,
     events,
     author_task: boxTask as BoxTask,
   };
 }
 
-/** Live and mock: poll every open task mapping and ingest resolved assignments through the same handler. */
-export async function pollAssignments(deps: DispositionDeps): Promise<IngestResult[]> {
-  const out: IngestResult[] = [];
+/** Responses waiting for a reviewer-approved author draft (surfaced by the UI as the draft step). */
+export function awaitingDrafts(store: Store): ProcessingRecord[] {
+  return Object.values(store.data.processing).filter((p) => p.stage === "awaiting_draft");
+}
+
+/**
+ * Live and mock: poll every open reviewer task and ingest resolved assignments through the same
+ * handler. Ingestion is serialized by the package lock; one failure does not stop the others.
+ */
+export async function pollAssignments(deps: DispositionDeps): Promise<{ results: IngestResult[]; errors: { task_id: string; message: string }[] }> {
+  const results: IngestResult[] = [];
+  const errors: { task_id: string; message: string }[] = [];
   for (const t of deps.store.data.tasks.filter((x) => x.status === "open" && (x.kind ?? "reviewer") === "reviewer")) {
     const mapping = deps.store.data.task_mappings[t.assignment_id];
     if (!mapping) continue;
-    const views = await deps.box.listTaskAssignments(t.task_id);
-    for (const v of views) if (v.assignment_id === t.assignment_id && v.resolution_state !== "incomplete" && v.completed_at) out.push(await ingestTaskResponse(deps, { view: v, mapping }));
+    try {
+      const views = await deps.box.listTaskAssignments(t.task_id);
+      for (const v of views) {
+        if (v.assignment_id !== t.assignment_id || v.resolution_state === "incomplete" || !v.completed_at) continue;
+        const p = deps.store.data.processing[`${v.assignment_id}|${v.completed_at}`];
+        if (p?.stage === "awaiting_draft" && !approvedDraftFor(deps.store, [p.finding_id], v.message)) continue; // nothing new until the draft is approved
+        results.push(await ingestTaskResponse(deps, { view: v, mapping }));
+      }
+    } catch (err) {
+      errors.push({ task_id: t.task_id, message: err instanceof Error ? err.message : String(err) });
+    }
   }
-  return out;
+  return { results, errors };
 }

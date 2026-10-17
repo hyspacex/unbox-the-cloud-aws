@@ -13,6 +13,13 @@ export interface Identity {
   role: string;
   box_user_id: string;
   login: string;
+  /** False when box_user_id is the fixture default rather than a tenant id: assign by login (Codex finding 9). */
+  id_explicit?: boolean;
+}
+
+/** How to address an identity in Box: by tenant id when known, else by login. Mock always uses ids. */
+export function boxAssignee(i: Identity, mockMode: boolean): { id: string } | { login: string } {
+  return mockMode || i.id_explicit ? { id: i.box_user_id } : { login: i.login };
 }
 
 export interface KeelConfig {
@@ -35,6 +42,8 @@ export interface KeelConfig {
   mockGate: "mock" | "absent";
   /** Mock only: 1 = compressed real wall clock (about 8 s per run), 0 = no artificial delay (tests). */
   mockTimeScale: number;
+  /** Live only: background poll of Box task assignments, started lazily (0 disables). */
+  pollIntervalMs: number;
   box: {
     folderId: string;
     templateKey: string;
@@ -94,12 +103,14 @@ export function loadConfig(): KeelConfig {
     role: env("KEEL_REVIEWER_ROLE") ?? FIXTURE_IDENTITIES.dana.role,
     box_user_id: env("KEEL_REVIEWER_BOX_USER_ID") ?? FIXTURE_IDENTITIES.dana.box_user_id,
     login: env("KEEL_REVIEWER_LOGIN") ?? FIXTURE_IDENTITIES.dana.login,
+    id_explicit: !!env("KEEL_REVIEWER_BOX_USER_ID"),
   };
   const author: Identity = {
     name: env("KEEL_AUTHOR_NAME") ?? FIXTURE_IDENTITIES.jpark.name,
     role: env("KEEL_AUTHOR_ROLE") ?? FIXTURE_IDENTITIES.jpark.role,
     box_user_id: env("KEEL_AUTHOR_BOX_USER_ID") ?? FIXTURE_IDENTITIES.jpark.box_user_id,
     login: env("KEEL_AUTHOR_LOGIN") ?? FIXTURE_IDENTITIES.jpark.login,
+    id_explicit: !!env("KEEL_AUTHOR_BOX_USER_ID"),
   };
   const others = [FIXTURE_IDENTITIES.marcus, FIXTURE_IDENTITIES.dana, FIXTURE_IDENTITIES.priya].filter(
     (r) => r.box_user_id !== reviewer.box_user_id,
@@ -116,9 +127,11 @@ export function loadConfig(): KeelConfig {
     author,
     reviewers: [reviewer, ...others],
     deciderUrl: env("DECIDER_URL") ?? null,
-    gateInjectionThreshold: Number(env("KEEL_GATE_INJECTION_THRESHOLD") ?? 0.5),
+    // Single source for the gate threshold; DECIDER_INJECTION_THRESHOLD (decider.ts's name) wins.
+    gateInjectionThreshold: Number(env("DECIDER_INJECTION_THRESHOLD") ?? env("KEEL_GATE_INJECTION_THRESHOLD") ?? 0.5),
     mockGate: env("KEEL_MOCK_GATE") === "absent" ? "absent" : "mock",
     mockTimeScale: Number(env("KEEL_MOCK_TIME_SCALE") ?? 1),
+    pollIntervalMs: Number(env("KEEL_POLL_INTERVAL_MS") ?? 5000),
     box: {
       folderId: env("BOX_FOLDER_ID") ?? "318840021",
       templateKey: env("BOX_METADATA_TEMPLATE_KEY") ?? "keelReview",
@@ -131,7 +144,9 @@ export function loadConfig(): KeelConfig {
     },
     boxAiEnabled: bool("KEEL_BOX_AI_ENABLED", true),
     recordUrlBase: env("KEEL_RECORD_URL_BASE") ?? "https://keel.local/record/",
-    storePath: env("KEEL_STORE_PATH") ?? path.join(repoRoot(), "app", "data", "store.json"),
+    // Mock and live keep separate stores so flipping MOCK_MODE never overwrites the other ledger.
+    // app/data/runs/ is gitignored.
+    storePath: env("KEEL_STORE_PATH") ?? (mockMode ? path.join(repoRoot(), "app", "data", "store.json") : path.join(repoRoot(), "app", "data", "runs", "store-live.json")),
   };
 }
 
@@ -155,7 +170,11 @@ export function toAppConfig(c: KeelConfig): AppConfig {
     reviewer: c.reviewer,
     author: c.author,
     reviewers: c.reviewers,
-    decider: { enabled: c.mockMode ? c.mockGate === "mock" : !!c.deciderUrl, endpoint: c.deciderUrl ?? undefined },
+    decider: {
+      enabled: c.mockMode ? c.mockGate === "mock" : !!c.deciderUrl,
+      endpoint: c.deciderUrl ?? undefined,
+      kind: c.mockMode ? (c.mockGate === "mock" ? "mock" : "absent") : c.deciderUrl ? "decider" : "absent",
+    },
     box_ai: { enabled: c.boxAiEnabled },
   };
 }

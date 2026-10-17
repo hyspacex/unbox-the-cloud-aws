@@ -11,7 +11,9 @@
 import type { BoxAdapter } from "../box/adapter";
 import type { DiffHint, Evaluator, EvaluatorInput, EvaluatorResult, InputGate, SearchSnapshotTool } from "../agent/evaluator.types";
 import type { KeelConfig } from "../config";
-import type { BoxAiAskRecord, RunRecord, Store, StoredFinding, StoredTask } from "../store";
+import type { BoxAiAskRecord, GateDecision, RunRecord, Store, StoredFinding, StoredTask } from "../store";
+import { withPackageLock } from "./lock";
+import { filterBullets, filterText, type WordingHit } from "./wording";
 import type {
   Actor,
   ClauseSupport,
@@ -52,6 +54,8 @@ export interface PipelineContext {
   onStep?: (step: TraceStep) => void;
   /** Mock only: label for the run's timing. */
   compressedTiming?: boolean;
+  /** Called once the snapshot id is known (new capture, or the snapshot being retried). */
+  onSnapshot?: (snapshotId: string, retry: boolean) => void;
 }
 
 export interface PipelineResult {
@@ -83,7 +87,29 @@ export function controlDependsOn(control: Pick<Control, "evidence">, fileName: s
 
 const fmtProb = (p: number) => p.toFixed(2);
 
-export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
+/** One review transaction per package at a time (Codex finding 6): capture and evaluation hold the package lock. */
+export function runReview(ctx: PipelineContext): Promise<PipelineResult> {
+  return withPackageLock(ctx.config.box.folderId, () => runReviewLocked(ctx));
+}
+
+/**
+ * Does a snapshot with an unchanged version set need another attempt (Codex finding 8)? Yes when its
+ * latest attempt is pending or failed, read coverage was incomplete, or projection or task creation failed.
+ */
+export function needsRetry(store: Store, snapshotId: string): boolean {
+  const ev = store.events;
+  const lastAttempt = ev.map((e, i) => (e.snapshot_id === snapshotId && e.event_type === "evaluation_attempt" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+  const since = ev.slice(Math.max(lastAttempt, 0)).filter((e) => e.snapshot_id === snapshotId);
+  const completed = since.filter((e) => e.event_type === "evaluation_completed").at(-1);
+  if (lastAttempt < 0 || !completed || completed.evaluation_state === "error") return lastAttempt >= 0 || ev.some((e) => e.snapshot_id === snapshotId && e.event_type === "snapshot_captured");
+  const fetched = ev.filter((e) => e.snapshot_id === snapshotId && e.event_type === "texts_fetched").at(-1);
+  if (fetched?.coverage && fetched.coverage.readable < fetched.coverage.total) return true;
+  const proj = ev.filter((e) => e.snapshot_id === snapshotId && (e.event_type === "box_metadata_written" || e.event_type === "box_metadata_write_failed")).at(-1);
+  if (proj?.event_type === "box_metadata_write_failed") return true;
+  return since.some((e) => e.event_type === "box_task_create_failed" && !(e.intended as { kind?: string } | undefined)?.kind);
+}
+
+async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   const { box, evaluator, gate, store, profile, config } = ctx;
   const opts = eventOpts(config);
   const t0 = Date.now();
@@ -119,13 +145,16 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     ...extra,
   });
 
-  // ------------------------------------------------------------------ 1. Intake: observe versions
+  // ------------------------------------------------------------------ 1. Intake: compare complete manifests
   const prior = store.currentSnapshot;
   let start = Date.now();
   const items = await box.listFolderItems(config.box.folderId);
   const changed = items.filter((it) => prior?.files.find((f) => f.fileId === it.fileId)?.versionId !== it.currentVersionId);
-  if (!changed.length) {
-    emit({ source: "box", kind: "no_change", label: "No new file version in the package folder; nothing to evaluate", ...since(start) });
+  const removed = (prior?.files ?? []).filter((f) => !items.some((it) => it.fileId === f.fileId));
+  // Same version set: re-run only when the snapshot's last evaluation or its side effects did not finish.
+  const retry = !changed.length && !removed.length && !!prior && needsRetry(store, prior.snapshot_id);
+  if (!changed.length && !removed.length && !retry) {
+    emit({ source: "box", kind: "no_change", label: "No new, changed or removed file in the package folder; the last evaluation is complete", ...since(start) });
     return result("no_change", prior?.snapshot_id ?? null, "complete");
   }
   const labels = new Map<string, string>();
@@ -150,38 +179,59 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       }
     });
   }
-  const snapshotNumber = store.data.snapshots.length + 1;
-  const snapshotId = `S${snapshotNumber}`;
-  for (const it of changed) {
-    const info = store.versionInfo(it.fileId, it.currentVersionId);
-    const uploader = info?.uploader ?? "unknown uploader";
-    append({
-      event_type: "file_version_observed",
-      actor: { type: uploader.startsWith("svc-") ? "service" : "human", name: uploader, role: "uploader", ...(info?.uploader_id ? { box_user_id: info.uploader_id } : {}) },
-      snapshot_id: snapshotId,
-      fileId: it.fileId,
-      fileName: it.fileName,
-      versionId: it.currentVersionId,
-      uploaded_at: info?.createdAt ?? null,
-      version_label: info?.label ?? null,
-      ...(info?.comment ? { version_comment: info.comment } : {}),
-      ...(info?.metadata ?? {}),
+  const snapshotId = retry ? prior!.snapshot_id : `S${store.data.snapshots.length + 1}`;
+  ctx.onSnapshot?.(snapshotId, retry);
+  if (!retry) {
+    for (const it of changed) {
+      const info = store.versionInfo(it.fileId, it.currentVersionId);
+      const uploader = info?.uploader ?? "unknown uploader";
+      append({
+        event_type: "file_version_observed",
+        actor: { type: uploader.startsWith("svc-") ? "service" : "human", name: uploader, role: "uploader", ...(info?.uploader_id ? { box_user_id: info.uploader_id } : {}) },
+        snapshot_id: snapshotId,
+        fileId: it.fileId,
+        fileName: it.fileName,
+        versionId: it.currentVersionId,
+        uploaded_at: info?.createdAt ?? null,
+        version_label: info?.label ?? null,
+        ...(info?.comment ? { version_comment: info.comment } : {}),
+        ...(info?.metadata ?? {}),
+      });
+    }
+    for (const f of removed) {
+      append({
+        event_type: "file_version_observed",
+        actor: APP_ACTOR,
+        snapshot_id: snapshotId,
+        fileId: f.fileId,
+        fileName: f.fileName,
+        versionId: null,
+        removed: true,
+        previous_version_id: f.versionId,
+        note: `${f.fileName} is no longer in the package folder; controls that list it as an evidence location are evaluated without it`,
+      });
+    }
+    emit({
+      source: "box",
+      kind: "file_version_observed",
+      label: [
+        changed.length ? `New version observed: ${changed.map((c) => `${c.fileName} ${labels.get(c.currentVersionId) ?? ""}`.trim()).join(", ")}` : "",
+        removed.length ? `Removed from the folder: ${removed.map((f) => f.fileName).join(", ")}` : "",
+      ].filter(Boolean).join("; "),
+      ...since(start),
+      detail: { changed: changed.map((c) => ({ fileId: c.fileId, fileName: c.fileName, versionId: c.currentVersionId, ...store.versionInfo(c.fileId, c.currentVersionId) })), removed },
     });
+  } else {
+    emit({ source: "app", kind: "evaluation_retry", label: `Same version set as ${snapshotId}; its last evaluation or side effects did not finish, so it is re-run as a new attempt`, ...since(start) });
   }
-  emit({
-    source: "box",
-    kind: "file_version_observed",
-    label: `New version observed: ${changed.map((c) => `${c.fileName} ${labels.get(c.currentVersionId) ?? ""}`.trim()).join(", ")}`,
-    ...since(start),
-    detail: changed.map((c) => ({ fileId: c.fileId, fileName: c.fileName, versionId: c.currentVersionId, ...store.versionInfo(c.fileId, c.currentVersionId) })),
-  });
 
   // ------------------------------------------------------------------ 2-3. Snapshot, fetch by version, coverage
   start = Date.now();
   const pinned: (PinnedFile & { error?: { code: string; message: string }; contentHash: string })[] = [];
-  for (const it of items) {
+  const toFetch = retry ? prior!.files.map((f) => ({ fileId: f.fileId, fileName: f.fileName, currentVersionId: f.versionId })) : items;
+  for (const it of toFetch) {
     const r = await box.downloadVersionText(it.fileId, it.currentVersionId);
-    const label = labels.get(it.currentVersionId);
+    const label = labels.get(it.currentVersionId) ?? store.versionLabel(it.fileId, it.currentVersionId);
     if (r.ok) {
       store.data.texts[it.currentVersionId] = r.text;
       const h = contentHash(r.text);
@@ -192,44 +242,50 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     }
   }
   const fetchMs = since(start);
-  const files: SnapshotFile[] = pinned.map((p) => ({ fileId: p.fileId, fileName: p.fileName, versionId: p.versionId, contentHash: p.contentHash }));
-  const capturedAt = utcNow();
-  const body = { snapshot_id: snapshotId, captured_at: capturedAt, control_profile_version: profile.profile_version, files };
-  const snapshot: Snapshot = {
-    ...body,
-    files: files.map((f) => ({ ...f, versionLabel: labels.get(f.versionId) })),
-    era: `${changed.map((c) => `${c.fileName} ${labels.get(c.currentVersionId) ?? ""}`.trim()).join(", ")} upload`,
-    manifest_hash: "sha256:" + sha256Hex(canonicalJSON(body)),
-  };
-  store.data.snapshots.push(snapshot);
-  store.data.current_snapshot_id = snapshotId; // authoritative pointer moves at capture; rows read "Re-check pending"
-  append({
-    event_type: "snapshot_captured",
-    actor: APP_ACTOR,
-    snapshot_id: snapshotId,
-    manifest_hash: snapshot.manifest_hash,
-    control_profile_version: profile.profile_version,
-    prior_snapshot_id: prior?.snapshot_id ?? null,
-    files: files.map((f) => ({ fileName: f.fileName, versionId: f.versionId, contentHash: f.contentHash })),
-  });
-  emit({ source: "app", kind: "snapshot_captured", label: `Snapshot ${snapshotId} captured: ${files.length} files`, startMs: start - t0, durationMs: 0, detail: { snapshot_id: snapshotId, manifest_hash: snapshot.manifest_hash, files } });
+  let snapshot: Snapshot;
+  if (retry) snapshot = prior!;
+  else {
+    const files: SnapshotFile[] = pinned.map((p) => ({ fileId: p.fileId, fileName: p.fileName, versionId: p.versionId, contentHash: p.contentHash }));
+    const body = { snapshot_id: snapshotId, captured_at: utcNow(), control_profile_version: profile.profile_version, files };
+    snapshot = {
+      ...body,
+      files: files.map((f) => ({ ...f, versionLabel: labels.get(f.versionId) })),
+      era: [changed.map((c) => `${c.fileName} ${labels.get(c.currentVersionId) ?? ""}`.trim()).join(", ") + (changed.length ? " upload" : ""), removed.length ? `${removed.map((f) => f.fileName).join(", ")} removed` : ""].filter(Boolean).join("; "),
+      manifest_hash: "sha256:" + sha256Hex(canonicalJSON(body)),
+    };
+    store.data.snapshots.push(snapshot);
+    store.data.current_snapshot_id = snapshotId; // authoritative pointer moves at capture; rows read "Re-check pending"
+    append({
+      event_type: "snapshot_captured",
+      actor: APP_ACTOR,
+      snapshot_id: snapshotId,
+      manifest_hash: snapshot.manifest_hash,
+      control_profile_version: profile.profile_version,
+      prior_snapshot_id: prior?.snapshot_id ?? null,
+      files: files.map((f) => ({ fileName: f.fileName, versionId: f.versionId, contentHash: f.contentHash })),
+      ...(removed.length ? { removed_files: removed.map((f) => f.fileName) } : {}),
+    });
+    emit({ source: "app", kind: "snapshot_captured", label: `Snapshot ${snapshotId} captured: ${files.length} files`, startMs: start - t0, durationMs: 0, detail: { snapshot_id: snapshotId, manifest_hash: snapshot.manifest_hash, files } });
+  }
 
   const readable = pinned.filter((p) => p.text !== null);
   const evaluationId = `EVAL-${snapshotId}`;
+  const attempt = store.events.filter((e) => e.snapshot_id === snapshotId && e.event_type === "evaluation_attempt").length + 1;
   const coverage = { readable: readable.length, total: pinned.length };
   append({
     event_type: "texts_fetched",
     actor: APP_ACTOR,
     snapshot_id: snapshotId,
     evaluation_id: evaluationId,
-    attempt: 1,
+    attempt,
     coverage,
     files: pinned.map((p) => ({ fileName: p.fileName, versionId: p.versionId, readable: p.text !== null, ...(p.error ? { reason: p.error } : {}) })),
+    ...(removed.length ? { removed_files: removed.map((f) => f.fileName) } : {}),
   });
   emit({
     source: "box",
     kind: "texts_fetched",
-    label: `Texts fetched by version: coverage ${readable.length} of ${pinned.length} readable`,
+    label: `Texts fetched by version: coverage ${readable.length} of ${pinned.length} readable${attempt > 1 ? ` (attempt ${attempt})` : ""}`,
     ...fetchMs,
     detail: {
       coverage: `${readable.length} of ${pinned.length}`,
@@ -237,12 +293,19 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     },
   });
 
-  // ------------------------------------------------------------------ 5. Input gate per changed, readable file
-  const quarantined = new Map<string, InputGateResult>();
+  // ------------------------------------------------------------------ 5. Input gate per new version; decisions persist by version
+  const quarantined = new Map<string, InputGateResult | GateDecision>();
   const gateResults: InputGateResult[] = [];
-  for (const it of changed) {
-    const p = pinned.find((x) => x.fileId === it.fileId)!;
+  for (const p of pinned) {
     if (p.text === null) continue;
+    const key = `${p.fileId}@${p.versionId}`;
+    const prev = store.data.gate_decisions[key];
+    if (prev && prev.contentHash === p.contentHash) {
+      // A recorded decision for this exact version stands: a quarantined version stays withheld (Codex finding 2).
+      if (prev.quarantined) quarantined.set(p.fileId, prev);
+      continue;
+    }
+    if (!changed.some((c) => c.fileId === p.fileId)) continue; // versions captured before the gate existed are not re-gated
     start = Date.now();
     const g = await gate.gate({ fileId: p.fileId, fileName: p.fileName, versionId: p.versionId, contentHash: p.contentHash }, p.text);
     if (!g) {
@@ -254,7 +317,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     gateResults.push(g);
     const isQ = g.injection.answer === "yes" && g.injection.probability >= config.gateInjectionThreshold;
     if (isQ) quarantined.set(p.fileId, g);
-    append({
+    const ev = append({
       event_type: "input_gate",
       actor: DECIDER_ACTOR(gate.kind),
       snapshot_id: snapshotId,
@@ -265,8 +328,10 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       detail: { injection: g.injection, material_change: g.material_change, options: g.options, latency_ms: g.latency_ms },
       quarantined: isQ,
       threshold: config.gateInjectionThreshold,
-      note: isQ ? "quarantined above the injection threshold; text withheld from the evaluator; gate never writes a status" : "gate result recorded; never writes a status",
+      note: isQ ? "quarantined above the injection threshold; text withheld from the evaluator on this and every later evaluation of this version; gate never writes a status" : "gate result recorded; never writes a status",
     });
+    store.data.gate_decisions[key] = { fileId: p.fileId, fileName: p.fileName, versionId: p.versionId, contentHash: p.contentHash, quarantined: isQ, injection: g.injection, snapshot_id: snapshotId, event_id: ev.event_id };
+    store.save();
     emit({
       source: "decider",
       kind: "input_gate",
@@ -277,12 +342,18 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       result: { ...g, quarantined: isQ },
     });
   }
+  const carriedQ = [...quarantined.values()].filter((q) => !("options" in q));
   if (gateResults.length) {
     const g = gateResults[0];
     gateInfo = {
       ran: true,
       label: `Decider 2B: injection ${g.injection.answer} (${fmtProb(g.injection.probability)}), material change ${g.material_change.answer.replace("_", " ")} (${fmtProb(g.material_change.probability)}), ${g.latency_ms} ms${gate.kind === "mock" ? ", mock stand-in" : ", local"}${quarantined.size ? `; quarantined ${[...quarantined.values()].map((q) => q.fileName).join(", ")}` : ""}`,
     };
+  } else if (carriedQ.length) {
+    gateInfo = { ran: false, label: `no new version to gate; ${carriedQ.map((q) => q.fileName).join(", ")} still quarantined from an earlier gate decision` };
+  }
+  if (carriedQ.length) {
+    emit({ source: "app", kind: "input_gate_carried", label: `Quarantine stands: ${carriedQ.map((q) => q.fileName).join(", ")} withheld from the evaluator (recorded gate decision for this version)`, startMs: Date.now() - t0, durationMs: 0, detail: carriedQ });
   }
   for (const p of pinned) if (quarantined.has(p.fileId)) p.given = false;
 
@@ -340,7 +411,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     actor: machineActor,
     snapshot_id: snapshotId,
     evaluation_id: evaluationId,
-    attempt: 1,
+    attempt,
     coverage,
     files_given: given.map((p) => p.fileName),
     files_withheld: pinned.filter((p) => !p.given).map((p) => ({ fileName: p.fileName, reason: p.text === null ? "unreadable" : "input_gate" })),
@@ -479,7 +550,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       actor: APP_ACTOR,
       snapshot_id: snapshotId,
       evaluation_id: evaluationId,
-      attempt: 1,
+      attempt,
       coverage,
       error: validation.error,
       prompt_hash: promptHash,
@@ -492,7 +563,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       snapshot_id: snapshotId,
       evaluation_id: evaluationId,
       evaluation_state: "error",
-      attempts: 1,
+      attempts: attempt,
       coverage,
       controls_evaluated: 0,
       error: validation.error,
@@ -530,6 +601,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     priorBinding: EvidenceRef | null;
     model_basis: string[];
     model_suggested_action?: string;
+    wording: WordingHit[];
   };
   const outcomes: Outcome[] = [];
   for (const control of profile.controls) {
@@ -539,9 +611,12 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     const priorBindingEval = pe.binding ? { fileId: pe.binding.fileId!, fileName: pe.binding.fileName ?? "", versionId: pe.binding.versionId ?? "", quote: pe.binding.quote ?? "" } : null;
     const assessment = deriveAssessment(v.clause_support, { conflicting: !!v.conflicting, notEvaluatedReason: reason ?? null });
     const { binding, evidence } = reason ? { binding: null, evidence: [] } : selectBinding(v.clause_support);
-    const classification = classifyChange({ binding: priorBindingEval, assessment: (pe.last?.machine_assessment as never) ?? null }, assessment, binding);
     const pvEvent = verifications.get(control.id) ?? null;
     const pb = priorBindings.get(control.id) ?? null;
+    // Classify against the verified binding when one exists (Codex finding 1): an unreviewed change
+    // stays a change on every later snapshot until a person verifies the new binding.
+    const reference = pb ? { binding: { fileId: pb.fileId, fileName: pb.fileName, versionId: pb.versionId, quote: pb.quote }, assessment: "evidence_found" as const } : { binding: priorBindingEval, assessment: (pe.last?.machine_assessment as never) ?? null };
+    const classification = classifyChange(reference, assessment, binding);
     let staleness: StalenessResult | null = null;
     if (!reason) {
       const priorText = pb ? store.text(pb.versionId) : undefined;
@@ -588,10 +663,19 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
         conflicting: v.conflicting,
         staleness,
       });
+      const gone = removed.filter((f) => controlDependsOn(control, f.fileName));
+      if (gone.length) basis.push(`Evidence location ${gone.map((f) => f.fileName).join(", ")} is no longer in the package folder (removed since ${prior?.snapshot_id ?? "the prior snapshot"}).`);
     }
+    // Wording filter before persistence (Codex finding 18); verbatim quotes are exempt.
+    const hits: WordingHit[] = [];
+    const exempt = [...v.clause_support.flatMap((c) => (c.quote ? [c.quote.quote] : [])), ...(v.conflicting ? [v.conflicting.quote] : []), ...(pb ? [pb.quote] : [])];
+    basis = filterBullets("basis", basis, exempt, hits);
+    const modelBasis = filterBullets("model_basis", v.model_basis, exempt, hits);
+    const modelSuggestion = filterText("model_suggested_action", v.model_suggested_action, exempt, "Model suggestion withheld: it used wording reserved for a human disposition.", hits);
     outcomes.push({
       control,
-      findingId: store.nextFindingId(),
+      // A retry attempt on the same snapshot keeps the finding id (side effects already reference it).
+      findingId: Object.values(store.data.findings).find((f) => f.snapshot_id === snapshotId && f.control_id === control.id)?.finding_id ?? store.nextFindingId(),
       reason,
       clause_support: v.clause_support,
       assessment,
@@ -604,8 +688,9 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       priorAssessment: (pe.last?.machine_assessment as string | null) ?? null,
       priorVerificationBlock: pvEvent ? priorVerificationFromEvent(pvEvent) : null,
       priorBinding: pb,
-      model_basis: v.model_basis,
-      model_suggested_action: v.model_suggested_action,
+      model_basis: modelBasis,
+      model_suggested_action: modelSuggestion,
+      wording: hits,
     });
   }
 
@@ -629,7 +714,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
         versionId: f?.versionId ?? null,
         contentHash: f?.contentHash ?? null,
         evaluation_id: evaluationId,
-        attempt: 1,
+        attempt,
         coverage,
         error: { code: o.reason.code, message: o.reason.message },
         basis: o.basis,
@@ -659,12 +744,13 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       evidence: o.evidence,
       ...(o.conflicting ? { conflicting_quote: o.conflicting } : {}),
       evaluation_id: evaluationId,
-      attempt: 1,
+      attempt,
       coverage,
       prompt_hash: promptHash,
       ...modelMeta,
       finding_id: o.findingId,
       model_basis: o.model_basis,
+      ...(o.wording.length ? { wording_filter: o.wording } : {}),
       projection: { box_metadata: "pending" },
     });
   }
@@ -716,7 +802,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     snapshot_id: snapshotId,
     evaluation_id: evaluationId,
     evaluation_state: "complete",
-    attempts: 1,
+    attempts: attempt,
     coverage,
     controls_evaluated: outcomes.length,
     outcomes: outcomes.map((o) => ({ control_id: o.control.id, machine_assessment: o.assessment, change_classification: o.classification })),
@@ -758,7 +844,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       mrm_model_id: config.mrmModelId,
       normalization: NORMALIZATION,
       box_deep_link: `https://app.box.com/folder/${config.box.folderId}?keel_finding=${o.findingId}`,
-      suggested_action: suggestedAction(row, o.control, store),
+      suggested_action: filterText("suggested_action", suggestedAction(row, o.control, store), [], "Review the cited evidence.", o.wording),
       run_id: ctx.runId,
       model_basis: o.model_basis,
       model_suggested_action: o.model_suggested_action,
@@ -793,7 +879,7 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
   // ------------------------------------------------------------------ 10. Projection, 11. review tasks
   await project(ctx, snapshotId, emit, t0, newEvents);
   start = Date.now();
-  const tasks = await createReviewTasks({ store, box, profile, config, snapshotId, runId: ctx.runId, quarantined: [...quarantined.values()], append });
+  const tasks = await createReviewTasks({ store, box, profile, config, snapshotId, runId: ctx.runId, quarantined: [...quarantined.values()].map((q) => ({ fileId: q.fileId, fileName: q.fileName, versionId: q.versionId, injection: q.injection })), append });
   if (tasks.created.length || tasks.failed.length || tasks.carried.length) {
     emit({
       source: "box",

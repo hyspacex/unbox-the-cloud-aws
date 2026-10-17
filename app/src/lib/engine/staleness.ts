@@ -9,6 +9,7 @@
  *   Medium (hold_if_quote_unchanged): holds when the quote is unchanged.
  */
 import type { ChangeClassification, ControlTier, LedgerEventType, Materiality } from "../types";
+import { norm } from "./normalize";
 
 export interface BindingLike {
   fileId: string;
@@ -51,6 +52,11 @@ export function verificationHolds(input: StalenessInput): StalenessResult {
   if (!prior || !binding) return { holds: null, acknowledgment_required: false, materiality };
   if (cc !== "unchanged" || binding.fileId !== prior.fileId) {
     return { holds: false, acknowledgment_required: false, note: `classification ${cc}`, materiality };
+  }
+  // The verification is bound to the verified quote itself, not to whatever the previous evaluation
+  // bound: a quote that changed and was never re-verified can never hold (Codex finding 1).
+  if (norm(binding.quote) !== norm(prior.quote)) {
+    return { holds: false, acknowledgment_required: false, note: "classification moved: the bound quote differs from the verified quote", materiality };
   }
   if (binding.versionId === prior.versionId) {
     return { holds: true, acknowledgment_required: false, note: `evidencing file version unchanged; tier ${tier} holds without acknowledgment`, materiality };

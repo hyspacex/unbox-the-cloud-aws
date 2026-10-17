@@ -13,14 +13,14 @@ export const QuoteRef = z.object({
   paragraph: z.number().int().positive().optional(),
   page: z.number().int().positive().optional(),
   quote: z.string().min(8),
-});
+}).strict(); // nested keys are rejected too: a disposition cannot hide inside a quote
 export type QuoteRef = z.infer<typeof QuoteRef>;
 
 export const ClauseSupportOut = z.object({
   clause_id: z.string().min(1),
   support: z.enum(["supported", "unsupported"]),
   quote: QuoteRef.nullable(),
-});
+}).strict();
 
 export const ControlFindingOut = z
   .object({

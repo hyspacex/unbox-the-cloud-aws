@@ -22,6 +22,7 @@ export async function createLiveAdapters(config: KeelConfig): Promise<LiveAdapte
   return {
     box: new RealBoxAdapter({}),
     evaluator: new BedrockEvaluator({}),
-    gate: new DeciderGate({}),
+    // config.ts is the single source of the injection threshold (DECIDER_INJECTION_THRESHOLD preferred).
+    gate: new DeciderGate({ injectionThreshold: config.gateInjectionThreshold }),
   };
 }

@@ -625,6 +625,10 @@ export interface PackageView {
   elapsed_ms?: number;
   gate: { ran: boolean; label: string }; // "Decider 2B: injection no (0.03)..." or "omitted: Decider not running"
   search_tool: { label: string; fallback: boolean }; // "Box AI ask" or "string search (Box AI unavailable)"
+  /** Added: live polling status of Box task responses (absent in mock). */
+  poll?: { at: string; ok: boolean; ingested: number; errors: { task_id: string; message: string }[] };
+  /** Added: returns to author whose author task waits for the reviewer to approve the draft. */
+  awaiting_drafts?: { finding_id: string; control_id: string; task_id: string; target_snapshot_id?: string; updated_at: string }[];
 }
 
 export interface FindingCard {
@@ -656,7 +660,7 @@ export interface FindingCard {
   } | null;
   related: ControlRow[];
   actions: {
-    return_to_author: { enabled: boolean; reason?: string; default_due_at: string; author: string };
+    return_to_author: { enabled: boolean; reason?: string; default_due_at: string; author: string; /** Added */ suggested_reason?: string };
     verify: { enabled: boolean; reason?: string; attestation_phrase: string };
     proposed: ("not_applicable" | "compensating_control" | "exception_requested" | "false_positive")[];
   };
@@ -664,6 +668,10 @@ export interface FindingCard {
   binding_fresh: boolean;
   thread: LedgerEvent[];
   trace_steps?: TraceStep[]; // the agent's recorded operations for this control (basis provenance)
+  /** Added: time of the first ledger event of this finding. */
+  opened_at?: string;
+  /** Added: a reviewer's return to author waiting for draft approval (action approve_author_draft). */
+  pending_author_draft?: { reason: string; draft?: string; drafted_by?: string; task_id: string; snapshot_id?: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -687,7 +695,8 @@ export interface ActionRequest {
   finding_id: string;
   control_id: string;
   decision_snapshot_id: string; // the snapshot the card was opened on
-  action: "return_to_author" | "verify" | "acknowledge";
+  /** Added "approve_author_draft": the reviewer approves the author-task draft; a waiting return to author resumes. */
+  action: "return_to_author" | "verify" | "acknowledge" | "approve_author_draft";
   reason?: string;
   due_at?: string;
   message?: string; // for verify, must include the attestation phrase
@@ -724,6 +733,6 @@ export interface AppConfig {
   reviewer: { name: string; role: string; box_user_id: string; login: string };
   author: { name: string; role: string; box_user_id: string; login: string };
   reviewers: { name: string; role: string; box_user_id: string; login: string }[];
-  decider: { enabled: boolean; endpoint?: string };
+  decider: { enabled: boolean; endpoint?: string; /** Added: "mock" labels the gate "Decider 2B (mock)". */ kind?: "mock" | "decider" | "absent" };
   box_ai: { enabled: boolean };
 }

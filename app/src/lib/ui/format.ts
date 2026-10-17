@@ -30,7 +30,31 @@ export function addMs(startIso: string, ms: number): string {
 export function ms(n?: number | null): string {
   if (n == null) return "";
   if (n < 1000) return `${Math.round(n)} ms`;
-  return `${(n / 1000).toFixed(n < 10000 ? 2 : 1)} s`;
+  return `${(n / 1000).toFixed(1)} s`;
+}
+
+/** "2026-10-08 09:05Z": minute precision for compact lines. */
+export function utcMinute(ts?: string | null): string {
+  const s = utc(ts);
+  return s.replace(/:\d{2}Z$/, "Z");
+}
+
+/** Keep both ends of a long file name: "approved-serv…exceptions.md". */
+export function midTruncate(name: string, max = 30): string {
+  if (name.length <= max) return name;
+  const keep = max - 1;
+  const head = Math.ceil(keep * 0.55);
+  return name.slice(0, head) + "…" + name.slice(name.length - (keep - head));
+}
+
+/** Rewrite any ISO timestamps inside an engine sentence into the one display format. */
+export function utcInText(text: string): string {
+  return text.replace(/\b(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}(?::\d{2})?)(?:\.\d+)?Z\b/g, "$1 $2Z");
+}
+
+export function listJoin(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
 /** "sha256:abcdef..." -> "sha256:abcdef12…9f3e" */

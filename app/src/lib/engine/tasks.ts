@@ -6,7 +6,7 @@
  * A quarantined file (input gate) also gets a reviewer task.
  */
 import type { BoxAdapter } from "../box/adapter";
-import type { KeelConfig } from "../config";
+import { boxAssignee, type KeelConfig } from "../config";
 import type { Store, StoredTask } from "../store";
 import type { Control, ControlProfile, InputGateResult, LedgerEvent, TaskMapping } from "../types";
 import { clauseNoun, NEEDS_REVIEW_KINDS } from "./display";
@@ -16,7 +16,7 @@ import { buildRows, type RowWithState } from "./state";
 import { utcNow } from "./ledger";
 import { bindingsEqual } from "./assess";
 
-const KIND_PRIORITY: Record<string, number> = { needs_review_weakened: 0, needs_review_absent: 0, needs_review_conflict: 0, needs_review_binding: 1, acknowledge: 2 };
+const KIND_PRIORITY: Record<string, number> = { needs_review_weakened: 0, needs_review_absent: 0, needs_review_conflict: 0, needs_review_binding: 1, acknowledge: 2, pending_review: 3 };
 const TIER_PRIORITY: Record<string, number> = { Critical: 0, High: 1, Medium: 2 };
 const sec = (s?: string) => (s ?? "").split(" ")[0];
 const date = (iso?: string) => (iso ?? "").slice(0, 10);
@@ -53,6 +53,8 @@ export function reviewTaskMessage(row: RowWithState, store: Store): string {
       return st.acknowledgment_reason === "evidencing section changed"
         ? `${head} Acknowledge: evidencing section changed, ${sec(b?.section)} text differs around an unchanged quote.`
         : `${head} Acknowledge: evidencing file changed, ${bl} differs from the verified ${pvLabel} around an unchanged quote.`;
+    case "pending_review":
+      return `${head} ${st.control.title}: first review. Every required clause is supported in ${bl} ${sec(b?.section)}; verify with the attestation phrase or return to author.`;
     default:
       return `${head} ${row.status.label}.`;
   }
@@ -96,7 +98,7 @@ export async function createReviewTasks(args: {
   config: KeelConfig;
   snapshotId: string;
   runId?: string;
-  quarantined?: InputGateResult[];
+  quarantined?: Pick<InputGateResult, "fileId" | "fileName" | "versionId" | "injection">[];
   append: (input: Parameters<Store["append"]>[0]) => LedgerEvent;
 }): Promise<{ created: StoredTask[]; failed: string[]; carried: StoredTask[] }> {
   const { store, box, profile, config, snapshotId, append } = args;
@@ -104,18 +106,21 @@ export async function createReviewTasks(args: {
   // An open review task whose binding is unchanged on this snapshot is carried over, not duplicated:
   // the reviewer's response is re-applied to the new snapshot by the freshness check (spec 3 step 12).
   const carriedOver = (r: RowWithState) => {
-    const open = [...store.data.tasks].reverse().find((t) => t.control_id === r.control_id && (t.kind ?? "reviewer") === "reviewer" && t.status === "open");
-    if (!open || open.snapshot_id === snapshotId) return false;
+    const open = [...store.data.tasks].reverse().find((t) => t.control_id === r.control_id && (t.kind ?? "reviewer") === "reviewer" && t.status === "open" && !(t as { purpose?: string }).purpose);
+    if (!open) return false;
+    if (open.snapshot_id === snapshotId) return true; // a retry attempt: the task already exists
+
     const then = buildRows(store, profile, open.snapshot_id, { withPrior: false }).find((x) => x.control_id === r.control_id);
     if (!then || !bindingsEqual(then.state.binding, r.state.binding) || then.status.kind !== r.status.kind) return false;
     carried.push(open);
     return true;
   };
   const rows = buildRows(store, profile, snapshotId)
-    .filter((r) => NEEDS_REVIEW_KINDS.includes(r.status.kind))
+    // Pending review (supported, never verified) also gets a task, so a fresh baseline can be verified (Codex finding 4).
+    .filter((r) => NEEDS_REVIEW_KINDS.includes(r.status.kind) || r.status.kind === "pending_review")
     .filter((r) => !carriedOver(r))
     .sort((a, b) => KIND_PRIORITY[a.status.kind] - KIND_PRIORITY[b.status.kind] || TIER_PRIORITY[a.tier] - TIER_PRIORITY[b.tier]);
-  const plan: { row?: RowWithState; fileId: string; control_id: string; finding_id: string; message: string }[] = rows.map((r) => ({
+  const plan: { row?: RowWithState; fileId: string; versionId?: string; control_id: string; finding_id: string; message: string }[] = rows.map((r) => ({
     row: r,
     fileId: r.state.binding?.fileId ?? r.state.prior_verification?.fileId ?? "",
     control_id: r.control_id,
@@ -123,11 +128,14 @@ export async function createReviewTasks(args: {
     message: reviewTaskMessage(r, store),
   }));
   for (const q of args.quarantined ?? []) {
+    const already = store.data.tasks.some((t) => t.status === "open" && (t as { purpose?: string }).purpose === "input_gate_quarantine" && t.fileId === q.fileId && (t as { versionId?: string }).versionId === q.versionId);
+    if (already) continue;
     const all = buildRows(store, profile, snapshotId).filter((r) => r.state.not_evaluated_reason?.code === "input_gate" && r.state.evaluation_event?.fileId === q.fileId);
     if (!all.length) continue;
     const label = store.versionLabel(q.fileId, q.versionId) ?? q.versionId;
     plan.push({
       fileId: q.fileId,
+      versionId: q.versionId,
       control_id: all[0].control_id,
       finding_id: all[0].finding_id ?? "",
       message: `Snapshot ${snapshotId}: ${q.fileName} ${label} was quarantined by the input gate (instructions addressed to an AI agent, p=${q.injection.probability.toFixed(2)}). Its text was not sent to the evaluator; ${all.map((r) => r.control_id).join(", ")} ${all.length === 1 ? "is" : "are"} Not evaluated. Review the file. Findings: ${all.map((r) => r.finding_id).join(", ")}.`,
@@ -138,7 +146,8 @@ export async function createReviewTasks(args: {
   for (const p of plan) {
     try {
       const { task_id } = await box.createTask(p.fileId, p.message, "review");
-      const asg = await box.assignTask(task_id, { id: config.reviewer.box_user_id });
+      // Assign by tenant id when configured, else by login; record the identity Box returns (Codex finding 9).
+      const asg = await box.assignTask(task_id, boxAssignee(config.reviewer, config.mockMode));
       const task: StoredTask = {
         task_id,
         assignment_id: asg.assignment_id,
@@ -153,7 +162,7 @@ export async function createReviewTasks(args: {
         kind: "reviewer",
         status: "open",
         created_at: utcNow(),
-        ...(p.row ? {} : { purpose: "input_gate_quarantine" }),
+        ...(p.row ? {} : { purpose: "input_gate_quarantine", versionId: p.versionId }),
       };
       const mapping: TaskMapping = { task_id, assignment_id: asg.assignment_id, finding_id: p.finding_id, control_id: p.control_id, snapshot_id: snapshotId, immutable: true };
       store.data.tasks.push(task);

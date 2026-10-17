@@ -20,7 +20,8 @@ import type { BoxAdapter } from "./box/adapter";
 import type { Evaluator, InputGate } from "./agent/evaluator.types";
 import { getConfig, toAppConfig, type KeelConfig } from "./config";
 import { fixture, FIXTURE_EXTRA } from "./fixture";
-import { getStore, resetToSeed, type RunRecord, type Store, type StoredFinding, type StoredTask } from "./store";
+import fs from "node:fs";
+import { forgetStore, getStore, resetToSeed, StoreLoadError, type RunRecord, type Store, type StoredFinding, type StoredTask } from "./store";
 import { MockBoxAdapter } from "./box/mock";
 import { MockEvaluator } from "./agent/mock-evaluator";
 import { AbsentInputGate, MockInputGate } from "./agent/mock-gate";
@@ -28,7 +29,7 @@ import { runReview } from "./engine/pipeline";
 import { buildRows, publicRow, snapshotEvaluationState } from "./engine/state";
 import { countLine, displayedCounts } from "./engine/display";
 import { currentProjection } from "./engine/publish";
-import { draftAuthorMessage as draftMessage, ingestTaskResponse, pollAssignments as pollAll } from "./engine/disposition";
+import { approveDraft, awaitingDrafts, draftAuthorMessage as draftMessage, ingestTaskResponse, pollAssignments as pollAll, type IngestResult } from "./engine/disposition";
 import { buildFindingCard, findingFromState } from "./engine/card";
 import { canonicalJSON, CHAIN_ALGORITHM, sha256Hex, utcNow, verifyChain } from "./engine/ledger";
 import { createLiveAdapters } from "./live-adapters";
@@ -58,7 +59,13 @@ const G = globalThis as unknown as { __keelLive?: Promise<Adapters> };
 
 function store(): Store {
   const c = getConfig();
-  return getStore({ path: c.storePath, mode: c.mode });
+  try {
+    return getStore({ path: c.storePath, mode: c.mode, mrmModelId: c.mrmModelId, folderId: c.box.folderId });
+  } catch (err) {
+    // Fail closed (Codex finding 12): never seed over a store that exists but does not validate.
+    if (err instanceof StoreLoadError) throw new ServiceError("STORE_UNREADABLE", err.message, 503);
+    throw err;
+  }
 }
 
 function profile() {
@@ -107,6 +114,7 @@ function latestRunFor(s: Store, snapshotId: string | null): RunRecord | undefine
 
 export function getPackageView(): PackageView {
   const c = getConfig();
+  ensurePoller(); // live only; no-op in mock
   const s = store();
   const p = profile();
   const snap = s.currentSnapshot;
@@ -130,6 +138,8 @@ export function getPackageView(): PackageView {
     elapsed_ms: run?.done ? run.total_duration_ms : undefined,
     gate,
     search_tool: run?.search_tool ?? { label: "Box AI ask", fallback: false },
+    ...(c.mockMode ? {} : { poll: lastPoll() }),
+    awaiting_drafts: awaitingDrafts(s).map((w) => ({ finding_id: w.finding_id, control_id: w.control_id, task_id: w.task_id, target_snapshot_id: w.target_snapshot_id, updated_at: w.updated_at })),
   };
 }
 
@@ -227,7 +237,7 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
     playScenario(a.mockBox, scenario!);
   }
   const runId = s.nextRunId();
-  const snapshotId = `S${s.data.snapshots.length + 1}`;
+  let snapshotId = `S${s.data.snapshots.length + 1}`;
   const run: RunRecord = {
     run_id: runId,
     mode_label: c.mockMode ? "Mock" : "Live",
@@ -259,7 +269,15 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
     run.total_duration_ms = Date.now() - t0;
     s.save();
   };
-  const done = runReview({ box: a.box, evaluator: a.evaluator, gate: a.gate, store: s, profile: profile(), config: c, runId, scenario, onStep, compressedTiming: run.compressed_timing })
+  let snapshotKnown!: () => void;
+  const known = new Promise<void>((r) => (snapshotKnown = r));
+  const onSnapshot = (id: string) => {
+    snapshotId = id;
+    run.snapshot_id = id;
+    s.save();
+    snapshotKnown();
+  };
+  const done = runReview({ box: a.box, evaluator: a.evaluator, gate: a.gate, store: s, profile: profile(), config: c, runId, scenario, onStep, onSnapshot, compressedTiming: run.compressed_timing })
     .then((r) => {
       run.snapshot_id = r.snapshot_id ?? snapshotId;
       run.gate = r.gate;
@@ -279,7 +297,9 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
       run.total_duration_ms = Date.now() - t0;
       run.finished_at = utcNow();
       s.save();
+      snapshotKnown();
     });
+  await known; // the snapshot id (new capture or retried snapshot) is known after intake, well before the run ends
   if (o.wait) await done;
   return { run_id: runId, snapshot_id: snapshotId, evaluation_state: "pending", done };
 }
@@ -289,22 +309,70 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
 // ------------------------------------------------------------------------------------------------
 
 /**
+ * The finding, control and task are resolved from server records (Codex finding 5): a finding id
+ * names its control; a client control id must agree with it; the open task's immutable mapping
+ * decides the snapshot. The client's decision_snapshot_id only words the stale notice.
+ */
+function resolveActionTarget(s: Store, req: ActionRequest) {
+  const p = profile();
+  const finding = req.finding_id ? s.data.findings[req.finding_id] : undefined;
+  if (req.finding_id && !finding && !p.controls.some((c) => c.id === req.control_id)) throw new ServiceError("NOT_FOUND", `no finding ${req.finding_id}`, 404);
+  if (finding && req.control_id && finding.control_id !== req.control_id) {
+    throw new ServiceError("FINDING_CONTROL_MISMATCH", `finding ${finding.finding_id} belongs to ${finding.control_id}, not ${req.control_id}`, 400);
+  }
+  const control = p.controls.find((x) => x.id === (finding?.control_id ?? req.control_id));
+  if (!control) throw new ServiceError("NOT_FOUND", `no control ${req.control_id}`, 404);
+  const task: StoredTask | undefined = [...s.data.tasks].reverse().find((t) => t.control_id === control.id && (t.kind ?? "reviewer") === "reviewer" && t.status === "open");
+  return { control, finding, task, mapping: task ? s.data.task_mappings[task.assignment_id] : undefined };
+}
+
+function actionResponse(s: Store, controlId: string, r: IngestResult): ActionResponse & { awaiting_draft?: IngestResult["awaiting_draft"]; fallback?: string } {
+  const p = profile();
+  const snapId = s.data.current_snapshot_id!;
+  const rows = buildRows(s, p, snapId);
+  return {
+    result: r.result === "reapplied" ? "reapplied" : r.result === "applied" ? "applied" : "rejected",
+    explanation: r.explanation,
+    events: r.events,
+    row: publicRow(rows.find((x) => x.control_id === controlId)!),
+    author_task: r.author_task,
+    count_line: countLine(rows, snapId),
+    ...(r.awaiting_draft ? { awaiting_draft: r.awaiting_draft } : {}),
+    ...(r.fallback ? { fallback: r.fallback } : {}),
+  };
+}
+
+/**
  * Mock: resolve the mapped Box assignment as the responding identity (default the configured
- * reviewer) with the request's reason or message, then ingest it through the same handler the live
- * poller uses. Live: the reviewer responds in Box; call pollAssignments().
+ * reviewer), then ingest it through the same handler the live poller uses. For Return to author the
+ * reviewer's action in Keel is also the approval of the author draft (author_message, or the draft
+ * Box AI produces now), recorded before ingestion, so the sequence matches live.
+ * Live: the reviewer responds in Box; "approve_author_draft" approves the draft and resumes.
  */
 export async function act(req: ActionRequest): Promise<ActionResponse> {
   const c = getConfig();
   const s = store();
   const p = profile();
   const a = await adapters();
-  const control = p.controls.find((x) => x.id === req.control_id) ?? p.controls.find((x) => x.id === s.data.findings[req.finding_id]?.control_id);
-  if (!control) throw new ServiceError("NOT_FOUND", `no control ${req.control_id}`, 404);
-  const task: StoredTask | undefined = [...s.data.tasks].reverse().find((t) => t.control_id === control.id && (t.kind ?? "reviewer") === "reviewer" && t.status === "open");
-  if (!task) throw new ServiceError("NO_OPEN_TASK", `no open Box review task for ${control.id}`, 409);
-  const mapping = s.data.task_mappings[task.assignment_id];
+  const deps = { store: s, box: a.box, profile: p, config: c };
+  const { control, finding, task, mapping } = resolveActionTarget(s, req);
+
+  if (req.action === "approve_author_draft") {
+    const waiting = awaitingDrafts(s).filter((w) => w.control_id === control.id && (!finding || w.finding_id === finding.finding_id));
+    const w = waiting.at(-1);
+    if (!w) throw new ServiceError("NO_AWAITING_DRAFT", `no return to author awaiting a draft for ${control.id}`, 409);
+    const view = (await a.box.listTaskAssignments(w.task_id)).find((v) => v.assignment_id === w.assignment_id);
+    if (!view) throw new ServiceError("TASK_NOT_FOUND", `assignment ${w.assignment_id} not found in Box`, 409);
+    const text = (req.author_message ?? s.data.drafts[w.finding_id]?.text ?? "").trim();
+    if (!text) throw new ServiceError("DRAFT_REQUIRED", "approve_author_draft needs author_message, or a draft from /api/draft-author-message", 400);
+    approveDraft(s, { finding_id: w.finding_id, snapshot_id: w.target_snapshot_id ?? s.data.current_snapshot_id!, reason: view.message, text });
+    const r = await ingestTaskResponse(deps, { view, mapping: s.data.task_mappings[w.assignment_id], decision_snapshot_id: req.decision_snapshot_id, due_at: req.due_at });
+    return actionResponse(s, control.id, r);
+  }
+
+  if (!task || !mapping) throw new ServiceError("NO_OPEN_TASK", `no open Box review task for ${control.id}`, 409);
   if (!c.mockMode || !a.mockBox) {
-    throw new ServiceError("LIVE_RESPOND_IN_BOX", "In live mode the reviewer responds to the Box task; Keel ingests it through pollAssignments()", 409);
+    throw new ServiceError("LIVE_RESPOND_IN_BOX", "In live mode the reviewer responds to the Box task; Keel ingests it by polling (POST /api/poll). To approve an author draft use action approve_author_draft.", 409);
   }
   const who = req.as ? a.mockBox.directoryLookup(req.as) : a.mockBox.directoryLookup(c.reviewer.box_user_id);
   if (!who) throw new ServiceError("UNKNOWN_IDENTITY", `no Box user ${req.as}`, 400);
@@ -314,6 +382,9 @@ export async function act(req: ActionRequest): Promise<ActionResponse> {
     resolution = "rejected";
     message = (req.reason ?? req.message ?? "").trim();
     if (!message) throw new ServiceError("REASON_REQUIRED", "Return to author needs the reviewer's reason", 400);
+    const fid = mapping.finding_id;
+    const text = req.author_message ?? (await draftAuthorMessage(fid, message)).text;
+    approveDraft(s, { finding_id: fid, snapshot_id: s.data.current_snapshot_id!, reason: message, text });
   } else if (req.action === "verify") {
     resolution = "approved";
     message = (req.message ?? [req.reason, p.attestation_phrase].filter(Boolean).join(" ")).trim();
@@ -323,23 +394,73 @@ export async function act(req: ActionRequest): Promise<ActionResponse> {
   }
   a.mockBox.resolveAssignment(task.assignment_id, { resolution_state: resolution, message, as: who });
   const view = (await a.box.listTaskAssignments(task.task_id)).find((v) => v.assignment_id === task.assignment_id)!;
-  const r = await ingestTaskResponse({ store: s, box: a.box, profile: p, config: c }, { view, mapping, decision_snapshot_id: req.decision_snapshot_id, author_message: req.author_message, due_at: req.due_at });
-  const snapId = s.data.current_snapshot_id!;
-  const rows = buildRows(s, p, snapId);
-  return {
-    result: r.result === "reapplied" ? "reapplied" : r.result === "applied" ? "applied" : "rejected",
-    explanation: r.explanation,
-    events: r.events,
-    row: publicRow(rows.find((x) => x.control_id === control.id)!),
-    author_task: r.author_task,
-    count_line: countLine(rows, snapId),
-  };
+  const r = await ingestTaskResponse(deps, { view, mapping, decision_snapshot_id: req.decision_snapshot_id, due_at: req.due_at });
+  return actionResponse(s, control.id, r);
 }
 
-export async function pollAssignments() {
+// ------------------------------------------------------------------------------------------------
+// Polling (live): explicit route, GET /api/tasks, and a lazy server-side interval
+// ------------------------------------------------------------------------------------------------
+
+export interface PollStatus {
+  at: string;
+  ok: boolean;
+  mode: "mock" | "live";
+  ingested: number;
+  results: { result: string; mapped_action: string | null; explanation: string }[];
+  errors: { task_id: string; message: string }[];
+  awaiting_drafts: ReturnType<typeof awaitingDrafts>;
+}
+
+const PG = globalThis as unknown as { __keelPoll?: Promise<PollStatus> | null; __keelLastPoll?: PollStatus; __keelPoller?: ReturnType<typeof setInterval> };
+
+/** Single-flight poll; ingestion inside is serialized by the package lock. Failures are reported, not thrown. */
+export async function poll(): Promise<PollStatus> {
   const c = getConfig();
-  const a = await adapters();
-  return pollAll({ store: store(), box: a.box, profile: profile(), config: c });
+  const s = store();
+  if (c.mockMode) {
+    // Mock: responses are ingested synchronously by /api/action; polling is a no-op.
+    return { at: utcNow(), ok: true, mode: "mock", ingested: 0, results: [], errors: [], awaiting_drafts: awaitingDrafts(s) };
+  }
+  if (PG.__keelPoll) return PG.__keelPoll;
+  PG.__keelPoll = (async () => {
+    try {
+      const a = await adapters();
+      const r = await pollAll({ store: s, box: a.box, profile: profile(), config: c });
+      const st: PollStatus = {
+        at: utcNow(),
+        ok: r.errors.length === 0,
+        mode: "live",
+        ingested: r.results.length,
+        results: r.results.map((x) => ({ result: x.result, mapped_action: x.mapped_action, explanation: x.explanation })),
+        errors: r.errors,
+        awaiting_drafts: awaitingDrafts(s),
+      };
+      PG.__keelLastPoll = st;
+      return st;
+    } catch (err) {
+      const st: PollStatus = { at: utcNow(), ok: false, mode: "live", ingested: 0, results: [], errors: [{ task_id: "*", message: err instanceof Error ? err.message : String(err) }], awaiting_drafts: awaitingDrafts(s) };
+      PG.__keelLastPoll = st;
+      return st;
+    } finally {
+      PG.__keelPoll = null;
+    }
+  })();
+  return PG.__keelPoll;
+}
+
+export const pollAssignments = poll;
+
+export function lastPoll(): PollStatus | undefined {
+  return PG.__keelLastPoll;
+}
+
+/** Live only: start the background poller once per process (hot-reload safe). */
+export function ensurePoller(): void {
+  const c = getConfig();
+  if (c.mockMode || c.pollIntervalMs <= 0 || PG.__keelPoller) return;
+  PG.__keelPoller = setInterval(() => void poll(), c.pollIntervalMs);
+  (PG.__keelPoller as { unref?: () => void }).unref?.();
 }
 
 export async function draftAuthorMessage(findingId: string, reason: string): Promise<{ text: string; drafted_by: "box_ai_text_gen" | "template" }> {
@@ -350,7 +471,7 @@ export async function draftAuthorMessage(findingId: string, reason: string): Pro
   const f = resolveFinding(s, findingId);
   const row = buildRows(s, p, s.data.current_snapshot_id!).find((r) => r.control_id === f.control_id)!;
   const d = await draftMessage({ store: s, box: a.box, config: c, st: row.state, reason });
-  s.data.drafts[f.finding_id] = { ...d, at: utcNow(), reason };
+  s.data.drafts[f.finding_id] = { ...d, at: utcNow(), reason, snapshot_id: s.data.current_snapshot_id ?? undefined };
   s.save();
   return d;
 }
@@ -453,20 +574,33 @@ export function exportManifest(): ExportManifest & Record<string, unknown> {
   };
 }
 
-export async function getTasks(): Promise<{ tasks: StoredTask[]; open: number; completed: number }> {
+export async function getTasks(): Promise<{ tasks: StoredTask[]; open: number; completed: number; poll?: PollStatus; awaiting_drafts: ReturnType<typeof awaitingDrafts> }> {
+  const c = getConfig();
+  const pollStatus = c.mockMode ? undefined : await poll(); // live: reading tasks ingests any new Box responses
   const s = store();
   const tasks = [...s.data.tasks].reverse();
-  return { tasks, open: tasks.filter((t) => t.status === "open").length, completed: tasks.filter((t) => t.status === "completed").length };
+  return { tasks, open: tasks.filter((t) => t.status === "open").length, completed: tasks.filter((t) => t.status === "completed").length, poll: pollStatus, awaiting_drafts: awaitingDrafts(s) };
 }
 
-export function reset(): { ok: true; snapshot_id: string | null; count_line: string | null } {
+export function reset(): { ok: true; snapshot_id: string | null; count_line: string | null; backed_up?: string } {
   const c = getConfig();
   if (!c.mockMode) throw new ServiceError("MOCK_ONLY", "reset is available in mock mode only", 403);
-  const s = store();
+  let backed_up: string | undefined;
+  let s: Store;
+  try {
+    s = store();
+  } catch (err) {
+    if (!(err instanceof ServiceError) || err.code !== "STORE_UNREADABLE") throw err;
+    // Explicit reset of an unreadable mock store: keep the original beside it, then reseed.
+    backed_up = `${c.storePath}.unreadable-${Date.now()}`;
+    fs.renameSync(c.storePath, backed_up);
+    forgetStore();
+    s = store();
+  }
   if (Object.values(s.data.runs).some((r) => !r.done)) throw new ServiceError("RUN_ACTIVE", "a run is in progress", 409);
   resetToSeed(s, c.mode);
   const snap = s.data.current_snapshot_id;
-  return { ok: true, snapshot_id: snap, count_line: snap ? countLine(buildRows(s, profile(), snap), snap) : null };
+  return { ok: true, snapshot_id: snap, count_line: snap ? countLine(buildRows(s, profile(), snap), snap) : null, ...(backed_up ? { backed_up } : {}) };
 }
 
 export type { KeelConfig };

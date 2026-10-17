@@ -50,20 +50,38 @@ export interface ControlState {
 
 const EVAL_TYPES = new Set(["control_evaluated", "evaluation_error"]);
 
-/** Evaluation state of a snapshot: complete/error from evaluation_completed, else pending once captured. */
+/**
+ * Evaluation state of a snapshot: the outcome of its latest attempt. An attempt started after the
+ * last evaluation_completed (a retry, Codex finding 8) makes the snapshot pending again.
+ */
 export function snapshotEvaluationState(events: LedgerEvent[], snapshotId: string): { state: EvaluationState; reason?: string } {
   let completed: LedgerEvent | undefined;
+  let completedAt = -1;
+  let attemptAt = -1;
   let captured = false;
-  for (const e of events) {
-    if (e.snapshot_id !== snapshotId) continue;
+  events.forEach((e, i) => {
+    if (e.snapshot_id !== snapshotId) return;
     if (e.event_type === "snapshot_captured") captured = true;
-    if (e.event_type === "evaluation_completed") completed = e;
-  }
-  if (completed) {
-    const st = (completed.evaluation_state ?? "complete") as EvaluationState;
-    return { state: st, reason: st === "error" ? completed.error?.message ?? "evaluation error" : undefined };
+    if (e.event_type === "evaluation_attempt") attemptAt = i;
+    if (e.event_type === "evaluation_completed") {
+      completed = e;
+      completedAt = i;
+    }
+  });
+  if (completed && completedAt > attemptAt) {
+    const done = completed as LedgerEvent;
+    const st = (done.evaluation_state ?? "complete") as EvaluationState;
+    return { state: st, reason: st === "error" ? done.error?.message ?? "evaluation error" : undefined };
   }
   return { state: captured ? "pending" : "complete" };
+}
+
+/** Ledger index that bounds history for a snapshot: the capture of the next snapshot (else the end). */
+export function historyBound(events: LedgerEvent[], snapshotIds: string[], snapshotId: string): number {
+  const next = snapshotIds[snapshotIds.indexOf(snapshotId) + 1];
+  if (!next) return events.length;
+  const i = events.findIndex((e) => e.snapshot_id === next && (e.event_type === "file_version_observed" || e.event_type === "snapshot_captured"));
+  return i < 0 ? events.length : i;
 }
 
 export function dispositionRecordFromEvent(e: LedgerEvent): DispositionRecord {
@@ -147,7 +165,8 @@ export function deriveControlState(store: Store, control: Control, snapshotId: s
     if (e.event_type === "human_disposition_recorded") disp = e;
   }
   const snapState = snapshotEvaluationState(events, snapshotId);
-  const pvEvent = latestVerification(events, control.id);
+  // History is bounded to the viewed snapshot: S3's row never names a later S4 review (Codex finding 15).
+  const pvEvent = latestVerification(events, control.id, historyBound(events, store.data.snapshots.map((x) => x.snapshot_id), snapshotId));
   const clause_support = evalEvent?.clause_support ?? [];
   const binding = evalEvent?.event_type === "control_evaluated" ? bindingFromEvent(evalEvent) : null;
   const notEval =
@@ -223,7 +242,8 @@ export function buildRows(store: Store, profile: ControlProfile, snapshotId: str
     const st = deriveControlState(store, control, snapshotId);
     const prior = priorRows.find((r) => r.control_id === control.id)?.status.label;
     const status: DisplayedStatus = displayStatus(displayInputsFor(st, prior), { versionLabel });
-    const b = st.binding;
+    // While a re-check is pending, keep showing the prior evidencing file rather than none.
+    const b = st.binding ?? (pending ? (priorRows.find((r) => r.control_id === control.id)?.state.binding ?? null) : null);
     return {
       control_id: control.id,
       title: control.title,

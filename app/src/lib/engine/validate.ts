@@ -15,6 +15,8 @@ import { deepLink } from "./ledger";
 import { findQuote, quoteValid } from "./normalize";
 import type { NotEvaluatedReason } from "./assess";
 
+export const LOCATION_UNAVAILABLE = "(location unavailable: quote spans paragraphs)";
+
 export interface PinnedFile {
   fileId: string;
   fileName: string;
@@ -54,9 +56,11 @@ function checkQuote(q: QuoteRef, files: PinnedFile[], folderId?: string): { ref?
       fileName: f.fileName,
       versionId: f.versionId,
       versionLabel: f.versionLabel,
-      section: loc?.section ?? q.section,
-      paragraph: loc?.paragraph ?? q.paragraph,
-      page: loc?.page ?? q.page,
+      // Location is computed from the pinned text, never taken from the model. A valid quote that
+      // spans paragraphs has no single location: recorded as unavailable.
+      section: loc?.section ?? LOCATION_UNAVAILABLE,
+      paragraph: loc?.paragraph,
+      page: loc?.page,
       quote: q.quote,
       box_deep_link: deepLink(f.fileId, f.versionId, folderId),
     },
@@ -94,8 +98,10 @@ export function validateFindingSet(raw: unknown, ctx: { profile: ControlProfile;
     const f = out.findings.find((x) => x.control_id === control.id)!;
     let invalid: NotEvaluatedReason | undefined;
     const byId = new Map(f.clause_support.map((c) => [c.clause_id, c]));
+    const dupClauses = f.clause_support.map((c) => c.clause_id).filter((id, i, a) => a.indexOf(id) !== i);
+    if (dupClauses.length) invalid = { code: "CLAUSE_DUPLICATE", message: `clause ids given more than once for ${control.id}: ${[...new Set(dupClauses)].join(", ")}` };
     const extra = f.clause_support.filter((c) => !control.required_clauses.some((rc) => rc.clause_id === c.clause_id)).map((c) => c.clause_id);
-    if (extra.length) invalid = { code: "CLAUSE_MISMATCH", message: `clause ids not in the profile for ${control.id}: ${extra.join(", ")}` };
+    if (extra.length) invalid ??= { code: "CLAUSE_MISMATCH", message: `clause ids not in the profile for ${control.id}: ${extra.join(", ")}` };
     const clause_support: ClauseSupport[] = control.required_clauses.map((rc) => {
       const c = byId.get(rc.clause_id);
       if (!c) {

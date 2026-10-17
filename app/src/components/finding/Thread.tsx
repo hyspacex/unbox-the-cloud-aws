@@ -21,8 +21,12 @@ export function authorTaskFromThread(thread: LedgerEvent[]): { task: BoxTask; ev
 
 function summary(e: LedgerEvent): string {
   switch (e.event_type) {
-    case "human_disposition_recorded":
-      return `${e.human_disposition?.disposition ?? "disposition"} recorded${e.human_disposition?.reason ? `: "${e.human_disposition.reason}"` : ""}`;
+    case "human_disposition_recorded": {
+      const hd = e.human_disposition as unknown;
+      if (typeof hd === "string") return `${hd.replace(/_/g, " ")} recorded`;
+      const o = e.human_disposition;
+      return `${o?.disposition?.replace(/_/g, " ") ?? "disposition"} recorded${o?.reason ? `: "${o.reason}"` : ""}`;
+    }
     case "box_task_response_ingested":
       return `Box task response ${e.response?.resolution_state ?? ""}${e.response?.message ? `: "${e.response.message}"` : ""}`;
     case "box_task_created":

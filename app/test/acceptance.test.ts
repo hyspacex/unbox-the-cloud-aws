@@ -362,3 +362,15 @@ describe("identity checks (spec 4, rules enforced by code)", () => {
     expect(h.row("SEC-ARCH-22").status.label).toBe("Needs review: evidence binding changed");
   });
 });
+
+describe("acceptance 20 (live chunk format): Box AI cites passages, validated sentence by sentence", () => {
+  it("keeps the supporting sentence of a markdown chunk and rejects a chunk with no pinned sentence", async () => {
+    const { validatedStatements } = await import("../src/lib/engine/pipeline");
+    const rb = fixture.text("runbook.md");
+    const chunk = "## 3. Deployment and rollback\n\n**Rollback plan.** Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.\n\n1. Trigger: any Sev 2 alarm during or within 2 hours of a deployment.";
+    const terms = ["RTO", "RPO", "roll back"];
+    expect(validatedStatements(chunk, rb, terms)).toEqual([Q["22"]]);
+    expect(validatedStatements("RTO is 1 hour. RPO is zero for every store.", rb, terms)).toEqual([]);
+    expect(validatedStatements(Q["22"], rb, terms)).toEqual([Q["22"]]);
+  });
+});

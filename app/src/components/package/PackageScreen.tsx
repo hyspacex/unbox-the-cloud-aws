@@ -146,9 +146,10 @@ export function PackageScreen() {
           );
           setRunLabel({ run_id: m.run_id, mode_label: m.mode_label });
         },
-        onDone: async () => {
+        onDone: async (final) => {
           if (pollTimer) clearTimeout(pollTimer);
-          setRun((r) => (r && r.runId === runId ? { ...r, running: false } : r));
+          // The final run carries durations (agent_evaluation) that were not known while streaming.
+          setRun((r) => (r && r.runId === runId ? { ...r, running: false, steps: final?.steps?.length ? final.steps : r.steps } : r));
           await loadPackage(true);
           loadTasks();
           // Give the rows the full width once the run is done; the summary stays one click away.

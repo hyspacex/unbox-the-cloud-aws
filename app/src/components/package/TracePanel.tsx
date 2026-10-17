@@ -174,7 +174,7 @@ export function TracePanel({
               transition={T_BASE}
               className="rounded-md"
             >
-              {s.kind === "model_turn" || s.kind === "tool_call" ? (
+              {s.kind === "model_turn" || s.kind === "tool_call" || (s as TraceStep & { parent_seq?: number }).parent_seq != null ? (
                 <div className="ml-[22px] border-l hairline pl-2">
                   <StepLine step={s} startedAt={meta.started_at} nested />
                 </div>

@@ -42,10 +42,15 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     /* plain text */
   }
   if (!res.ok) {
-    const msg =
-      (body && typeof body === "object" && ("error" in body || "message" in body)
-        ? String((body as { error?: unknown; message?: unknown }).error ?? (body as { message?: unknown }).message)
-        : null) ?? `${res.status} ${res.statusText}`;
+    let msg = `${res.status} ${res.statusText}`;
+    if (body && typeof body === "object") {
+      const b = body as { error?: unknown; message?: unknown; explanation?: unknown };
+      const e = b.error;
+      if (e && typeof e === "object" && "message" in e) msg = String((e as { message: unknown }).message);
+      else if (typeof e === "string") msg = e;
+      else if (typeof b.explanation === "string") msg = b.explanation;
+      else if (typeof b.message === "string") msg = b.message;
+    } else if (typeof body === "string" && body) msg = body.slice(0, 300);
     throw new ApiError(res.status, msg, body);
   }
   return body as T;

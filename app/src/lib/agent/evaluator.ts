@@ -168,8 +168,9 @@ export class BedrockEvaluator implements Evaluator {
       inputSchema: z.object({
         fileName: z.string().describe("fileName exactly as in the document header"),
         versionId: z.string().describe("versionId exactly as in the document header"),
+        control_id: z.string().optional().describe("The control id this call is for, from the control list"),
       }),
-      callback: ({ fileName, versionId }) => {
+      callback: ({ fileName, versionId, control_id }) => {
         const started = Date.now();
         const hit = pinned.get(`${fileName}\u0000${versionId}`);
         const result = hit
@@ -181,7 +182,7 @@ export class BedrockEvaluator implements Evaluator {
           tool: "read_snapshot_file",
           label: hit ? `read_snapshot_file(${fileName}, ${versionId})` : `read_snapshot_file rejected: ${fileName} ${versionId} outside snapshot`,
           ...stamp(started),
-          args: { fileName, versionId },
+          args: { fileName, versionId, ...(control_id ? { control_id } : {}) },
           result: hit ? { chars: hit.text.length } : result,
         });
         return result;
@@ -195,19 +196,22 @@ export class BedrockEvaluator implements Evaluator {
       inputSchema: z.object({
         query: z.string().min(2).describe("Short OR-separated key terms, e.g. 'customer-managed keys OR key rotation OR key custodians'"),
         exclude_file: z.string().optional().describe("fileName of the primary evidencing file to leave out"),
+        control_id: z.string().optional().describe("The control id this call is for, from the control list"),
       }),
-      callback: async ({ query, exclude_file }) => {
+      callback: async ({ query, exclude_file, control_id }) => {
         const started = Date.now();
         const res = await tools.search.search(query, exclude_file);
-        const step = (res as { step?: TraceStep }).step;
+        const own = (res as { step?: TraceStep }).step;
+        // Tag the step with the control so the finding card can show it as basis provenance.
+        if (own && control_id) own.args = { ...(own.args ?? {}), control_id };
         record(
-          step ?? {
+          own ?? {
             source: "boxai",
             kind: "tool_call",
             tool: res.fallback ? "string_search" : "box_ai_ask",
             label: res.label,
             ...stamp(started),
-            args: { agent_tool: "search_snapshot", query, exclude_file: exclude_file ?? null, snapshot_id: input.snapshot.snapshot_id, mode: res.fallback ? "string_search" : "multiple_item_qa", include_citations: !res.fallback },
+            args: { agent_tool: "search_snapshot", query, exclude_file: exclude_file ?? null, ...(control_id ? { control_id } : {}), snapshot_id: input.snapshot.snapshot_id, mode: res.fallback ? "string_search" : "multiple_item_qa", include_citations: !res.fallback },
             result: { cited_statements: res.citations.length, citations: res.citations },
           },
         );

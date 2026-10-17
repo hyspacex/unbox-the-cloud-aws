@@ -519,9 +519,24 @@ export class RealBoxAdapter implements BoxAdapter {
         includeCitations: true,
       });
       if (!res) return { unavailable: true, reason: "Box AI returned no content (HTTP 204)" };
+      // Box AI citations carry no version. Box AI reads the current version, so stamp each citation
+      // with its file's current version id; callers reject citations whose version is not the pinned
+      // one (spec 3 step 6). If the lookup fails, versionId stays undefined rather than guessed.
+      const cited = [...new Set((res.citations ?? []).map((c) => c.id ?? "").filter(Boolean))];
+      const current = new Map<string, string>();
+      await Promise.all(
+        cited.map(async (id) => {
+          try {
+            const f = await this.client().files.getFileById(id, { queryParams: { fields: ["file_version"] } });
+            if (f.fileVersion?.id) current.set(id, f.fileVersion.id);
+          } catch {
+            /* leave undefined */
+          }
+        }),
+      );
       return {
         answer: res.answer ?? "",
-        citations: (res.citations ?? []).map((c) => ({ fileId: c.id ?? "", content: c.content ?? "" })),
+        citations: (res.citations ?? []).map((c) => ({ fileId: c.id ?? "", versionId: current.get(c.id ?? ""), content: c.content ?? "" })),
       };
     } catch (e) {
       return { unavailable: true, reason: aiReason(e) };

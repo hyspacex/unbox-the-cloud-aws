@@ -327,7 +327,7 @@ describe("BedrockEvaluator (Strands loop, scripted model)", () => {
       [
         { name: "get_prior_evidence", input: { control_id: "SEC-ARCH-07" } },
         { name: "read_snapshot_file", input: { fileName: "architecture.md", versionId: "1801102232" } }, // v2: outside S4, must be rejected
-        { name: "search_snapshot", input: { query: "customer-managed keys OR CipherTrust OR key rotation OR key custodians", exclude_file: "architecture.md" } },
+        { name: "search_snapshot", input: { query: "customer-managed keys OR CipherTrust OR key rotation OR key custodians", exclude_file: "architecture.md", control_id: "SEC-ARCH-07" } },
       ],
       [{ name: "strands_structured_output", input: finding }],
     ]);
@@ -347,6 +347,7 @@ describe("BedrockEvaluator (Strands loop, scripted model)", () => {
     expect(tools.map((s) => s.tool)).toEqual(["get_prior_evidence", "read_snapshot_file", "box_ai_ask"]);
     expect(tools[1].label).toMatch(/rejected: architecture.md 1801102232 outside snapshot/);
     expect(tools[2].label).toBe("Box AI ask over 4 files, 0 cited statements");
+    expect(tools.map((s) => (s.args as { control_id?: string }).control_id)).toEqual(["SEC-ARCH-07", undefined, "SEC-ARCH-07"]);
     expect(res.trace.filter((s) => s.kind === "model_turn").map((s) => s.label)).toEqual([
       "Reading requirement, required clauses, applicability and evidence for 1 controls with 5 file texts and diff hints; requested 3 tool calls",
       "Writing 1 typed findings with per-clause support",
@@ -354,5 +355,23 @@ describe("BedrockEvaluator (Strands loop, scripted model)", () => {
     // Each step reaches onStep exactly once even though the search tool emitted its own.
     expect(new Set(emitted).size).toBe(emitted.length);
     expect(emitted.length).toBe(res.trace.length);
+  });
+});
+
+describe("BedrockEvaluator with a search tool that records no step (the engine's own tool)", () => {
+  it("builds the tool_call step itself, tagged with control_id", async () => {
+    const finding = {
+      snapshot_id: "S4",
+      findings: [{ control_id: "SEC-ARCH-07", clause_support: [{ clause_id: "SEC-ARCH-07.1", support: "unsupported", quote: null }], basis: ["Searched the snapshot: 0 statements."] }],
+    };
+    const model = new ScriptedModel([
+      [{ name: "search_snapshot", input: { query: "AES-256", control_id: "SEC-ARCH-07" } }],
+      [{ name: "strands_structured_output", input: finding }],
+    ]);
+    const plain = { search: async () => ({ label: "Box AI ask over 4 files, 0 cited statements", fallback: false, citations: [] }) };
+    const res = await new BedrockEvaluator({}, { model }).evaluate(minimalInput(), { search: plain });
+    const step = res.trace.find((s) => s.kind === "tool_call")!;
+    expect(step).toMatchObject({ source: "boxai", tool: "box_ai_ask", label: "Box AI ask over 4 files, 0 cited statements" });
+    expect(step.args).toMatchObject({ agent_tool: "search_snapshot", query: "AES-256", control_id: "SEC-ARCH-07", snapshot_id: "S4" });
   });
 });

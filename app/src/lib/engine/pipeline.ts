@@ -31,7 +31,8 @@ import { bindingsEqual, classifyChange, deriveAssessment, selectBinding, type No
 import { assertionsChanged, asksForControl, buildBasis, notEvaluatedBasis } from "./basis";
 import { priorQuoteDiffHints } from "./diff";
 import { canonicalJSON, deepLink, priorVerificationFromEvent, sha256Hex, utcNow } from "./ledger";
-import { findQuote, hasTerm, NORMALIZATION, quoteValid, sectionText } from "./normalize";
+import { findQuote, hasTerm, norm, NORMALIZATION, quoteValid, sectionText, sentences } from "./normalize";
+import { searchPrompt } from "../agent/search-tool";
 import { APP_ACTOR, eventOpts, publishProjection } from "./publish";
 import { stalenessEventType, verificationHolds, type StalenessResult } from "./staleness";
 import { buildRows, deriveControlState, latestVerification, priorEvaluation, verificationBinding } from "./state";
@@ -365,28 +366,39 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
       const s0 = Date.now();
       const targets = given.filter((p) => p.fileName !== excludeFileName);
       const rec: BoxAiAskRecord = { query, files_asked: targets.map((t) => t.fileName), cited_statements: 0, rejected_citations: [], citations: [], fallback: false, label: "", elapsed_ms: 0 };
-      const ans = await box.aiAsk(targets.map((t) => t.fileId), query, { citations: true });
+      const terms = query.split(/\s+OR\s+/i).map((t) => t.trim()).filter(Boolean);
+      // A bounded question for Box AI (spec 3 step 6); the trailing query line keeps the recorded query exact.
+      const ans = await box.aiAsk(targets.map((t) => t.fileId), `${searchPrompt(query)}\nquery: ${query}`, { citations: true });
       let raw: { fileId: string; versionId?: string; content: string }[];
+      const answer = "unavailable" in ans && ans.unavailable ? "" : ((ans as { answer?: string }).answer ?? "");
       if ("unavailable" in ans && ans.unavailable) {
         rec.fallback = true;
-        const terms = query.split(/\s+OR\s+/);
-        raw = targets.flatMap((t) => {
-          const hit = (t.text ?? "").split(/(?<=[.!?])\s+/).find((sn) => terms.some((term) => hasTerm(sn, term)));
-          return hit ? [{ fileId: t.fileId, versionId: t.versionId, content: hit }] : [];
-        });
+        raw = targets.flatMap((t) =>
+          sentences(t.text ?? "")
+            .filter((sn) => terms.some((term) => hasTerm(sn, term)))
+            .slice(0, 3)
+            .map((content) => ({ fileId: t.fileId, versionId: t.versionId, content })),
+        );
       } else raw = (ans as { citations: { fileId: string; versionId?: string; content: string }[] }).citations;
+      const seen = new Set<string>();
       for (const c of raw) {
         const t = targets.find((x) => x.fileId === c.fileId);
         let reason: string | null = null;
         if (!t) reason = "cited file is not among the snapshot files asked";
         else if (c.versionId && c.versionId !== t.versionId) reason = `cited version ${c.versionId} is not the pinned version ${t.versionId}`;
-        else if (!quoteValid(c.content, t.text ?? "")) reason = "cited passage not found in the pinned version text after normalization";
+        const valid = !reason && t ? validatedStatements(c.content, t.text ?? "", terms, answer) : [];
+        if (!reason && !valid.length) reason = "cited passage not found in the pinned version text after normalization";
         if (reason || !t) {
           rec.rejected_citations.push({ ...c, reason: reason ?? "invalid" });
           continue;
         }
-        const loc = findQuote(c.content, t.text ?? "");
-        rec.citations.push({ fileName: t.fileName, versionId: t.versionId, section: loc?.section ?? "", paragraph: loc?.paragraph, page: loc?.page, quote: c.content });
+        for (const q of valid) {
+          const k = t.versionId + "\u0000" + norm(q);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          const loc = findQuote(q, t.text ?? "");
+          rec.citations.push({ fileName: t.fileName, versionId: t.versionId, section: loc?.section ?? "", paragraph: loc?.paragraph, page: loc?.page, quote: q });
+        }
       }
       rec.cited_statements = rec.citations.length;
       const inFiles = [...new Set(rec.citations.map((c) => c.fileName))].join(", ");
@@ -796,6 +808,20 @@ export async function runReview(ctx: PipelineContext): Promise<PipelineResult> {
     });
   }
   return result("complete", snapshotId, "complete", { findings: findingsOut, tasks: tasks.created });
+}
+
+/**
+ * Statements of a Box AI citation that string-match the pinned text. Box cites passage chunks (several
+ * sentences, markdown emphasis, list markers), so a chunk that does not match as a whole is checked
+ * sentence by sentence; only sentences bearing a query term (or quoted in the answer) are kept.
+ */
+export function validatedStatements(passage: string, pinned: string, terms: string[], answer = ""): string[] {
+  if (quoteValid(passage, pinned) && sentences(passage).length <= 1) return [passage.trim()];
+  const nAnswer = norm(answer);
+  return sentences(passage)
+    .map((sn) => sn.replace(/^(\s*([-*+]|\d+\.)\s+)+/, "").replace(/^#+\s*/, "").trim())
+    .filter((sn) => norm(sn).length >= 8 && (terms.some((t) => hasTerm(sn, t)) || (nAnswer && nAnswer.includes(norm(sn)))))
+    .filter((sn) => quoteValid(sn, pinned));
 }
 
 async function project(

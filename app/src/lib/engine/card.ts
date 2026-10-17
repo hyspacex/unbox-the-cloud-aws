@@ -209,7 +209,8 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   return {
     opened_at: opened?.ts,
     binding_sections,
-    removed_sentences: [...removedMap.values()].map((r) => ({ ...r, label: listJoin(r.supported_clauses.map((c) => reasonNoun(c, verifiedText).replace(/^the /, ""))) })),
+    // A moved binding kept its support in another file: listing the old sentence would read as lost support.
+    removed_sentences: moved ? [] : [...removedMap.values()].map((r) => ({ ...r, label: listJoin(r.supported_clauses.map((c) => reasonNoun(c, verifiedText).replace(/^the /, ""))) })),
     ...(waiting ? { pending_author_draft: { reason: waitingResponse?.message ?? "", draft: draft?.text, drafted_by: draft?.drafted_by, task_id: waiting.task_id, snapshot_id: waiting.target_snapshot_id } } : {}),
     finding,
     control,

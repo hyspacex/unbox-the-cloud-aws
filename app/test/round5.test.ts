@@ -68,6 +68,7 @@ describe("C12 and C13: binding sections and removed sentences on the card", () =
     await h.run("architecture_v3");
     const c22 = buildFindingCard(h.store, h.profile, h.config, h.store.data.findings["KEEL-2026-0408"]);
     expect(c22.binding_sections).toEqual(["§3 Deployment and rollback", "§4 Backup"]);
+    expect(c22.removed_sentences).toEqual([]); // moved: support is in runbook.md, nothing reads as lost
     const hero = buildFindingCard(h.store, h.profile, h.config, h.store.data.findings["KEEL-2026-0405"]);
     const aes = hero.removed_sentences!.find((r) => r.quote.startsWith("Each data store has its own AES-256 key"))!;
     expect(aes).toMatchObject({ section: "§4.3 Encryption at rest and key management", supported_clauses: ["AES-256 stated"], label: "AES-256 per-store keys" });

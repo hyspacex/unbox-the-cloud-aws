@@ -15,6 +15,7 @@ import { buildRows, latestVerification, publicRow, verificationBinding, type Con
 import { suggestedAction } from "./tasks";
 import { isSearchStep } from "./bubble";
 import { decisionFlags, receiptFor } from "./summary";
+import { controlTimeline } from "./history";
 import { bannedWords } from "./wording";
 
 /** A Finding for a control evaluated before this run (seed snapshots), built from its ledger event. */
@@ -212,6 +213,74 @@ export function quotePairNote(row: RowWithState): string {
   return "No current sentence is bound to this control.";
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const proseDate = (iso?: string) => {
+  const m = iso ? /^(\d{4})-(\d\d)-(\d\d)/.exec(iso) : null;
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : "";
+};
+const secShort = (s?: string) => (s ? s.split(" ")[0] : "");
+const safe = (t: string, fallback: string) => (bannedWords(t).length ? fallback : t);
+
+/**
+ * UI v4.1 level 2: AGREED (the verified commitment) and CHANGED IN (where the new document changed it),
+ * with engine headings, and the "Open in document" target. Built from the card's own version blocks.
+ */
+export function agreedAndChanged(
+  row: RowWithState,
+  prior: FindingCard["prior_version"],
+  now: FindingCard["new_version"],
+  moved: boolean,
+): Pick<FindingCard, "agreed" | "changed" | "open_in_document"> {
+  const st = row.state;
+  const agreed: FindingCard["agreed"] = prior
+    ? {
+        quote: prior.quote,
+        file: prior.file.fileName,
+        file_id: prior.file.fileId,
+        version_id: prior.file.versionId,
+        ...(prior.file.versionLabel ? { version_label: prior.file.versionLabel } : {}),
+        ...(prior.section ? { section: prior.section } : {}),
+        ...(prior.verified_by ? { verified_by: prior.verified_by } : {}),
+        ...(prior.verified_at ? { verified_at: prior.verified_at } : {}),
+        byline: safe(
+          [prior.verified_by ? `Verified by ${prior.verified_by}` : "Verified", `${prior.file.versionLabel ?? ""} ${secShort(prior.section)}`.trim(), proseDate(prior.verified_at)].filter(Boolean).join(" · "),
+          "Verified",
+        ),
+      }
+    : null;
+  const where = (n: NonNullable<FindingCard["new_version"]>) => `${n.file.fileName}${n.file.versionLabel ? ` ${n.file.versionLabel}` : ""}${n.section ? ` ${secShort(n.section)}` : ""}`;
+  const block = (kind: NonNullable<FindingCard["changed"]>["kind"], heading: string, n: NonNullable<FindingCard["new_version"]>, quote?: string | null): NonNullable<FindingCard["changed"]> => ({
+    kind,
+    heading: safe(heading, "Changed"),
+    ...(quote ? { quote } : {}),
+    file: n.file.fileName,
+    file_id: n.file.fileId,
+    ...(n.file.versionLabel ? { version_label: n.file.versionLabel } : {}),
+    version_id: n.file.versionId,
+    ...(n.section ? { section: n.section } : {}),
+  });
+  let changed: FindingCard["changed"] = null;
+  const k = row.status.kind;
+  if (k === "pending_recheck" || st.evaluation_state === "pending") changed = null;
+  else if (k === "not_evaluated") {
+    changed = now ? block("none", `Not checked in ${now.file.fileName}${now.file.versionLabel ? ` ${now.file.versionLabel}` : ""}`, now) : null;
+  } else if (moved && now) changed = block("moved", `Now in ${where(now)}`, now, now.quote);
+  else if (st.change_classification === "unchanged" && st.acknowledgment_required && now) {
+    changed = block("section_changed", `Section changed around it · ${`${now.file.versionLabel ?? ""} ${secShort(now.section)}`.trim()}`, now, now.quote ?? st.binding?.quote);
+  } else if (st.change_classification === "unchanged") changed = null; // a hold: nothing changed the commitment
+  else if (now && prior && ["evidence_weakened", "evidence_absent", "evidence_contradicted"].includes(st.machine_assessment)) {
+    changed = block("replaced", `Changed in ${where(now)}`, now, now.quote);
+  }
+  const open = changed
+    ? { file_id: changed.file_id, version_id: changed.version_id, ...(changed.quote ? { sentence: changed.quote } : {}) }
+    : st.binding
+      ? { file_id: st.binding.fileId, version_id: st.binding.versionId, sentence: st.binding.quote }
+      : agreed
+        ? { file_id: agreed.file_id, version_id: agreed.version_id, sentence: agreed.quote }
+        : undefined;
+  return { agreed, changed, ...(open ? { open_in_document: open } : {}) };
+}
+
 export function buildFindingCard(store: Store, profile: ControlProfile, config: KeelConfig, finding: Finding & { run_id?: string }): FindingCard {
   const control = profile.controls.find((c) => c.id === finding.control_id)!;
   const currentId = store.data.current_snapshot_id ?? finding.snapshot_id;
@@ -312,7 +381,16 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   });
   const verdict_line = verdictLine(row, finding, searchSteps, newLocation, filesAsked, searchCoverage(store, finding.snapshot_id, askedLists));
   const receipt = currentId === st.snapshot_id ? receiptFor(store, row) : null;
+  const priorBlock: FindingCard["prior_version"] = prior
+    ? { file: snapshotFile(store, prior.fileId, prior.versionId, prior.fileName), verified_by: prior.verified_by, verified_at: prior.verified_at, section: prior.section || pBlock.section, quote: prior.quote }
+    : null;
+  const nowBlock: FindingCard["new_version"] = newFile
+    ? { file: { ...newFile, versionLabel: newFile.versionLabel ?? newInfo?.label }, section: newLoc?.section ?? nBlock.section, quote: newQuote }
+    : null;
+  const v41 = agreedAndChanged(row, priorBlock, nowBlock, moved);
   return {
+    ...v41,
+    timeline: controlTimeline(store, profile, control.id),
     verdict_line,
     receipt,
     ...(newQuote ? {} : { quote_pair_note: quotePairNote(row) }),

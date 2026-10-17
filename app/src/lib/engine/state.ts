@@ -22,6 +22,7 @@ import type {
 import type { Store, StoredTask } from "../store";
 import { dispositionOf, priorVerificationFromEvent } from "./ledger";
 import { displayStatus } from "./display";
+import { ruleName, ruleSource } from "./rule-source";
 import { findQuote } from "./normalize";
 
 export interface ControlState {
@@ -265,6 +266,8 @@ export function buildRows(store: Store, profile: ControlProfile, snapshotId: str
     return {
       control_id: control.id,
       title: control.title,
+      rule_name: ruleName(control),
+      rule_source: ruleSource(control, profile.profile_version),
       tier: control.tier,
       severity: status.severity,
       reviewer_role: control.reviewer_role,

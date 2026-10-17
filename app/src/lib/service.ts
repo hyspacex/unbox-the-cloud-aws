@@ -35,6 +35,7 @@ import { canonicalJSON, CHAIN_ALGORITHM, sha256Hex, utcNow, verifyChain } from "
 import { createLiveAdapters } from "./live-adapters";
 import { withPackageLock } from "./engine/lock";
 import { withBubble } from "./engine/bubble";
+import { dashboardTiles, packageTimeline } from "./engine/history";
 import { changedFiles, hasRecordedDecision, headerLine, holdsLine, decisionFlags, decisionSummary, decisionSummaryFromRows, needsDecision, needsDecisionOnRow, openDecisionsFromRows, packageFiles, packageFilesFromRows, recordedOnRow, type FolderItemInfo } from "./engine/summary";
 
 export class ServiceError extends Error {
@@ -155,6 +156,8 @@ export function getPackageView(): PackageView {
     decision_summary: decisionSummary(s, rows, snap.snapshot_id, evalState),
     ...displayLines(s, snap, rows, evalState, !run),
     pending_status: pendingStatus(),
+    dashboard: { tiles: dashboardTiles(s, rows) },
+    timeline: packageTimeline(s, p),
   };
 }
 
@@ -438,6 +441,50 @@ async function submitAdmitted(req: SubmitRequest & { scenario?: string }, o: Sub
   await known; // the snapshot id (new capture or retried snapshot) is known after intake, well before the run ends
   void o; // `wait` is honoured by the caller after admission is released (submit holds admission only until capture)
   return { run_id: runId, snapshot_id: snapshotId, evaluation_state: "pending", done };
+}
+
+// ------------------------------------------------------------------------------------------------
+// Pinned file text for the Box preview (UI v4.1, GET /api/file-text), read-only
+// ------------------------------------------------------------------------------------------------
+
+export interface FileText {
+  file_id: string;
+  version_id: string;
+  version_label?: string;
+  file_name: string;
+  text: string;
+  /** Snapshots that pinned this version, oldest first. */
+  snapshot_ids: string[];
+}
+
+/**
+ * The text of a file version that some snapshot pinned: the stored pinned text (mock and live), else a
+ * live read of that exact version through the Box adapter. A version no snapshot pinned is 404.
+ */
+export async function getFileText(fileId: string, versionId: string): Promise<FileText> {
+  if (!fileId || !versionId) throw new ServiceError("BAD_REQUEST", "file_id and version_id are required", 400);
+  const s = store();
+  const pinned = s.data.snapshots.filter((x) => x.files.some((f) => f.fileId === fileId && f.versionId === versionId));
+  if (!pinned.length) throw new ServiceError("NOT_FOUND", `version ${versionId} of file ${fileId} is not pinned by any snapshot`, 404);
+  const f = pinned[0].files.find((x) => x.fileId === fileId && x.versionId === versionId)!;
+  let text = s.text(versionId);
+  if (text === undefined) {
+    const a = await adapters();
+    const r = await a.box.downloadVersionText(fileId, versionId);
+    if (!r.ok) throw new ServiceError(r.error.code, r.error.message, 502);
+    if (f.contentHash && f.contentHash !== "unavailable" && r.sha256 !== f.contentHash) {
+      throw new ServiceError("CONTENT_HASH_MISMATCH", `${f.fileName} ${versionId}: downloaded text does not match the pinned content hash`, 409);
+    }
+    text = r.text;
+  }
+  return {
+    file_id: fileId,
+    version_id: versionId,
+    ...(f.versionLabel ?? s.versionLabel(fileId, versionId) ? { version_label: f.versionLabel ?? s.versionLabel(fileId, versionId) } : {}),
+    file_name: f.fileName,
+    text,
+    snapshot_ids: pinned.map((x) => x.snapshot_id),
+  };
 }
 
 // ------------------------------------------------------------------------------------------------

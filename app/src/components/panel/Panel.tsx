@@ -88,6 +88,10 @@ export function Panel() {
   // Focus guard (codex #20): if the focused element inside the panel is removed (a level swaps out), focus
   // would fall to <body> and Tab would leave the trap. Pull it back to Back or the first row. Clicking the Box
   // page on purpose moves focus to a real element, so this does not fire then.
+  const openRef = useRef(panel.open);
+  useEffect(() => {
+    openRef.current = panel.open;
+  }, [panel.open]);
   useEffect(() => {
     if (!panel.open) return;
     const root = ref.current;
@@ -96,7 +100,8 @@ export function Panel() {
       const lost = e.target as HTMLElement | null;
       setTimeout(() => {
         const a = document.activeElement;
-        if (lost && !lost.isConnected && (!a || a === document.body)) {
+        // Only while the panel stays open: on close the owl takes focus and the exiting panel must not steal it.
+        if (openRef.current && lost && !lost.isConnected && (!a || a === document.body)) {
           const r = ref.current;
           (r?.querySelector<HTMLElement>('button[aria-label="Back"]') ?? r?.querySelector<HTMLElement>("button[data-row]") ?? r?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true });
         }

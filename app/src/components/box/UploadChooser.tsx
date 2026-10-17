@@ -77,6 +77,9 @@ function ChooserDialog({
   useFocusTrap(dialogRef, true, 'input, button[data-testid="upload-confirm"]');
 
   useEffect(() => {
+    // (Re)mounted open: StrictMode runs this effect twice in development, so the guards are re-armed here.
+    closedRef.current = false;
+    submittingRef.current = false;
     // Background inert while open: neither Tab nor a click reaches the Box page or the Keel panel.
     const root = document.getElementById("keel-app-root");
     root?.setAttribute("inert", "");

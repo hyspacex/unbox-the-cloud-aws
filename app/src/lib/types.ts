@@ -104,6 +104,57 @@ export interface Control {
   tier: ControlTier;
   framework_map: FrameworkMap;
   reviewer_role: string;
+  /** Added (UI v4.1): short rule name, <= 5 words; the UI falls back to `title`. */
+  rule_name?: string;
+  /** Added (UI v4.1): where the rule comes from and who set it up. */
+  source?: { origin: RuleOrigin; set_by: string; reference?: string; note?: string };
+}
+
+/** Added (UI v4.1). */
+export type RuleOrigin = "international_standard" | "team_standard" | "learned_from_reviews";
+
+/** Added (UI v4.1): the rule-source chip of a row or card, computed from the profile. */
+export interface RuleSource {
+  /** "IS-STD-014 Cryptography v4.2" */
+  standard: string;
+  /** "§5.1" */
+  clause?: string;
+  /** Chip text: "IS-STD-014 §5.1" */
+  chip: string;
+  origin: RuleOrigin;
+  /** "Bank standard" | "International standard" | "Learned from reviews" */
+  origin_label: string;
+  /** "Security Architecture (ARB)" */
+  set_by: string;
+  /** "ISO/IEC 27001:2022 A.8.15" for an international-standard rule. */
+  reference?: string;
+  note?: string;
+  profile_version: string;
+  /** ["NIST CSF 2.0 PR.DS-01", "ISO 27001:2022 A.8.24", ...] */
+  framework_map?: string[];
+  /** The map's caveat, verbatim: "illustrative; not reviewed by a compliance owner". */
+  framework_map_status?: string;
+}
+
+/** Added (UI v4.1): one point of a history strip (package or control). */
+export interface TimelinePoint {
+  snapshot_id: string;
+  at: string;
+  /** <= 4 words, "·" and numbers not counted: "8 verified", "runbook v2 · holds", "architecture v3 · 3 need you" */
+  label: string;
+  /** <= 12 words */
+  detail: string;
+  tone: "grey" | "blue" | "amber" | "green" | "teal";
+  changed_files: string[];
+  current: boolean;
+}
+
+/** Added (UI v4.1): a dashboard tile at the top of the panel. */
+export interface DashboardTile {
+  key: "hold" | "need_you" | "recorded";
+  label: string;
+  value: number;
+  tone: "teal" | "amber" | "blue" | "grey";
 }
 
 export interface ControlProfile {
@@ -647,6 +698,10 @@ export interface ControlRow {
   open_task_id?: string;
   /** Added (UI v4): the row waits for a human decision on its snapshot (counts toward the owl badge). */
   needs_decision?: boolean;
+  /** Added (UI v4.1): <= 5 words from the profile, else the title. */
+  rule_name?: string;
+  /** Added (UI v4.1): the rule-source chip. */
+  rule_source?: RuleSource;
   /** Added (UI v4): a human decision is recorded on the row's snapshot (a disposition, or an acknowledgment; an acknowledged rule-11 row reads rule 10). */
   decision_recorded?: boolean;
 }
@@ -706,6 +761,10 @@ export interface PackageView {
   changed_line?: string;
   /** Added (UI v4, Codex 15): the rule-1 status to show on rows while a run or replay is in flight (the UI never builds one). */
   pending_status?: DisplayedStatus;
+  /** Added (UI v4.1): Hold / Need you / Recorded tiles. */
+  dashboard?: { tiles: DashboardTile[] };
+  /** Added (UI v4.1): one point per snapshot of the package. */
+  timeline?: TimelinePoint[];
 }
 
 export interface FindingCard {
@@ -762,6 +821,35 @@ export interface FindingCard {
    * Distinguishes proven absence from not evaluated, unreadable, quarantined and pending. Absent when a quote is shown.
    */
   quote_pair_note?: string;
+  /** Added (UI v4.1): one point per snapshot for this control. */
+  timeline?: TimelinePoint[];
+  /** Added (UI v4.1): the verified commitment, or null when nothing was verified. */
+  agreed?: {
+    quote: string;
+    file: string;
+    file_id: string;
+    version_id: string;
+    version_label?: string;
+    section?: string;
+    verified_by?: string;
+    verified_at?: string;
+    /** "Verified by Priya Natarajan · v2 §4.3 · Oct 8" */
+    byline: string;
+  } | null;
+  /** Added (UI v4.1): where the new document changed it; null for a hold or while pending. */
+  changed?: {
+    kind: "replaced" | "moved" | "section_changed" | "none";
+    /** "Changed in architecture.md v3 §4.3" / "Now in runbook.md v2 §3" / "Section changed around it · v3 §4.2" */
+    heading: string;
+    quote?: string;
+    file: string;
+    file_id: string;
+    version_label?: string;
+    version_id: string;
+    section?: string;
+  } | null;
+  /** Added (UI v4.1): target of "Open in document" (Box preview with the sentence highlighted). */
+  open_in_document?: { file_id: string; version_id: string; sentence?: string };
   /** Added (UI v4): present once a human disposition exists on the current snapshot. */
   receipt?: FindingReceipt | null;
 }

@@ -42,32 +42,33 @@ A hash says the page changed. A reviewer needs to know which control lost which 
 
 ## What you see
 
-The reviewer never leaves Box. The app is one page with three things on it.
+The reviewer never leaves Box. The app is one page with three things on it, plus a Box file preview.
 
 - **The Box page.** A replica of the Box folder list for Project Lantern's Security Review Package: left nav, search, the five files with a Version column, and Box's own **Upload** menu. File names, versions, dates and sizes come from the current snapshot through `GET /api/package`. A dot on a file row means Keel has decisions on that file: amber while one is open, blue once every decision on it is recorded. The **ⓘ** button opens Box's details pane with the folder's `keelReview` metadata fields.
 - **The owl.** Keel's agent, at the bottom right. It blinks when idle, its pupils sweep while a run works, and it speaks one short line at a time. During a run the bubble shows each step, such as "Re-checking 8 controls on Bedrock…". After the run it shows the summary, such as "1 Critical needs your decision. 2 more to look at.", with a badge counting open decisions. Clicking it opens the panel.
-- **The panel.** One 420 px side panel with two levels. Level 1 lists the rows under NEEDS YOUR DECISION, ACKNOWLEDGE and RECORDED, with the verifications that hold collapsed. Level 2 is one control: the reviewed sentence and the current sentence, one computed verdict line, and the buttons the engine enables. Return to author, Verify and Acknowledge expand inline. Each recorded decision shows a three-line receipt, and **Show the record** expands its ledger events and the hash-chain check.
+- **The panel, level 1.** Three tiles count displayed outcomes: Hold, Need you and Recorded. Below them sit the snapshot line and a package timeline with one point per snapshot, the file that changed, and the status after it. Then come the rows under NEED YOU, ACKNOWLEDGE and RECORDED, one rule per row with its status word and a rule-source chip such as "IS-STD-014 §5.1 · Bank standard". The verifications that hold are folded below.
+- **The panel, level 2.** One control. The rule source shows who set the rule up and an illustrative framework map. Next comes the control's own timeline. AGREED is the sentence a named reviewer verified, with who, which version and when. CHANGED shows where the new document changed it, with the new words underlined and an **Open in document ↗** link. Last come one computed verdict line and the buttons the engine enables. Return to author, Verify and Acknowledge expand inline. Each recorded decision shows a three-line receipt, and **Show the record** expands its ledger events and the hash-chain check.
+- **The Box file preview.** **Open in document ↗** opens `/files/[fileId]` with Box's preview chrome, the document rendered at its pinned version, and the sentence highlighted with a Keel pill in the margin. The version menu switches between v1, v2 and v3, so the reviewer can see what was there before. The panel stays open beside it.
 
 The panel's **⋯** menu holds everything else: How it works, Status rules, Full record, How it was checked, Other scenarios, Replay a run, Reset demo (mock only) and the mode line. The older full-page routes `/ledger`, `/rules` and `/architecture` remain as deep links with their own header. They are no longer in the navigation, and the same screens open inside the panel from the menu.
 
-The UI never writes machine text. The owl's lines, row lines, verdict lines and receipts all come from the API, and the status labels come from the engine's display rules.
+The UI never writes machine text. The owl's lines, tiles, timeline labels, row lines, headings, verdict lines and receipts all come from the API, and the status labels come from the engine's display rules. Rule sources and framework maps in the fixture are synthetic and illustrative.
 
 ### Screens to capture
 
-Rehearsal captures live locally under `app/.review/v4/` (gitignored). The set that tells the story:
+Rehearsal captures live locally under `app/.review/v4/` (gitignored). The set that tells the story, in the order of the two-minute script in `docs/demo.md`:
 
-1. Baseline at 1440: the Box page on snapshot S3, five files, owl idle.
-2. The Upload menu with **Upload new version**, then the chooser with the v3 draft.
-3. The owl working, with a step line in its bubble.
-4. After the run: badge 3, the summary bubble, amber dots.
-5. Level 1 after the run.
-6. Level 2 for SEC-ARCH-07: the WAS and NOW quotes and the verdict line.
+1. Baseline at 1440: the Box page with the panel open on tiles 8, 0, 0, the package timeline and the eight holding items.
+2. A holding item at level 2: the rule chip, the AGREED sentence and who verified it.
+3. The Upload menu with **Upload new version**, then the owl working with a step line in its bubble.
+4. After the run: tiles 5, 3, 0, the badge, the summary bubble and amber dots.
+5. Level 2 for encryption: the rule chip, AGREED above CHANGED, and the verdict line.
+6. The control timeline, from "verified by Priya" to "architecture v3 · needs review".
 7. The Box AI draft for the author, then the "Returned to author by Dana Okafor" receipt.
-8. SEC-ARCH-22 with the Verify checklist ticked, then the green "Verified by Dana Okafor" receipt.
-9. **Show the record** expanded with the chain line.
+8. Level 1 at the close: tiles 5, 2, 1, with encryption under RECORDED.
+9. The Box file preview with the sentence highlighted, and the version menu on v2.
 10. The Box details pane with the Keel review metadata.
-11. **⋯** → How it works.
-12. Level 1 at 1024x768, where the panel overlays the page.
+11. Level 1 at 1024x768, where the panel overlays the page.
 
 ## The review transaction
 
@@ -128,7 +129,7 @@ npm test             # Vitest, including acceptance cases 1 to 20 from the spec
 npm run typecheck
 ```
 
-On the Box page, choose **Upload ▾** → **Upload new version** → **Upload** to submit the rewritten architecture document and start the run. Click the owl to open the panel. To start over, open the panel's **⋯** menu and press **Reset demo**. The presenter script is in `docs/demo.md`.
+On the Box page, choose **Upload ▾** → **Upload new version** → **Upload** to submit the rewritten architecture document and start the run. Click the owl to open the panel. To start over, open the panel's **⋯** menu and press **Reset demo**. The presenter script is in `docs/demo.md`. The talk track is in `presentation/README.md`.
 
 For a demo, run production mode instead: `npm run build && npm run start`.
 
@@ -156,7 +157,7 @@ Set `MOCK_MODE=false` in `app/.env.local` (copy from `app/.env.example`, never c
 | Path | Contents |
 | --- | --- |
 | `app/` | Next.js app: engine, ledger, store, Box adapter, Strands agent, API routes and UI |
-| `app/src/components/box/`, `owl/`, `panel/` | The v4 experience layer: Box page replica, the owl, the Keel panel |
+| `app/src/components/box/`, `owl/`, `panel/` | The experience layer: Box page replica and file preview, the owl, the Keel panel |
 | `demo-data/lantern/` | Synthetic fixture: five files, eight controls, snapshots S1 to S4, hash-chained seed ledger, expected findings |
 | `demo/keel.html` | Standalone explainer page |
 | `docs/research/` | Design history: spec v3.4 in `30-design-v3.md`, with the Codex and persona review rounds for each version |
@@ -176,7 +177,8 @@ Set `MOCK_MODE=false` in `app/.env.local` (copy from `app/.env.example`, never c
 - Box AI text generation for the author task message.
 - Deterministic layer: prior-quote diff, quote validation, coverage check, staleness and materiality, display rules, hash-chained JSON ledger, disposition handler with re-apply logic.
 - Box writes: folder metadata, a reviewer task per finding, an author task on return, task polling with identity capture.
-- A Box folder replica with the owl and one side panel: the review list, the evidence pair, inline Return to author, Verify and Acknowledge, receipts with the record, and a menu for the rules, the full ledger with export, the run trace, replay and reset.
+- A Box folder replica with the owl and one side panel: overview tiles, package and control timelines, rule-source chips, the AGREED and CHANGED evidence pair, inline Return to author, Verify and Acknowledge, receipts with the record, and a menu for the rules, the full ledger with export, the run trace, replay and reset.
+- A Box file preview with a version menu that highlights the cited sentence at its pinned version.
 
 **Proposed, not built**
 - Box webhook to a Lambda URL with signature verification, EventBridge, and SQS FIFO per folder.

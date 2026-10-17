@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EpistemicBox — Visual Idea Evolution & Auditable Team Agreement Trail</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a30;
+      --panel-alt: #17213c;
+      --border: #26355c;
+      --text: #eef2ff;
+      --muted: #9aa8c7;
+      --accent: #38bdf8;
+      --box-blue: #0061d5;
+      --aws-orange: #ff9900;
+      --added-bg: rgba(16, 185, 129, 0.14);
+      --added-border: #10b981;
+      --added-text: #6ee7b7;
+      --pivoted-bg: rgba(245, 158, 11, 0.14);
+      --pivoted-border: #f59e0b;
+      --pivoted-text: #fcd34d;
+      --removed-bg: rgba(244, 63, 94, 0.14);
+      --removed-border: #f43f5e;
+      --removed-text: #fda4af;
+      --retained-bg: rgba(148, 163, 184, 0.12);
+      --retained-border: #64748b;
+      --retained-text: #cbd5e1;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, #162347 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+
+    /* Top Header */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 24px;
+      background: rgba(11, 16, 32, 0.92);
+      border-bottom: 1px solid var(--border);
+      z-index: 20;
+      backdrop-filter: blur(10px);
+      flex-wrap: wrap;
+    }
+
+    @media (min-width: 1024px) {
+      .topbar {
+        position: sticky;
+        top: 0;
+      }
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--box-blue), var(--aws-orange));
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0, 97, 213, 0.4);
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .prototype-pill {
+      font-size: 11px;
+      font-family: var(--mono);
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: #7dd3fc;
+      font-weight: 600;
+    }
+
+    .scenario-switch {
+      display: inline-flex;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 4px;
+    }
+
+    .scenario-btn {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .scenario-btn.active {
+      background: #23335e;
+      color: #fff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Architecture Strip */
+    .arch-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      padding: 12px 24px;
+      background: rgba(18, 26, 48, 0.75);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .arch-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(23, 33, 60, 0.75);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      font-size: 12px;
+    }
+
+    .svc-tag {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .svc-aws {
+      background: rgba(255, 153, 0, 0.18);
+      color: #ffb84d;
+      border: 1px solid rgba(255, 153, 0, 0.45);
+    }
+
+    .svc-box {
+      background: rgba(0, 97, 213, 0.25);
+      color: #7cc0ff;
+      border: 1px solid rgba(0, 97, 213, 0.6);
+    }
+
+    /* Main 3-Column Layout */
+    .workspace {
+      display: grid;
+      grid-template-columns: 300px 1fr 360px;
+      gap: 16px;
+      padding: 16px 24px 32px;
+      max-width: 1680px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1280px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: rgba(23, 33, 60, 0.55);
+    }
+
+    .panel-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #cbd5e1;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    /* Left Column: Git-style Revision Commit Graph */
+    .baseline-banner {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      margin-bottom: 14px;
+      font-size: 12px;
+    }
+
+    .baseline-banner strong {
+      color: #6ee7b7;
+      display: block;
+      font-size: 12.5px;
+      margin-bottom: 2px;
+    }
+
+    .commit-list {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .commit-node {
+      position: relative;
+      padding: 12px 12px 12px 16px;
+      border-radius: 10px;
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .commit-node:hover {
+      border-color: #4f6db8;
+    }
+
+    .commit-node.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 6px 18px rgba(0, 0, 0, 0.35);
+      background: #1b2848;
+    }
+
+    .commit-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .commit-version {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .commit-sha {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(11, 16, 32, 0.65);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .commit-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #dbeafe;
+    }
+
+    .commit-meta {
+      font-size: 11.5px;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      margin-top: 6px;
+    }
+
+    .st-approved {
+      background: rgba(16, 185, 129, 0.18);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.45);
+    }
+
+    .st-pending {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fcd34d;
+      border: 1px solid rgba(245, 158, 11, 0.45);
+    }
+
+    .st-rejected {
+      background: rgba(244, 63, 94, 0.18);
+      color: #fda4af;
+      border: 1px solid rgba(244, 63, 94, 0.45);
+    }
+
+    .st-unapproved {
+      background: rgba(148, 163, 184, 0.16);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .commit-stats {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini-stat {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Center Column: Bedrock Triage Banner + Visual Evolution Diff */
+    .triage-card {
+      background: linear-gradient(135deg, rgba(255, 153, 0, 0.11), rgba(0, 97, 213, 0.14));
+      border: 1px solid rgba(255, 153, 0, 0.4);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .triage-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .triage-title {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .door-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(244, 63, 94, 0.2);
+      border: 1px solid #f43f5e;
+      color: #fda4af;
+    }
+
+    .door-badge.type2 {
+      background: rgba(16, 185, 129, 0.18);
+      border-color: #10b981;
+      color: #6ee7b7;
+    }
+
+    .triage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .role-map-item {
+      background: rgba(11, 16, 32, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 10px;
+      font-size: 11.5px;
+    }
+
+    .role-map-file {
+      font-family: var(--mono);
+      color: #fff;
+      font-weight: 600;
+      display: block;
+    }
+
+    .role-map-tpl {
+      color: #7dd3fc;
+      font-size: 11px;
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .filter-pill.active {
+      background: #26396b;
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Evolution Cards */
+    .diff-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .diff-card {
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .diff-card.ADDED {
+      border-left-color: var(--added-border);
+    }
+    .diff-card.PIVOTED {
+      border-left-color: var(--pivoted-border);
+    }
+    .diff-card.REMOVED {
+      border-left-color: var(--removed-border);
+    }
+    .diff-card.RETAINED {
+      border-left-color: var(--retained-border);
+    }
+
+    .diff-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .evo-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 9px;
+      border-radius: 5px;
+      letter-spacing: 0.03em;
+    }
+
+    .evo-badge.ADDED {
+      background: var(--added-bg);
+      color: var(--added-text);
+      border: 1px solid var(--added-border);
+    }
+    .evo-badge.PIVOTED {
+      background: var(--pivoted-bg);
+      color: var(--pivoted-text);
+      border: 1px solid var(--pivoted-border);
+    }
+    .evo-badge.REMOVED {
+      background: var(--removed-bg);
+      color: var(--removed-text);
+      border: 1px solid var(--removed-border);
+    }
+    .evo-badge.RETAINED {
+      background: var(--retained-bg);
+      color: var(--retained-text);
+      border: 1px solid var(--retained-border);
+    }
+
+    .diff-meta-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    .reviewer-chip {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.14);
+      color: #7dd3fc;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    .diff-heading {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .before-after-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 780px) {
+      .before-after-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .ba-box {
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      background: rgba(11, 16, 32, 0.6);
+      border: 1px solid var(--border);
+    }
+
+    .ba-box.before {
+      border-left: 3px solid #64748b;
+    }
+
+    .ba-box.after {
+      border-left: 3px solid var(--accent);
+    }
+
+    .ba-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .citation-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.2);
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    .citation-code {
+      font-family: var(--mono);
+      color: #93c5fd;
+    }
+
+    /* Right Column: Workflow Actions & Audit Ledger */
+    .action-box {
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-weight: 700;
+      font-size: 12.5px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--box-blue);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #1d74e8;
+    }
+
+    .btn-approve {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: #10b981;
+      color: #6ee7b7;
+    }
+    .btn-approve:hover {
+      background: rgba(16, 185, 129, 0.32);
+    }
+
+    .btn-reject {
+      background: rgba(244, 63, 94, 0.2);
+      border-color: #f43f5e;
+      color: #fda4af;
+    }
+    .btn-reject:hover {
+      background: rgba(244, 63, 94, 0.32);
+    }
+
+    .btn-context {
+      background: rgba(255, 153, 0, 0.18);
+      border-color: var(--aws-orange);
+      color: #ffbe55;
+    }
+
+    .ledger-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 440px;
+      overflow-y: auto;
+    }
+
+    .ledger-event {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(11, 16, 32, 0.65);
+      border: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .ledger-event-top {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .ledger-event-title {
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 3px;
+    }
+
+    .code-drawer {
+      margin-top: 12px;
+      background: #070b16;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #a7f3d0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">EB</div>
+      <div>
+        <div class="brand-title">EpistemicBox — Pull Requests for Enterprise Decisions</div>
+        <div class="brand-sub">Visual Idea Evolution (+Added / ↻Pivoted / −Removed) • Box AI Templates + AWS Decision Ledger</div>
+      </div>
+    </div>
+
+    <div class="top-controls">
+      <span class="prototype-pill" title="Explicitly labeled prototype fixture">INTERACTIVE PROTOTYPE • PRE-ANALYZED FIXTURE</span>
+      <div class="scenario-switch" role="tablist" aria-label="Demo Scenario Selector">
+        <button id="btnScenarioBank" class="scenario-btn active" onclick="selectScenario('bank')">
+          1. Enterprise Banking AI Rollout (3-Min Stage Demo)
+        </button>
+        <button id="btnScenarioDogfood" class="scenario-btn" onclick="selectScenario('dogfood')">
+          2. Our Own Idea Evolution (V1 One-Pager ──► V3)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 1-Line Architecture Strip -->
+  <section class="arch-strip" aria-label="Architecture Flow">
+    <div class="arch-step">
+      <span class="svc-tag svc-box">BOX FOLDERS</span>
+      <span>1. Owner uploads proposal folder (<code>GET /folders/:id/items</code>)</span>
+    </div>
+    <div class="arch-step">
+      <span class="svc-tag svc-aws">AMAZON BEDROCK</span>
+      <span>2. Decision model classifies Type 1/2 Door &amp; suggests Project Template</span>
+    </div>
+    <div class="arch-step">
+      <span class="svc-tag svc-box">BOX AI EXTRACT + ASK</span>
+      <span>3. Grouped Metadata Templates extract fields &amp; cite <code>+Added / ↻Pivoted / −Removed</code></span>
+    </div>
+    <div class="arch-step">
+      <span class="svc-tag svc-aws">STEP FUNCTIONS + BOX TASKS</span>
+      <span>4. Version-bound human approval updates the auditable Decision Ledger</span>
+    </div>
+  </section>
+
+  <!-- Main Workspace -->
+  <main class="workspace">
+
+    <!-- Left Rail: Revision History Graph -->
+    <section class="panel" aria-label="Idea Commit History">
+      <div class="panel-header">
+        <span class="panel-title">Idea Revision History</span>
+        <span class="svc-tag svc-aws" id="commitCountBadge">3 Revisions</span>
+      </div>
+      <div class="panel-body">
+        <div class="baseline-banner" id="activeBaselineBanner">
+          <strong>Current Approved Baseline: V1</strong>
+          <span>Downstream agents &amp; teams only trust the approved baseline manifest.</span>
+        </div>
+        <div class="commit-list" id="commitList"></div>
+      </div>
+    </section>
+
+    <!-- Center: Amazon Bedrock Folder Triage + Visual Idea Evolution Diff -->
+    <section class="panel" aria-label="Visual Idea Evolution and Agreement Drift">
+      <div class="panel-header">
+        <span class="panel-title" id="centerPanelTitle">Visual Idea Evolution &amp; Agreement Drift</span>
+        <span class="prototype-pill" id="comparisonTargetBadge">Comparing against Approved Baseline V1</span>
+      </div>
+      <div class="panel-body">
+
+        <!-- Amazon Bedrock Folder Decision Model Card -->
+        <div class="triage-card" id="bedrockTriageCard"></div>
+
+        <!-- Filter Pills -->
+        <div class="filter-bar">
+          <div class="filter-pills" role="group" aria-label="Evolution State Filter">
+            <button class="filter-pill active" data-filter="ALL" onclick="setFilter('ALL')">All Signals</button>
+            <button class="filter-pill" data-filter="ADDED" onclick="setFilter('ADDED')">+ Added</button>
+            <button class="filter-pill" data-filter="PIVOTED" onclick="setFilter('PIVOTED')">↻ Pivoted</button>
+            <button class="filter-pill" data-filter="REMOVED" onclick="setFilter('REMOVED')">− Removed</button>
+            <button class="filter-pill" data-filter="RETAINED" onclick="setFilter('RETAINED')">✓ Retained</button>
+          </div>
+          <span style="font-size:11.5px;color:var(--muted)" id="harmlessNotice">
+            1 harmless wording paraphrase suppressed from approval routing
+          </span>
+        </div>
+
+        <!-- Evolution Cards -->
+        <div class="diff-list" id="diffList"></div>
+      </div>
+    </section>
+
+    <!-- Right Rail: Approval Workflow & Auditable Decision Ledger -->
+    <section class="panel" aria-label="Approval Workflow and Decision Ledger">
+      <div class="panel-header">
+        <span class="panel-title">Workflow &amp; Audit Trail</span>
+        <span class="svc-tag svc-box">BOX TASKS + DYNAMODB</span>
+      </div>
+      <div class="panel-body">
+        <div class="action-box" id="workflowControlBox"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span class="panel-title" style="font-size:12px;">Immutable Decision Events</span>
+          <span style="font-size:11px;color:var(--muted);font-family:var(--mono);">SHA-256 Bound</span>
+        </div>
+        <div class="ledger-timeline" id="ledgerTimeline"></div>
+
+        <div class="code-drawer" id="approvedContextPreview"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const SCENARIOS = {
+      bank: {
+        name: "Retail Bank Customer-Support Copilot",
+        approvedBaselineVersion: "V1",
+        selectedVersion: "V2",
+        revisions: {
+          V1: {
+            version: "V1",
+            sha: "manifest:9a4c10e",
+            folderId: "box_folder_88201",
+            title: "Constrained EU Support Copilot Pilot",
+            author: "A. Chen (Product Lead)",
+            observedAt: "2026-10-14 09:30 UTC",
+            sourceModifiedAt: "2026-10-14 09:12 UTC",
+            status: "APPROVED BASELINE",
+            statusClass: "st-approved",
+            stats: { added: 2, pivoted: 0, removed: 0, retained: 2 },
+            triage: {
+              templateBundle: "Enterprise AI Initiative / v1",
+              decisionTier: "TYPE 2 • TWO-WAY DOOR (Reversible Pilot)",
+              isType2: true,
+              rationale: "Constrained internal EU pilot on redacted tickets only; 30-day retention and $60k cap.",
+              mappings: [
+                { file: "01-Pilot-Proposal.docx (v1)", template: "Business Case Template" },
+                { file: "02-EU-Architecture.pdf (v1)", template: "Architecture Template" },
+                { file: "03-DPIA-Redacted.docx (v1)", template: "Data & Privacy Template" },
+                { file: "04-Pilot-Budget.xlsx (v1)", template: "Finance Template" }
+              ]
+            },
+            requiredReviewer: "Privacy & Security + Finance (Completed)",
+            taskId: "box_task_44102 (Approved)",
+            changes: [
+              {
+                state: "ADDED",
+                topic: "Data & Privacy • dataRegion = EU (Frankfurt)",
+                reviewer: "Privacy / Security",
+                before: "No prior baseline (Initial Project Folder)",
+                after: "\"All customer support transcripts are processed strictly inside eu-central-1 (Frankfurt).\"",
+                citation: "03-DPIA-Redacted.docx • file_version:101 • Section 2.1",
+                observedAt: "2026-10-14 09:30 UTC"
+              },
+              {
+                state: "ADDED",
+                topic: "Data & Privacy • PiiRedactionGuard = Mandatory",
+                reviewer: "Privacy / Security",
+                before: "No prior baseline (Initial Project Folder)",
+                after: "\"Raw payment card and national ID tokens are stripped prior to model invocation.\"",
+                citation: "03-DPIA-Redacted.docx • file_version:101 • Section 3.4",
+                observedAt: "2026-10-14 09:30 UTC"
+              },
+              {
+                state: "RETAINED",
+                topic: "Data & Privacy • retentionDays = 30 days",
+                reviewer: "Privacy / Security",
+                before: "30 days",
+                after: "30 days (Approved pilot policy)",
+                citation: "03-DPIA-Redacted.docx • file_version:101 • Section 4.0",
+                observedAt: "2026-10-14 09:30 UTC"
+              },
+              {
+                state: "RETAINED",
+                topic: "Finance • annualCost = USD 60,000",
+                reviewer: "Finance",
+                before: "USD 60,000",
+                after: "USD 60,000 annual pilot ceiling",
+                citation: "04-Pilot-Budget.xlsx • file_version:88 • Sheet1!B14",
+                observedAt: "2026-10-14 09:30 UTC"
+              }
+            ]
+          },
+          V2: {
+            version: "V2",
+            sha: "manifest:7f31b90",
+            folderId: "box_folder_88205",
+            title: "Production Rollout Folder (US Region Escalation)",
+            author: "D. Miller (Platform Eng)",
+            observedAt: "2026-10-16 14:05 UTC",
+            sourceModifiedAt: "2026-10-16 13:58 UTC",
+            status: "PENDING PRIVACY REVIEW",
+            statusClass: "st-pending",
+            stats: { added: 1, pivoted: 1, removed: 1, retained: 2 },
+            triage: {
+              templateBundle: "Enterprise AI Initiative / v1",
+              decisionTier: "TYPE 1 • ONE-WAY DOOR ESCALATION (Type 2 ──► Type 1)",
+              isType2: false,
+              rationale: "Amazon Bedrock detected cross-border EU->US data processing and removal of pre-ingestion redaction lock.",
+              mappings: [
+                { file: "01-Rollout-Proposal.docx (v2)", template: "Business Case Template" },
+                { file: "02-US-Failover-Arch.pdf (v2)", template: "Architecture Template" },
+                { file: "03-DPIA-Rollout.docx (v2)", template: "Data & Privacy Template" },
+                { file: "04-Pilot-Budget.xlsx (v1)", template: "Finance Template" }
+              ]
+            },
+            requiredReviewer: "M. Laurent (EU Privacy Officer • Box User 90812)",
+            taskId: "box_task_99281 (Action: review • Completion: all_assignees)",
+            changes: [
+              {
+                state: "PIVOTED",
+                topic: "Architecture & Privacy • dataRegion: EU only ──► US processing",
+                reviewer: "Privacy / Security (Required)",
+                before: "Approved V1: \"All customer support transcripts are processed strictly inside eu-central-1 (Frankfurt).\"",
+                after: "Candidate V2: \"Primary inference routes through us-east-1 cross-region capacity for lower latency.\"",
+                citation: "02-US-Failover-Arch.pdf (v2) §3.2 & 03-DPIA-Rollout.docx (v2) §2.1",
+                observedAt: "2026-10-16 14:05 UTC"
+              },
+              {
+                state: "REMOVED",
+                topic: "Data & Privacy • Mandatory pre-ingestion PII redaction clause dropped",
+                reviewer: "Privacy / Security (Required)",
+                before: "Approved V1: \"Raw payment card and national ID tokens are stripped prior to model invocation.\"",
+                after: "Candidate V2: Clause removed in §3.4 (replaced by generic provider encryption statement).",
+                citation: "03-DPIA-Rollout.docx (v2) • Missing constraint vs. V1 §3.4",
+                observedAt: "2026-10-16 14:05 UTC"
+              },
+              {
+                state: "ADDED",
+                topic: "Business Case • Live voice transcript streaming scope",
+                reviewer: "Product Owner",
+                before: "Approved V1: Asynchronous closed ticket summaries only.",
+                after: "Candidate V2: \"Real-time agent assist during active customer phone calls.\"",
+                citation: "01-Rollout-Proposal.docx (v2) • Section 1.3",
+                observedAt: "2026-10-16 14:05 UTC"
+              },
+              {
+                state: "RETAINED",
+                topic: "Data & Privacy • retentionDays = 30 days",
+                reviewer: "No re-approval needed",
+                before: "30 days",
+                after: "30 days (Unchanged from V1)",
+                citation: "03-DPIA-Rollout.docx (v2) • Section 4.0",
+                observedAt: "2026-10-16 14:05 UTC"
+              },
+              {
+                state: "RETAINED",
+                topic: "Finance • annualCost = USD 60,000",
+                reviewer: "No re-approval needed",
+                before: "USD 60,000",
+                after: "USD 60,000 (Unchanged from V1)",
+                citation: "04-Pilot-Budget.xlsx (v1) • Sheet1!B14",
+                observedAt: "2026-10-16 14:05 UTC"
+              }
+            ]
+          },
+          V3: {
+            version: "V3",
+            sha: "manifest:c409e21",
+            folderId: "box_folder_88219",
+            title: "Unapproved Draft (365-Day Retention & $180k Expansion)",
+            author: "K. Patel (Ops Lead)",
+            observedAt: "2026-10-16 16:40 UTC",
+            sourceModifiedAt: "2026-10-16 16:35 UTC",
+            status: "UNAPPROVED DRAFT (QUARANTINED)",
+            statusClass: "st-unapproved",
+            stats: { added: 1, pivoted: 2, removed: 0, retained: 2 },
+            triage: {
+              templateBundle: "Enterprise AI Initiative / v1",
+              decisionTier: "TYPE 1 • ONE-WAY DOOR (Unapproved Draft — Does Not Inherit Consent)",
+              isType2: false,
+              rationale: "Draft V3 triples annual spend ($60k -> $180k) and extends retention to 365 days. Quarantined from Approved Context API.",
+              mappings: [
+                { file: "01-Rollout-Proposal.docx (v3)", template: "Business Case Template" },
+                { file: "02-US-Failover-Arch.pdf (v2)", template: "Architecture Template" },
+                { file: "03-DPIA-Rollout.docx (v3)", template: "Data & Privacy Template" },
+                { file: "04-Expansion-Budget.xlsx (v2)", template: "Finance Template" }
+              ]
+            },
+            requiredReviewer: "Finance + Privacy (Not Yet Approved)",
+            taskId: "Not promoted — V3 cannot inherit V1/V2 approval",
+            changes: [
+              {
+                state: "PIVOTED",
+                topic: "Data & Privacy • retentionDays: 30 days ──► 365 days",
+                reviewer: "Privacy / Security (Required)",
+                before: "Approved Baseline: 30 days transcript retention",
+                after: "Draft V3: \"Retain raw prompt and transcript logs for 365 days for model fine-tuning.\"",
+                citation: "03-DPIA-Rollout.docx (v3) • Section 4.0",
+                observedAt: "2026-10-16 16:40 UTC"
+              },
+              {
+                state: "PIVOTED",
+                topic: "Finance • annualCost: USD 60,000 ──► USD 180,000",
+                reviewer: "Finance (Required)",
+                before: "Approved Baseline: USD 60,000",
+                after: "Draft V3: USD 180,000 annual run-rate across 4 regional contact centers.",
+                citation: "04-Expansion-Budget.xlsx (v2) • Sheet1!B18",
+                observedAt: "2026-10-16 16:40 UTC"
+              },
+              {
+                state: "ADDED",
+                topic: "Architecture • Fine-tuning pipeline on historical tickets",
+                reviewer: "Privacy / Security",
+                before: "No model training on customer data",
+                after: "Draft V3: Nightly fine-tuning corpus export from Box folder.",
+                citation: "01-Rollout-Proposal.docx (v3) • Section 5.1",
+                observedAt: "2026-10-16 16:40 UTC"
+              }
+            ]
+          }
+        },
+        ledger: [
+          {
+            time: "2026-10-16 14:06 UTC",
+            actor: "AWS Step Functions + Box AI",
+            title: "V2 Drift Detected (1 Pivoted, 1 Removed, 1 Added)",
+            detail: "Bound Review Packet generated for manifest:7f31b90. Assigned Box Task box_task_99281 to EU Privacy Officer."
+          },
+          {
+            time: "2026-10-16 14:05 UTC",
+            actor: "Amazon Bedrock (Converse API)",
+            title: "Folder Triage: Escalated Type 2 Pilot ──► Type 1 One-Way Door",
+            detail: "Recommended Project Template 'Enterprise AI Initiative / v1' across 4 files in box_folder_88205."
+          },
+          {
+            time: "2026-10-14 10:15 UTC",
+            actor: "M. Laurent (Privacy) & R. Gomez (Finance)",
+            title: "Approved Baseline Promoted: V1 (manifest:9a4c10e)",
+            detail: "All Box Tasks completed (action=review). Conditional DynamoDB write promoted V1 as ApprovedBaseline."
+          }
+        ]
+      },
+
+      dogfood: {
+        name: "EpistemicBox Idea Evolution (Our Own Project)",
+        approvedBaselineVersion: "V1",
+        selectedVersion: "V3",
+        revisions: {
+          V1: {
+            version: "V1",
+            sha: "onepager:c37b853",
+            folderId: "box_folder_onepager_v1",
+            title: "Original One-Pager: Signal View & Private Inquiry",
+            author: "Hackathon Team",
+            observedAt: "2026-10-15 18:00 PDT",
+            sourceModifiedAt: "2026-10-15 17:45 PDT",
+            status: "INITIAL ONE-PAGER BASELINE",
+            statusClass: "st-approved",
+            stats: { added: 3, pivoted: 0, removed: 0, retained: 1 },
+            triage: {
+              templateBundle: "Hackathon Product Spec / v1",
+              decisionTier: "TYPE 2 • INITIAL PRODUCT CONCEPT",
+              isType2: true,
+              rationale: "Single-document review concept: Act 1 Signal View, Act 2 Reviewer Private 1:1 Note Inquiry, Act 3 Verification Ratio.",
+              mappings: [
+                { file: "Epistemic-Review-OnePager.docx", template: "Product Thesis Template" }
+              ]
+            },
+            requiredReviewer: "Team Consensus (Initial Baseline)",
+            taskId: "box_task_1001 (Completed)",
+            changes: [
+              {
+                state: "ADDED",
+                topic: "Act 1 • Signal View (Dim 80% AI prose into accordions)",
+                reviewer: "Product Team",
+                before: "Initial blank slate",
+                after: "\"Opening a 12-page doc in Box and toggling Signal View dims 80% of connective boilerplate.\"",
+                citation: "One-Pager.docx • Section 4 (Act 1)",
+                observedAt: "2026-10-15 18:00 PDT"
+              },
+              {
+                state: "ADDED",
+                topic: "Act 2 • Private 1:1 Note Inquiry & Citation Stripping",
+                reviewer: "Security / Architecture",
+                before: "Initial blank slate",
+                after: "\"Fetches external evidence alongside private note... automatically stripping private source citations.\"",
+                citation: "One-Pager.docx • Section 4 (Act 2)",
+                observedAt: "2026-10-15 18:00 PDT"
+              },
+              {
+                state: "ADDED",
+                topic: "Section 5 • Explicitly reject approval queues & decision ledgers",
+                reviewer: "Product Team",
+                before: "Initial blank slate",
+                after: "\"We do not build vague readiness scores, approval/sign-off queues, or author decision ledgers.\"",
+                citation: "One-Pager.docx • Section 5 (Scope Boundaries)",
+                observedAt: "2026-10-15 18:00 PDT"
+              }
+            ]
+          },
+          V2: {
+            version: "V2",
+            sha: "commit:22a1490",
+            folderId: "box_folder_arch_v2",
+            title: "Pivot to 'Git for Enterprise Ideas' & Box AI Template Bundles",
+            author: "Max & Team",
+            observedAt: "2026-10-16 20:58 PDT",
+            sourceModifiedAt: "2026-10-16 20:55 PDT",
+            status: "SUPERSEDED BY V3",
+            statusClass: "st-unapproved",
+            stats: { added: 1, pivoted: 3, removed: 2, retained: 2 },
+            triage: {
+              templateBundle: "Hackathon Product Spec / v1",
+              decisionTier: "TYPE 1 • ARCHITECTURAL PIVOT",
+              isType2: false,
+              rationale: "Pivoted from single-doc prose dimming to cross-revision Agreement Drift + Box Tasks workflow + Project Template bundles.",
+              mappings: [
+                { file: "README.md (v2)", template: "Product Thesis Template" },
+                { file: "docs/architecture.md (v2)", template: "System Architecture Template" },
+                { file: "docs/demo.md (v2)", template: "Demo & Acceptance Template" }
+              ]
+            },
+            requiredReviewer: "Hackathon Team Architecture Sign-off",
+            taskId: "box_task_1002 (Approved & Evolved into V3)",
+            changes: [
+              {
+                state: "PIVOTED",
+                topic: "Core UX: Prose Accordion Dimming ──► Cross-Version Agreement Drift Diff",
+                reviewer: "Product Owner",
+                before: "V1 One-Pager: Dim 80% of boilerplate inside a single document.",
+                after: "V2 Idea-Git: Compare candidate upload against the last approved baseline to expose changed team commitments.",
+                citation: "README.md • Section 'The problem'",
+                observedAt: "2026-10-16 20:58 PDT"
+              },
+              {
+                state: "PIVOTED",
+                topic: "Governance Stance: Reject Approval Queues ──► Version-Bound Box Tasks + Ledger",
+                reviewer: "Architecture Lead",
+                before: "V1 One-Pager §5: \"We do not build approval/sign-off queues or decision ledgers.\"",
+                after: "V2 Idea-Git: Generate version-bound Review Packets in Box, route Box Tasks, and record an auditable Decision Ledger in DynamoDB.",
+                citation: "docs/architecture.md • Sections 7 & 9",
+                observedAt: "2026-10-16 20:58 PDT"
+              },
+              {
+                state: "ADDED",
+                topic: "Project Template = Group of Box AI Metadata Templates",
+                reviewer: "Box Integration Lead",
+                before: "V1 One-Pager: Generic claim badges (Grounded / Unexamined / Conflict).",
+                after: "V2: Combine Business Case, Architecture, Data & Privacy, and Finance Box Metadata Templates generated from reference files.",
+                citation: "docs/architecture.md • Section 4 (Project Template registry)",
+                observedAt: "2026-10-16 20:58 PDT"
+              },
+              {
+                state: "REMOVED",
+                topic: "Reviewer Private 1:1 Note Inquiry & Citation Stripping",
+                reviewer: "Security Lead",
+                before: "V1 One-Pager Act 2: Query private 1:1 notes and strip citations on post.",
+                after: "Scoped out of MVP: stripping citations cannot guarantee zero semantic leakage of private context.",
+                citation: "docs/demo.md • Section 'Not in the MVP'",
+                observedAt: "2026-10-16 20:58 PDT"
+              }
+            ]
+          },
+          V3: {
+            version: "V3",
+            sha: "commit:5dad881",
+            folderId: "box_folder_arch_v3",
+            title: "Folder Intake + Amazon Decision Model + Visual Lineage",
+            author: "Max & Team",
+            observedAt: "2026-10-16 21:24 PDT",
+            sourceModifiedAt: "2026-10-16 21:23 PDT",
+            status: "PENDING TEAM APPROVAL",
+            statusClass: "st-pending",
+            stats: { added: 2, pivoted: 3, removed: 2, retained: 2 },
+            triage: {
+              templateBundle: "Hackathon Product Spec / v1",
+              decisionTier: "TYPE 1 • ONE-WAY DOOR FINAL ARCHITECTURE",
+              isType2: false,
+              rationale: "Added Box Folder intake with Amazon Bedrock Type 1/2 Decision Model and visual +Added / ↻Pivoted / −Removed lineage.",
+              mappings: [
+                { file: "README.md (v3)", template: "Product Thesis Template" },
+                { file: "docs/architecture.md (v3)", template: "System Architecture Template" },
+                { file: "docs/demo.md (v3)", template: "3-Min Stage Plan Template" },
+                { file: "docs/idea-evolution.md (v3)", template: "Idea Lineage Ledger" }
+              ]
+            },
+            requiredReviewer: "Hackathon Team Lead (Click Approve on Right Panel)",
+            taskId: "box_task_1003 (Action: review)",
+            changes: [
+              {
+                state: "ADDED",
+                topic: "AWS Role: Box Folder Intake + Amazon Bedrock Decision Model",
+                reviewer: "AWS Architecture Lead",
+                before: "V1/V2: Manual Project Template selection and manual file role tagging.",
+                after: "V3: Owner uploads a Box folder; Amazon Bedrock classifies Type 1 (One-Way Door) vs. Type 2 (Two-Way Door) and suggests the Project Template + file mappings.",
+                citation: "docs/architecture.md • Section 5 & Section 11",
+                observedAt: "2026-10-16 21:20 PDT"
+              },
+              {
+                state: "ADDED",
+                topic: "UX: Visual Idea Evolution Graph (+ Added / ↻ Pivoted / − Removed / ✓ Retained)",
+                reviewer: "Product & Frontend Lead",
+                before: "V1: Static Verification Ratio % score.",
+                after: "V3: Explicit visual history tracking which sub-ideas were Added, Pivoted, Removed, or Retained across revisions.",
+                citation: "docs/idea-evolution.md • Sections 1–3",
+                observedAt: "2026-10-16 21:24 PDT"
+              },
+              {
+                state: "PIVOTED",
+                topic: "Primary Review Unit: Prose Dimming (V1) ──► Agreement Drift Diff (V3)",
+                reviewer: "Product Owner",
+                before: "V1 One-Pager Act 1: Dim 80% of connective boilerplate inside one document.",
+                after: "V3: Compare candidate folder against the last approved baseline using grouped Box AI Metadata Templates.",
+                citation: "docs/idea-evolution.md • Section 2",
+                observedAt: "2026-10-16 21:24 PDT"
+              },
+              {
+                state: "PIVOTED",
+                topic: "Workflow Stance: No Approval Queues (V1) ──► Version-Bound Box Tasks + AWS Ledger (V3)",
+                reviewer: "Architecture Lead",
+                before: "V1 One-Pager §5: Explicitly rejected approval queues and decision ledgers.",
+                after: "V3: Version-bound Box Review Packets, Box Tasks, Step Functions orchestration, and DynamoDB Decision Ledger.",
+                citation: "docs/idea-evolution.md • Section 2",
+                observedAt: "2026-10-16 21:24 PDT"
+              },
+              {
+                state: "REMOVED",
+                topic: "Reviewer Private 1:1 Note Inquiry & Folder Verification % Score",
+                reviewer: "Security Lead",
+                before: "V1 One-Pager Acts 2 & 3: Private 1:1 note citation stripping and '90% Verified' folder score.",
+                after: "V3: Removed from MVP; a single unapproved Type-1 change blocks promotion regardless of prose percentage.",
+                citation: "docs/idea-evolution.md • Section 2",
+                observedAt: "2026-10-16 21:24 PDT"
+              },
+              {
+                state: "RETAINED",
+                topic: "Human-in-the-Loop Gate & Governed Approved-Context Endpoint",
+                reviewer: "Retained Core Principle",
+                before: "V1 One-Pager: Only Human Reviewer upgrades claims; downstream agents only read verified claims.",
+                after: "V3: Only assigned human reviewers in Box Tasks can promote a baseline; Approved Context API never serves unapproved drafts.",
+                citation: "docs/architecture.md • Sections 7 & 10",
+                observedAt: "2026-10-16 21:24 PDT"
+              }
+            ]
+          }
+        },
+        ledger: [
+          {
+            time: "2026-10-16 21:24 PDT",
+            actor: "EpistemicBox Dogfooding Tracker",
+            title: "V3 Submitted (commit:5dad881)",
+            detail: "Added Amazon Bedrock Folder Decision Model + Visual Idea Evolution (+Added / ↻Pivoted / −Removed)."
+          },
+          {
+            time: "2026-10-16 21:11 PDT",
+            actor: "Max & Team",
+            title: "V2 Pivoted from V1 One-Pager (commit:22a1490)",
+            detail: "Pivoted from single-doc prose dimming to Git for Enterprise Ideas + Box AI Metadata Template Bundles."
+          },
+          {
+            time: "2026-10-15 18:00 PDT",
+            actor: "Hackathon Team",
+            title: "V1 Baseline Recorded (onepager:c37b853)",
+            detail: "Original One-Pager: Signal View, Reviewer Private Inquiry, and Governed Folder Context."
+          }
+        ]
+      }
+    };
+
+    let currentScenarioKey = "bank";
+    let currentFilter = "ALL";
+
+    function selectScenario(key) {
+      currentScenarioKey = key;
+      currentFilter = "ALL";
+      document.getElementById("btnScenarioBank").classList.toggle("active", key === "bank");
+      document.getElementById("btnScenarioDogfood").classList.toggle("active", key === "dogfood");
+      renderAll();
+    }
+
+    function selectVersion(ver) {
+      SCENARIOS[currentScenarioKey].selectedVersion = ver;
+      renderAll();
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll(".filter-pill").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-filter") === filter);
+      });
+      renderDiffList();
+    }
+
+    function renderAll() {
+      const scenario = SCENARIOS[currentScenarioKey];
+      const selectedRev = scenario.revisions[scenario.selectedVersion];
+      const baselineRev = scenario.revisions[scenario.approvedBaselineVersion];
+
+      // Update Baseline Banner
+      document.getElementById("activeBaselineBanner").innerHTML = `
+        <strong>Current Approved Baseline: ${baselineRev.version} (${baselineRev.sha})</strong>
+        <span>Title: ${baselineRev.title} • Downstream Context API serves ONLY ${baselineRev.version}.</span>
+      `;
+
+      // Render Commit List
+      const versions = Object.keys(scenario.revisions).reverse();
+      document.getElementById("commitCountBadge").textContent = `${versions.length} Revisions`;
+      const commitListEl = document.getElementById("commitList");
+      commitListEl.innerHTML = versions.map(vKey => {
+        const rev = scenario.revisions[vKey];
+        const isSelected = vKey === scenario.selectedVersion;
+        const isBaseline = vKey === scenario.approvedBaselineVersion;
+        return `
+          <div class="commit-node ${isSelected ? "selected" : ""}" onclick="selectVersion('${vKey}')">
+            <div class="commit-top">
+              <span class="commit-version">${rev.version} ${isBaseline ? "★" : ""}</span>
+              <span class="commit-sha">${rev.sha}</span>
+            </div>
+            <div class="commit-title">${rev.title}</div>
+            <div class="commit-meta">
+              <span>Folder: <code>${rev.folderId}</code></span>
+              <span>By: ${rev.author}</span>
+              <span>Observed: ${rev.observedAt}</span>
+            </div>
+            <span class="status-badge ${rev.statusClass}">${rev.status}</span>
+            <div class="commit-stats">
+              <span class="mini-stat" style="background:var(--added-bg);color:var(--added-text)">+${rev.stats.added} Added</span>
+              <span class="mini-stat" style="background:var(--pivoted-bg);color:var(--pivoted-text)">↻${rev.stats.pivoted} Pivoted</span>
+              <span class="mini-stat" style="background:var(--removed-bg);color:var(--removed-text)">−${rev.stats.removed} Removed</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Update Center Header
+      document.getElementById("centerPanelTitle").textContent =
+        `${scenario.name} — Viewing ${selectedRev.version}`;
+      document.getElementById("comparisonTargetBadge").textContent =
+        `Comparing ${selectedRev.version} (${selectedRev.sha}) vs. Approved Baseline ${baselineRev.version} (${baselineRev.sha})`;
+
+      // Render Amazon Bedrock Triage Card
+      const t = selectedRev.triage;
+      document.getElementById("bedrockTriageCard").innerHTML = `
+        <div class="triage-header">
+          <div class="triage-title">
+            <span class="svc-tag svc-aws">AMAZON BEDROCK DECISION MODEL</span>
+            <span>Suggested Project Template: <strong>${t.templateBundle}</strong></span>
+          </div>
+          <span class="door-badge ${t.isType2 ? "type2" : ""}">${t.decisionTier}</span>
+        </div>
+        <div style="font-size:12.5px;color:#dbeafe;margin-bottom:8px;">
+          <strong>Decision Framing:</strong> ${t.rationale}
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);">
+          Auto-mapped Box Folder (<code>${selectedRev.folderId}</code>) files to Box AI Metadata Templates:
+        </div>
+        <div class="triage-grid">
+          ${t.mappings.map(m => `
+            <div class="role-map-item">
+              <span class="role-map-file">${m.file}</span>
+              <span class="role-map-tpl">──► ${m.template}</span>
+            </div>
+          `).join("")}
+        </div>
+      `;
+
+      // Reset filter UI active state
+      document.querySelectorAll(".filter-pill").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-filter") === currentFilter);
+      });
+
+      renderDiffList();
+      renderWorkflowAndLedger();
+    }
+
+    function renderDiffList() {
+      const scenario = SCENARIOS[currentScenarioKey];
+      const selectedRev = scenario.revisions[scenario.selectedVersion];
+      const diffListEl = document.getElementById("diffList");
+
+      const filtered = selectedRev.changes.filter(c =>
+        currentFilter === "ALL" ? true : c.state === currentFilter
+      );
+
+      if (filtered.length === 0) {
+        diffListEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted);">No changes in state <strong>${currentFilter}</strong> for ${selectedRev.version}.</div>`;
+        return;
+      }
+
+      const badgeLabels = {
+        ADDED: "+ ADDED IDEA / COMMITMENT",
+        PIVOTED: "↻ PIVOTED DIRECTION",
+        REMOVED: "− REMOVED / SCOPED OUT",
+        RETAINED: "✓ RETAINED BASELINE"
+      };
+
+      diffListEl.innerHTML = filtered.map(item => `
+        <article class="diff-card ${item.state}">
+          <div class="diff-top">
+            <span class="evo-badge ${item.state}">${badgeLabels[item.state]}</span>
+            <div class="diff-meta-right">
+              <span class="reviewer-chip">Review Role: ${item.reviewer}</span>
+              <span>Observed: ${item.observedAt}</span>
+            </div>
+          </div>
+          <div class="diff-heading">${item.topic}</div>
+          <div class="before-after-grid">
+            <div class="ba-box before">
+              <span class="ba-label">Before (Approved Baseline ${scenario.approvedBaselineVersion})</span>
+              <div>${item.before}</div>
+            </div>
+            <div class="ba-box after">
+              <span class="ba-label">After (Candidate ${selectedRev.version})</span>
+              <div>${item.after}</div>
+            </div>
+          </div>
+          <div class="citation-row">
+            <span><strong>Box AI Citation:</strong> <span class="citation-code">${item.citation}</span></span>
+            <span>Verified against pinned Box file version snapshot</span>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderWorkflowAndLedger() {
+      const scenario = SCENARIOS[currentScenarioKey];
+      const selectedRev = scenario.revisions[scenario.selectedVersion];
+      const baselineRev = scenario.revisions[scenario.approvedBaselineVersion];
+      const isAlreadyBaseline = selectedRev.version === scenario.approvedBaselineVersion;
+
+      const controlEl = document.getElementById("workflowControlBox");
+      controlEl.innerHTML = `
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Selected Candidate Revision</div>
+        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;">
+          ${selectedRev.version} — ${selectedRev.title}
+        </div>
+        <div style="font-size:12px;margin-bottom:4px;">
+          <strong>Required Approver:</strong> <span style="color:#7dd3fc">${selectedRev.requiredReviewer}</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);font-family:var(--mono);margin-bottom:10px;">
+          Task Ref: ${selectedRev.taskId}
+        </div>
+        ${isAlreadyBaseline ? `
+          <div style="padding:8px 10px;border-radius:6px;background:rgba(16,185,129,0.15);color:#6ee7b7;font-size:12px;font-weight:600;">
+            ✓ ${selectedRev.version} is the currently active Approved Baseline.
+          </div>
+        ` : `
+          <button class="action-btn btn-approve" onclick="simulateDecision('APPROVE')">
+            ✓ Simulate Box Task Approval ──► Promote ${selectedRev.version} to Baseline
+          </button>
+          <button class="action-btn btn-reject" onclick="simulateDecision('REJECT')">
+            ✕ Simulate Box Task Rejection ──► Keep Baseline ${baselineRev.version}
+          </button>
+        `}
+      `;
+
+      // Render Ledger
+      const ledgerEl = document.getElementById("ledgerTimeline");
+      ledgerEl.innerHTML = scenario.ledger.map(ev => `
+        <div class="ledger-event">
+          <div class="ledger-event-top">
+            <span>${ev.actor}</span>
+            <span>${ev.time}</span>
+          </div>
+          <div class="ledger-event-title">${ev.title}</div>
+          <div style="color:var(--muted);">${ev.detail}</div>
+        </div>
+      `).join("");
+
+      // Render Governed Approved Context Endpoint JSON
+      const activeBase = scenario.revisions[scenario.approvedBaselineVersion];
+      const unapprovedVersions = Object.keys(scenario.revisions).filter(v => v !== scenario.approvedBaselineVersion);
+      document.getElementById("approvedContextPreview").textContent =
+`GET /api/projects/${currentScenarioKey}/approved-context
+{
+  "approvedBaselineVersion": "${activeBase.version}",
+  "manifestSha": "${activeBase.sha}",
+  "boxFolderId": "${activeBase.folderId}",
+  "projectTemplate": "${activeBase.triage.templateBundle}",
+  "quarantinedDraftsExcluded": ${JSON.stringify(unapprovedVersions)},
+  "guarantee": "Unapproved or rejected revisions never leak into downstream agent context."
+}`;
+    }
+
+    function simulateDecision(decision) {
+      const scenario = SCENARIOS[currentScenarioKey];
+      const selectedRev = scenario.revisions[scenario.selectedVersion];
+      const now = new Date().toISOString().replace("T", " ").substring(0, 16) + " UTC";
+
+      if (decision === "APPROVE") {
+        // Demote old baseline badge
+        const oldBase = scenario.revisions[scenario.approvedBaselineVersion];
+        if (oldBase && oldBase.version !== selectedRev.version) {
+          oldBase.status = `HISTORICAL BASELINE (SUPERSEDED BY ${selectedRev.version})`;
+          oldBase.statusClass = "st-unapproved";
+        }
+        scenario.approvedBaselineVersion = selectedRev.version;
+        selectedRev.status = "APPROVED BASELINE";
+        selectedRev.statusClass = "st-approved";
+        selectedRev.taskId = `box_task_verified (Approved at ${now})`;
+
+        scenario.ledger.unshift({
+          time: now,
+          actor: selectedRev.requiredReviewer,
+          title: `APPROVED & PROMOTED: ${selectedRev.version} (${selectedRev.sha})`,
+          detail: `Webhook TASK_ASSIGNMENT.UPDATED verified; GET /tasks confirmed approval; DynamoDB conditional write promoted ${selectedRev.version} to ApprovedBaseline.`
+        });
+      } else {
+        selectedRev.status = "REJECTED BY REVIEWER";
+        selectedRev.statusClass = "st-rejected";
+        selectedRev.taskId = `box_task_rejected (Rejected at ${now})`;
+
+        scenario.ledger.unshift({
+          time: now,
+          actor: selectedRev.requiredReviewer,
+          title: `REJECTED: ${selectedRev.version} (${selectedRev.sha}) — Baseline remains ${scenario.approvedBaselineVersion}`,
+          detail: `Reviewer rejected Type-1 drift in Box Task. ApprovedBaseline pointer remains locked to ${scenario.approvedBaselineVersion}.`
+        });
+      }
+
+      renderAll();
+    }
+
+    // Initialize on load
+    renderAll();
+  </script>
+</body>
+</html>

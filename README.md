@@ -105,8 +105,9 @@ Do not start with a vector database, a general workflow designer, private
 reviewer-context reasoning, MCP, real Git integration or compliance certification.
 Cross-document conflict detection is a follow-on capability.
 
-## Design documents
+## Design documents & interactive prototype
 
+- [Interactive HTML Audit Trail Prototype (`demo/index.html`)](demo/index.html)
 - [Architecture and API breakdown](docs/architecture.md)
 - [Enterprise demo and acceptance plan](docs/demo.md)
 - [Idea evolution history: V1 One-Pager to V3 current design](docs/idea-evolution.md)

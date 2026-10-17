@@ -155,7 +155,7 @@ export function FilePreview() {
       return;
     }
     mark.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
-    const PILL_ROOM = 236;
+    const PILL_ROOM = 256; // 16 px gap + the pill's 236 px max width + a little air
     const place = () => {
       const w = scroller.clientWidth;
       const col = article.offsetWidth;
@@ -199,7 +199,13 @@ export function FilePreview() {
     onSelect: () => setVersion(ver.version_id),
     testId: `preview-version-${ver.version_label ?? ver.version_id}`,
   }));
-  const pillText = c ? `Keel · changed the status of ${c}` : "Keel · the sentence Keel quoted";
+  const pillText = c ? (
+    <>
+      Keel · changed the status of <span className="whitespace-nowrap">{c}</span>
+    </>
+  ) : (
+    "Keel · the sentence Keel quoted"
+  );
 
   return (
     <div className="box-root flex h-screen min-h-0 flex-col bg-[#F4F4F4] text-[14px] text-[#222222]">
@@ -240,6 +246,18 @@ export function FilePreview() {
         </div>
       </header>
 
+      {missing && doc ? (
+        // A thin banner under the header bar, never over the document text.
+        <div
+          role="status"
+          data-testid="preview-missing-pill"
+          className="flex h-9 shrink-0 items-center justify-center gap-2 border-b border-[#F3D08A] bg-[#FFF7E6] px-4 text-[13px] font-bold text-[#8A4B00]"
+        >
+          <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#F59E0B]" />
+          Keel · this sentence is not in {doc.version_label ?? "this version"}
+        </div>
+      ) : null}
+
       <div className="flex min-h-0 flex-1">
         <div ref={scrollRef} className="min-w-0 flex-1 overflow-y-auto" data-testid="preview-scroll">
           {err ? (
@@ -254,11 +272,6 @@ export function FilePreview() {
             </div>
           ) : (
             <div ref={articleRef} className={`relative my-8 w-[720px] max-w-[calc(100%-48px)] bg-white px-14 py-12 shadow-[0_1px_3px_rgba(0,0,0,0.08)] ${align === "left" ? "ml-6 mr-auto" : "mx-auto"}`} data-align={align} style={{ transition: "margin 200ms" }} data-testid="preview-document">
-              {missing ? (
-                <div className="-mt-4 mb-6 flex justify-center">
-                  <KeelPill text={`Keel · this sentence is not in ${doc.version_label ?? "this version"}`} testId="preview-missing-pill" />
-                </div>
-              ) : null}
               {doc.excerpt ? <p className="mb-4 text-[12px] text-[#767676]">Excerpt: the section Keel quoted. The full document preview loads from the file text service.</p> : null}
               <MarkdownDoc ref={markRef} blocks={blocks} hl={hl} />
               {hl && pill ? (
@@ -304,11 +317,11 @@ export function FilePreview() {
   );
 }
 
-function KeelPill({ text, testId }: { text: string; testId: string }) {
+function KeelPill({ text, testId }: { text: React.ReactNode; testId: string }) {
   return (
     <span
       data-testid={testId}
-      className="inline-flex w-max max-w-[220px] items-center gap-1.5 rounded-full border border-[#F3D08A] bg-[#FFF7E6] px-2.5 py-1 text-[12px] font-bold leading-tight text-[#8A4B00] shadow-[0_2px_6px_rgba(0,0,0,0.06)]"
+      className="inline-flex w-max max-w-[236px] items-center gap-1.5 rounded-full border border-[#F3D08A] bg-[#FFF7E6] px-2.5 py-1 text-[12px] font-bold leading-tight text-[#8A4B00] shadow-[0_2px_6px_rgba(0,0,0,0.06)]"
     >
       <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#F59E0B]" />
       {text}

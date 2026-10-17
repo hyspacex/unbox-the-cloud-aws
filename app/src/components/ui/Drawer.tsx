@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isTopOverlay, useOverlay } from "@/lib/ui/overlay";
 import { useFocusTrap } from "@/lib/ui/useFocusTrap";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -12,19 +13,23 @@ export function Drawer({
   children,
   width = "min(1100px, 94vw)",
   label = "Finding card",
+  labelledBy = "finding-card-title",
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   width?: number | string;
   label?: string;
+  /** Id of the heading that names the dialog. */
+  labelledBy?: string;
 }) {
   const panelRef = useRef<HTMLElement>(null);
   useFocusTrap(panelRef, open, "[data-autofocus]");
+  useOverlay(panelRef, open);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !document.querySelector("[data-keel-modal]")) onClose();
+      if (e.key === "Escape" && isTopOverlay(panelRef.current)) onClose();
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -39,7 +44,7 @@ export function Drawer({
   return createPortal(
     <AnimatePresence>
       {open ? (
-        <motion.div key="drawer-root" className="fixed inset-0 z-[60]" aria-label={label}>
+        <motion.div key="drawer-root" className="fixed inset-0 z-[60]">
           <motion.div
             className="absolute inset-0 bg-[rgb(23_25_28/0.18)]"
             initial={{ opacity: 0 }}
@@ -53,6 +58,7 @@ export function Drawer({
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
+            aria-labelledby={labelledBy}
             aria-label={label}
             className="absolute right-0 top-0 h-full bg-paper overflow-y-auto scroll-quiet outline-none"
             style={{ width, maxWidth: "100vw", boxShadow: "var(--shadow-drawer)" }}

@@ -193,10 +193,21 @@ export function LedgerScreen() {
                     <tr
                       className={`border-b hairline cursor-pointer hover:bg-paper/70 ${open.has(e.event_id) ? "bg-paper/70" : ""}`}
                       onClick={() => toggle(e.event_id)}
-                      aria-expanded={open.has(e.event_id)}
                     >
-                      <td className="pl-3 pr-1 py-2 text-faint">
-                        <Caret open={open.has(e.event_id)} />
+                      <td className="pl-2 pr-1 py-1.5 text-faint">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm !h-6 !px-1.5"
+                          aria-expanded={open.has(e.event_id)}
+                          aria-controls={`record-${e.event_id}`}
+                          aria-label={`${open.has(e.event_id) ? "Hide" : "Show"} record ${e.event_id}`}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            toggle(e.event_id);
+                          }}
+                        >
+                          <Caret open={open.has(e.event_id)} />
+                        </button>
                       </td>
                       <td className="px-2.5 py-2 mono whitespace-nowrap text-ink-2">{utc(e.ts)}</td>
                       <td className="px-2.5 py-2 mono whitespace-nowrap text-ink">{e.event_id}</td>
@@ -219,7 +230,7 @@ export function LedgerScreen() {
                     </tr>
                     <AnimatePresence initial={false}>
                       {open.has(e.event_id) ? (
-                        <tr key="detail" className="border-b hairline bg-paper/50">
+                        <tr key="detail" id={`record-${e.event_id}`} className="border-b hairline bg-paper/50">
                           <td colSpan={10} className="p-0">
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={T_BASE} style={{ overflow: "hidden" }}>
                               <EventRecord e={e} />

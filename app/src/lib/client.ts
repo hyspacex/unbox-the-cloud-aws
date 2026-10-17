@@ -18,6 +18,8 @@ import type {
   TraceStep,
 } from "@/lib/types";
 
+export const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
+
 export class ApiError extends Error {
   status: number;
   body: unknown;
@@ -29,6 +31,7 @@ export class ApiError extends Error {
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  // Abort signals pass through to fetch; an aborted request rejects with an AbortError.
   const res = await fetch(path, {
     cache: "no-store",
     ...init,
@@ -101,31 +104,31 @@ export function prefetchFindings(ids: string[]) {
 }
 
 export const api = {
-  config: () => req<AppConfig>("/api/config"),
-  package: () => req<PackageView>("/api/package"),
-  finding: async (id: string) => {
-    const c = await req<FindingCard>(`/api/finding/${encodeURIComponent(id)}`);
+  config: (signal?: AbortSignal) => req<AppConfig>("/api/config", { signal }),
+  package: (signal?: AbortSignal) => req<PackageView>("/api/package", { signal }),
+  finding: async (id: string, signal?: AbortSignal) => {
+    const c = await req<FindingCard>(`/api/finding/${encodeURIComponent(id)}`, { signal });
     findingCache.set(id, c);
     findingCache.set(c.finding.finding_id, c);
     return c;
   },
   submit: (body: SubmitRequest) => post<SubmitResponse>("/api/submit", body),
-  run: (runId: string) => req<RunState>(`/api/run/${encodeURIComponent(runId)}`),
-  runs: async (): Promise<RunSummary[]> => {
-    const b = await req<{ runs?: RunSummary[] } | RunSummary[]>("/api/runs");
+  run: (runId: string, signal?: AbortSignal) => req<RunState>(`/api/run/${encodeURIComponent(runId)}`, { signal }),
+  runs: async (signal?: AbortSignal): Promise<RunSummary[]> => {
+    const b = await req<{ runs?: RunSummary[] } | RunSummary[]>("/api/runs", { signal });
     return Array.isArray(b) ? b : b.runs ?? [];
   },
   action: (body: ActionRequest) => post<ActionResponse>("/api/action", body),
   draftAuthorMessage: (finding_id: string, reason: string) =>
     post<DraftAuthorMessage>("/api/draft-author-message", { finding_id, reason }),
-  ledger: (control?: string) =>
-    req<Ledger>(`/api/ledger${control ? `?control=${encodeURIComponent(control)}` : ""}`),
-  exportManifest: () => req<ExportManifest>("/api/export?part=manifest"),
+  ledger: (control?: string, signal?: AbortSignal) =>
+    req<Ledger>(`/api/ledger${control ? `?control=${encodeURIComponent(control)}` : ""}`, { signal }),
+  exportManifest: (signal?: AbortSignal) => req<ExportManifest>("/api/export?part=manifest", { signal }),
   exportCsvUrl: "/api/export?part=csv",
   exportManifestUrl: "/api/export?part=manifest",
   reset: () => post<unknown>("/api/reset"),
-  tasks: async (): Promise<TaskItem[]> => {
-    const body = await req<unknown>("/api/tasks");
+  tasks: async (signal?: AbortSignal): Promise<TaskItem[]> => {
+    const body = await req<unknown>("/api/tasks", { signal });
     if (Array.isArray(body)) return body as TaskItem[];
     if (body && typeof body === "object") {
       const b = body as Record<string, unknown>;
@@ -162,64 +165,76 @@ export function followRun(
     onGone?: () => void;
   },
 ): () => void {
-  let cancelled = false;
+  // One follower = one generation. After cancel or finish, no callback runs and no timer is created.
+  let live = true;
+  let finished = false;
   let seen = 0;
   let es: EventSource | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
-  let finished = false;
+  const ctrl = new AbortController();
+  const active = () => live && !finished;
+
+  const stop = () => {
+    es?.close();
+    es = null;
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
 
   const finish = async (run?: RunState) => {
-    if (finished || cancelled) return;
+    if (!active()) return;
     finished = true;
-    es?.close();
+    stop();
     if (!run) {
       try {
-        run = await api.run(runId);
+        run = await api.run(runId, ctrl.signal);
       } catch {
         /* the run may be gone; deliver what we have */
       }
     }
+    if (!live) return;
     if (run) {
-      // Deliver any steps SSE did not carry.
       run.steps.slice(seen).forEach((s, i) => handlers.onStep(s, seen + i));
       seen = Math.max(seen, run.steps.length);
       handlers.onMeta?.(run);
     }
+    if (!live) return;
     handlers.onDone(run);
   };
 
   const poll = async () => {
-    if (cancelled || finished) return;
+    if (!active()) return;
     try {
-      const run = await api.run(runId);
+      const run = await api.run(runId, ctrl.signal);
+      if (!active()) return;
       handlers.onMeta?.(run);
       run.steps.slice(seen).forEach((s, i) => handlers.onStep(s, seen + i));
       seen = Math.max(seen, run.steps.length);
       if (run.done) return finish(run);
     } catch (e) {
+      if (!active()) return;
       if (e instanceof ApiError && e.status === 404) {
         finished = true;
-        es?.close();
+        stop();
         handlers.onGone?.();
         return;
       }
       handlers.onError?.(e);
     }
-    timer = setTimeout(poll, 400);
+    if (active()) timer = setTimeout(poll, 400);
   };
 
   const startPolling = () => {
     es?.close();
     es = null;
-    if (!cancelled && !finished) poll();
+    if (active()) poll();
   };
 
   if (typeof EventSource !== "undefined") {
     try {
       es = new EventSource(`/api/run/${encodeURIComponent(runId)}/stream`);
-      let gotAny = false;
       es.onmessage = (ev) => {
-        gotAny = true;
+        if (!active()) return;
         let data: unknown;
         try {
           data = JSON.parse(ev.data);
@@ -237,10 +252,8 @@ export function followRun(
       };
       es.addEventListener("done", () => finish());
       es.onerror = () => {
-        if (finished) return;
         // Stream unavailable or closed early: fall back to polling from where we are.
-        if (!gotAny || es?.readyState === EventSource.CLOSED) startPolling();
-        else startPolling();
+        if (active()) startPolling();
       };
     } catch {
       startPolling();
@@ -250,8 +263,8 @@ export function followRun(
   }
 
   return () => {
-    cancelled = true;
-    es?.close();
-    if (timer) clearTimeout(timer);
+    live = false;
+    stop();
+    ctrl.abort();
   };
 }

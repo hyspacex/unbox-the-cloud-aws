@@ -60,7 +60,10 @@ export function FindingCardView({
           <div className="min-w-0">
             <div className="eyebrow mb-1">Finding</div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <h2 className="mono text-[22px] font-semibold tracking-[-0.02em] text-ink">{card.finding.finding_id}</h2>
+              <h2 id="finding-card-title" className="mono text-[22px] font-semibold tracking-[-0.02em] text-ink">
+                <span className="sr-only">Finding </span>
+                {card.finding.finding_id}
+              </h2>
               {card.finding.severity ? <SeverityTag severity={card.finding.severity} /> : null}
               <StatusChip status={status} showSeverity={false} />
               <RuleLink rule={status.rule} />

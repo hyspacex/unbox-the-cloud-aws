@@ -366,7 +366,6 @@ function ReturnToAuthorModal({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="What is missing, and what the author must restore."
-                autoFocus
               />
             </label>
             {rta.suggested_reason ? (

@@ -63,10 +63,10 @@ const RULE: Partial<Record<DisplayKind, number>> = {
 };
 const TONE: Partial<Record<DisplayKind, DisplayedStatus["tone"]>> = {
   pending_recheck: "grey",
-  not_evaluated: "red",
+  not_evaluated: "grey",
   returned_to_author: "blue",
   verified: "green",
-  verified_holds: "grey",
+  verified_holds: "teal",
   acknowledge: "amber",
   needs_review_binding: "amber",
   needs_review_weakened: "amber",

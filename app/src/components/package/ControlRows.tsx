@@ -6,6 +6,7 @@ import type { ControlRow } from "@/lib/types";
 import { StatusChip, TierTag } from "@/components/ui/StatusChip";
 import { Caret } from "@/components/ui/Disclosure";
 import { T_BASE, T_LAYOUT } from "@/lib/ui/motion";
+import { toneClass } from "@/lib/ui/tone";
 import { midTruncate, words } from "@/lib/ui/format";
 import { compactSecondary } from "@/lib/ui/secondary";
 import { isHold, orderByAttention, orderById } from "@/lib/ui/order";
@@ -82,7 +83,7 @@ function HoldsGroup({
         className={`w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-paper/70 transition-colors ${open ? "border-b hairline" : ""}`}
       >
         <Caret open={open} />
-        <span className="chip tone-teal">
+        <span className={`chip ${toneClass(holds[0].status)}`}>
           <span className="chip-dot" aria-hidden />
           {holds.length} {holds.length === 1 ? "verification holds" : "verifications hold"}
         </span>
@@ -153,6 +154,8 @@ function Row({
         className={`${GRID} px-5 py-3 items-start ${clickable ? "cursor-pointer hover:bg-paper/70 transition-colors" : ""}`}
         onClick={() => onOpen?.(row)}
         onKeyDown={(e) => {
+          // Only the row itself activates; Enter on a nested control keeps that control's behaviour.
+          if (e.target !== e.currentTarget) return;
           if ((e.key === "Enter" || e.key === " ") && onOpen) {
             e.preventDefault();
             onOpen(row);
@@ -215,7 +218,7 @@ function Row({
                 <span className="xl:hidden">{midTruncate(row.evidencing.fileName, 22)}</span>
                 <span className="hidden xl:inline">{row.evidencing.fileName}</span>{" "}
                 <span className="text-muted">{row.evidencing.versionLabel ?? ""}</span>
-                {(row.evidencing as { quarantined?: boolean }).quarantined ? <span className="text-red-ink"> (quarantined)</span> : null}
+                {(row.evidencing as { quarantined?: boolean }).quarantined ? <span className="text-muted"> (quarantined)</span> : null}
               </div>
               {row.evidencing.section ? <div className="text-muted text-[12.5px] truncate">{row.evidencing.section}</div> : null}
             </>
@@ -234,6 +237,8 @@ function Row({
               e.stopPropagation();
               setOpen((o) => !o);
             }}
+            onKeyDown={(e) => e.stopPropagation()}
+            aria-controls={`detail-${row.control_id}`}
           >
             <Caret open={open} />
           </button>
@@ -243,6 +248,7 @@ function Row({
         {open ? (
           <motion.div
             key="detail"
+            id={`detail-${row.control_id}`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -263,6 +269,7 @@ export function RuleLink({ rule }: { rule: number }) {
     <a
       href={`/rules#rule-${rule}`}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
       className="text-[11px] text-faint hover:text-ink-2 underline decoration-dotted underline-offset-2 whitespace-nowrap"
       title={`Display rule ${rule} on the published rules page`}
     >

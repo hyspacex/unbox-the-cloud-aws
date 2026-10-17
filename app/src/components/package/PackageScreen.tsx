@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ActionResponse, ControlRow, DisplayedStatus, PackageView, SubmitRequest, TraceStep } from "@/lib/types";
-import { api, clearFindingCache, followRun, prefetchFindings, type RunSummary, type TaskItem } from "@/lib/client";
+import { api, clearFindingCache, followRun, isAbort, prefetchFindings, type RunSummary, type TaskItem } from "@/lib/client";
 import { useKeel } from "@/components/AppProvider";
 import { CountLine } from "@/components/ui/CountLine";
 import { ErrorBlock, LoadingBlock } from "@/components/ui/States";
@@ -94,6 +94,8 @@ export function PackageScreen() {
   const [run, setRun] = useState<RunUi | null>(null);
   const [traceOpen, setTraceOpen] = useState(true);
   const [lineOpen, setLineOpen] = useState(false);
+  const [popMax, setPopMax] = useState(420);
+  const lineRef = useRef<HTMLDivElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -112,6 +114,9 @@ export function PackageScreen() {
   const orderRef = useRef<{ snapshot: string; ids: string[] } | null>(null);
   const viewRef = useRef<PackageView | null>(null);
   const busyRef = useRef(false);
+  /** Follower generation: bumped on every new run, reset and unmount. Async work checks it after each await. */
+  const genRef = useRef(0);
+  const actionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const mode = view?.mode ?? config?.mode;
   const isMock = mode === "mock";
@@ -190,16 +195,18 @@ export function PackageScreen() {
 
   /** Fetch the package once findings are applied; retry briefly while the engine still reports pending. */
   const flip = useCallback(
-    async (runId: string) => {
+    async (runId: string, gen: number) => {
       if (flippedRef.current === runId) return;
       flippedRef.current = runId;
       for (let attempt = 0; attempt < 16; attempt++) {
         const v = await loadPackage();
+        if (gen !== genRef.current) return;
         if (v && !anyPending(v)) {
           revealView(v);
           return;
         }
         await wait(250);
+        if (gen !== genRef.current) return;
       }
     },
     [loadPackage, revealView],
@@ -208,6 +215,8 @@ export function PackageScreen() {
   const startFollowing = useCallback(
     (runId: string, initialMeta: TraceMeta, priorLine?: string) => {
       cancelRunRef.current?.();
+      const gen = ++genRef.current;
+      const current = () => gen === genRef.current;
       flippedRef.current = null;
       busyRef.current = true;
       clearFindingCache();
@@ -220,17 +229,19 @@ export function PackageScreen() {
       (async () => {
         for (let i = 0; i < 8; i++) {
           const v = await loadPackage();
-          if (flippedRef.current === runId) return;
+          if (!current() || flippedRef.current === runId) return;
           if (v && anyPending(v)) {
             showView(v);
             return;
           }
           await wait(150);
+          if (!current()) return;
         }
       })();
       api
         .run(runId)
         .then((m) => {
+          if (!current()) return;
           setRun((r) =>
             r && r.runId === runId
               ? {
@@ -253,7 +264,7 @@ export function PackageScreen() {
       const cancel = followRun(runId, {
         onStep: (step) => {
           setRun((r) => (r && r.runId === runId ? { ...r, steps: [...r.steps, step] } : r));
-          if (step.kind === "findings_applied" || step.kind === "evaluation_completed") flip(runId);
+          if (step.kind === "findings_applied" || step.kind === "evaluation_completed") flip(runId, gen);
         },
         onMeta: (m) => {
           setRun((r) =>
@@ -281,21 +292,25 @@ export function PackageScreen() {
               ? { ...r, running: false, steps: final?.steps?.length ? final.steps : r.steps, summary: (final as WithSummary | undefined)?.summary ?? r.summary }
               : r,
           );
-          await flip(runId);
+          await flip(runId, gen);
+          if (!current()) return;
           loadTasks();
           // Projection and tasks land after findings; once the reveal has finished, apply one response whole.
           await wait(STAGGER_MS * 10 + 120);
+          if (!current()) return;
           const v = await loadPackage();
+          if (!current()) return;
           if (v && !anyPending(v)) showView(v);
           busyRef.current = false;
         },
         onGone: async () => {
           // The run was removed (a reset elsewhere): drop it quietly and show the current package.
+          if (!current()) return;
           busyRef.current = false;
           setRun(null);
           setRunLabel(null);
           const v = await loadPackage();
-          if (v) showView(v);
+          if (current() && v) showView(v);
         },
       });
       cancelRunRef.current = cancel;
@@ -339,29 +354,40 @@ export function PackageScreen() {
       if (!alive || !v) return;
       showView(v);
       loadTasks();
-      if (!v.trace_run_id) return;
+      if (!alive || !v.trace_run_id) return;
       if (anyPending(v)) startFollowing(v.trace_run_id, { run_id: v.trace_run_id });
       else await showStoredRun(v.trace_run_id);
     })();
     return () => {
       alive = false;
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- genRef is a counter, not a DOM ref
+      genRef.current++;
       cancelRunRef.current?.();
       clearTimers();
       replayTimersRef.current.forEach(clearTimeout);
+      if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // C1: passive tabs stay in sync. Each poll response is applied whole; a run started elsewhere is followed.
   useEffect(() => {
+    let alive = true;
+    let ctrl: AbortController | null = null;
     const t = setInterval(async () => {
       if (busyRef.current || replay || openId || document.visibilityState !== "visible") return;
+      ctrl?.abort();
+      ctrl = new AbortController();
+      const gen = genRef.current;
       let v: PackageView;
       try {
-        v = await api.package();
-      } catch {
+        v = await api.package(ctrl.signal);
+      } catch (e) {
+        if (alive && !isAbort(e)) setErr(e instanceof Error ? e.message : String(e));
         return;
       }
+      if (!alive || gen !== genRef.current || busyRef.current) return;
+      setErr(null);
       const cur = viewRef.current;
       if (anyPending(v) && v.trace_run_id && v.trace_run_id !== run?.runId) {
         startFollowing(v.trace_run_id, { run_id: v.trace_run_id }, cur?.count_line);
@@ -374,7 +400,11 @@ export function PackageScreen() {
         if (!v.trace_run_id && run) setRun(null);
       }
     }, IDLE_POLL_MS);
-    return () => clearInterval(t);
+    return () => {
+      alive = false;
+      clearInterval(t);
+      ctrl?.abort();
+    };
   }, [replay, openId, run, startFollowing, showView, loadTasks, showStoredRun]);
 
   // Drawer is portalled: close it if this route is hidden by Activity.
@@ -518,6 +548,7 @@ export function PackageScreen() {
 
   const reset = async () => {
     if (replay) endReplay();
+    genRef.current++;
     cancelRunRef.current?.();
     busyRef.current = false;
     try {
@@ -538,8 +569,11 @@ export function PackageScreen() {
   const onChanged = (r: ActionResponse) => {
     setRows((cur) => cur.map((row) => (row.control_id === r.row.control_id ? r.row : row)));
     if (r.count_line) setCountLine(r.count_line);
-    setTimeout(async () => {
+    if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
+    const gen = genRef.current;
+    actionTimerRef.current = setTimeout(async () => {
       const v = await loadPackage();
+      if (gen !== genRef.current) return;
       if (v) showView(v);
       loadTasks();
     }, 300);
@@ -634,12 +668,28 @@ export function PackageScreen() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0">
+          {err ? (
+            <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-red-line bg-red-bg px-4 py-2.5 text-[13px] text-red-ink">
+              <span>
+                <span className="font-semibold">Showing the last loaded view; it may be stale.</span> Refresh failed: {err}
+              </span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  const v = await loadPackage();
+                  if (v) showView(v);
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
           <div className="mb-3">
             <CountLine text={countLine} className="text-[18px] leading-snug text-ink tracking-[-0.01em]" />
             {priorCount && priorCount !== countLine ? <p className="mt-0.5 text-[12.5px] struck">{priorCount}</p> : null}
           </div>
           {!isXl && run ? (
-            <div className="mb-3">
+            <div className="mb-3 relative" ref={lineRef}>
               <TraceLine
                 steps={run.steps}
                 meta={run.meta}
@@ -647,15 +697,59 @@ export function PackageScreen() {
                 summary={pendingView ? undefined : summary}
                 elapsedMs={run.running || replay ? null : view.elapsed_ms ?? null}
                 open={lineOpen}
-                onToggle={() => setLineOpen((o) => !o)}
+                onToggle={() => {
+                  // Fit the popover in the space below the line so its end is always on screen.
+                  const b = lineRef.current?.getBoundingClientRect().bottom ?? 300;
+                  setPopMax(Math.max(260, window.innerHeight - b - 16));
+                  setLineOpen((o) => !o);
+                }}
                 clockStartMs={replay?.clockStart}
                 replaySpeed={replay?.speed}
               />
               <AnimatePresence initial={false}>
                 {lineOpen ? (
-                  <motion.div key="line-panel" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={T_BASE} style={{ overflow: "hidden" }} className="mt-2">
-                    {panel}
-                  </motion.div>
+                  <>
+                    {/* Outside click closes the popover; the rows below never move. */}
+                    <motion.button
+                      key="line-backdrop"
+                      type="button"
+                      aria-label="Close run trace"
+                      className="fixed inset-0 z-20 cursor-default bg-transparent"
+                      onClick={() => setLineOpen(false)}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    />
+                    <motion.div
+                      key="line-panel"
+                      role="region"
+                      aria-label="Run trace"
+                      onKeyDown={(e) => e.key === "Escape" && setLineOpen(false)}
+                      initial={{ opacity: 0, y: -6, scale: 0.99 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={T_BASE}
+                      className="absolute left-0 right-0 top-full z-30 mt-2 rounded-[12px]"
+                      style={{ boxShadow: "var(--shadow-modal)" }}
+                    >
+                      {run ? (
+                        <TracePanel
+                          steps={run.steps}
+                          meta={run.meta}
+                          running={run.running}
+                          gate={run.running || replay ? null : view.gate}
+                          elapsedMs={run.running || replay ? null : view.elapsed_ms ?? null}
+                          controls={view.rows.length}
+                          summary={pendingView ? undefined : summary}
+                          onCollapse={() => setLineOpen(false)}
+                          replay={replay}
+                          onEndReplay={endReplay}
+                          clockStartMs={replay?.clockStart}
+                          maxHeight={popMax}
+                        />
+                      ) : null}
+                    </motion.div>
+                  </>
                 ) : null}
               </AnimatePresence>
             </div>

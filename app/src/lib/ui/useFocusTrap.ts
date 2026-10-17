@@ -12,8 +12,10 @@ const FOCUSABLE =
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean, initialFocus?: string) {
   useEffect(() => {
     if (!active) return;
-    const prev = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const el = ref.current;
+    const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // The opener is whatever had focus outside the dialog (an autofocused child is not the opener).
+    const prev = focused && !(el && el.contains(focused)) ? focused : null;
     const t = setTimeout(() => {
       const node = ref.current;
       if (!node) return;
@@ -42,7 +44,7 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     return () => {
       clearTimeout(t);
       el?.removeEventListener("keydown", onKey);
-      if (prev && document.contains(prev)) setTimeout(() => prev.focus({ preventScroll: true }), 0);
+      if (prev) setTimeout(() => prev.isConnected && prev.focus({ preventScroll: true }), 0);
     };
   }, [active, ref, initialFocus]);
 }

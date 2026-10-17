@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
+import { isTopOverlay, useOverlay } from "@/lib/ui/overlay";
 import { useFocusTrap } from "@/lib/ui/useFocusTrap";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -24,11 +25,13 @@ export function Modal({
   width?: number;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   useFocusTrap(boxRef, open, "textarea, input");
+  useOverlay(boxRef, open);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && (isTopOverlay(boxRef.current) || !boxRef.current)) {
         e.stopPropagation();
         onClose();
       }
@@ -56,6 +59,7 @@ export function Modal({
             data-keel-modal="true"
             role="dialog"
             aria-modal="true"
+            aria-labelledby={titleId}
             className="relative bg-panel rounded-[14px] max-h-[88vh] flex flex-col outline-none"
             style={{ width, maxWidth: "100%", boxShadow: "var(--shadow-modal)" }}
             initial={{ opacity: 0, scale: 0.98, y: 6 }}
@@ -66,7 +70,7 @@ export function Modal({
             <div className="px-6 pt-5 pb-4 border-b hairline">
               {eyebrow ? <div className="eyebrow mb-1">{eyebrow}</div> : null}
               <div className="flex items-start justify-between gap-4">
-                <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-ink">{title}</h2>
+                <h2 id={titleId} className="text-[18px] font-semibold tracking-[-0.01em] text-ink">{title}</h2>
                 <button onClick={onClose} className="btn btn-ghost btn-sm -mr-2" aria-label="Close">
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
                     <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

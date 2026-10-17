@@ -35,9 +35,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <AppProvider initialConfig={initialConfig()}>
-          <TopBar />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <div id="keel-app-root" className="min-h-full flex flex-col flex-1">
+            <TopBar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
         </AppProvider>
       </body>
     </html>

@@ -2,17 +2,21 @@ import type { DisplayedStatus, TraceSource, ActorType } from "@/lib/types";
 
 export type ToneClass = "tone-amber" | "tone-blue" | "tone-grey" | "tone-green" | "tone-teal" | "tone-red";
 
+const TONES: Record<string, ToneClass> = {
+  amber: "tone-amber",
+  blue: "tone-blue",
+  grey: "tone-grey",
+  green: "tone-green",
+  teal: "tone-teal",
+  red: "tone-red",
+};
+
 /**
- * Visual tone for a displayed status. The engine decides the status and its tone;
- * the UI only distinguishes "Verified, holds" (a prior verification that still holds)
- * with a muted teal-grey so it never reads as the green reserved for a current human Verified.
+ * Visual tone for a displayed status: the tone the API supplied, mapped directly to styling.
+ * Semantic distinctions (for example teal for "Verified, holds") live in the display contract.
  */
-export function toneClass(s: Pick<DisplayedStatus, "tone" | "kind">): ToneClass {
-  if (s.kind === "verified_holds") return "tone-teal";
-  // Not evaluated is the one failure state; it reads red whatever tone the engine sent.
-  if (s.kind === "not_evaluated") return "tone-red";
-  if (s.tone === "green" && s.kind !== "verified") return "tone-teal";
-  return `tone-${s.tone}` as ToneClass;
+export function toneClass(s: Pick<DisplayedStatus, "tone">): ToneClass {
+  return TONES[s.tone] ?? "tone-grey";
 }
 
 export const SOURCE_META: Record<TraceSource, { label: string; color: string }> = {

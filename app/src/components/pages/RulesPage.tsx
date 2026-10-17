@@ -5,7 +5,6 @@
 
 import { ASSESSMENT_PRECEDENCE_TEXT, RULES, STORED_FIELDS } from "@/lib/engine/display";
 import { toneClass } from "@/lib/ui/tone";
-import type { DisplayKind } from "@/lib/types";
 
 const MATERIALITY: [string, string][] = [
   ["Critical", "Acknowledge when the evidencing file changed, even if the quote is unchanged."],
@@ -46,7 +45,7 @@ export function RulesPage() {
               {!r.built ? <span className="ml-2 text-[11.5px] text-faint">{r.note ?? "proposed"}</span> : null}
             </span>
             <span className="col-start-2 md:col-start-auto min-w-0">
-              <span className={`chip ${toneClass({ tone: r.tone, kind: (Array.isArray(r.kind) ? r.kind[0] : r.kind) as DisplayKind })}`}>
+              <span className={`chip ${toneClass({ tone: r.tone })}`}>
                 <span className="chip-dot" aria-hidden />
                 {r.label}
               </span>

@@ -200,6 +200,7 @@ export function TracePanel({
   onEndReplay,
   clockStartMs,
   summary,
+  maxHeight,
 }: {
   steps: TraceStep[];
   meta: TraceMeta;
@@ -216,6 +217,8 @@ export function TracePanel({
   /** Wall-clock start for the live elapsed counter (replays start now, not at the recorded time). */
   clockStartMs?: number;
   summary?: RunSummaryCounts;
+  /** Fixed height (popover use): header and footer stay put, only the step list scrolls. */
+  maxHeight?: number;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
   const userUpAt = useRef(0);
@@ -284,7 +287,8 @@ export function TracePanel({
 
   return (
     <section
-      className={`panel overflow-hidden flex flex-col ${stacked ? "" : "xl:max-h-[min(560px,calc(100vh-96px))]"}`}
+      className={`panel overflow-hidden flex flex-col ${stacked || maxHeight ? "" : "xl:max-h-[min(560px,calc(100vh-96px))]"}`}
+      style={maxHeight ? { maxHeight } : undefined}
       aria-label="Run trace"
     >
       <header className="flex-none px-5 pt-4 pb-3 border-b hairline bg-panel-cool">
@@ -363,7 +367,7 @@ export function TracePanel({
       <ol
         ref={listRef}
         onScroll={onScroll}
-        className={`flex-1 min-h-0 px-2 py-2 overflow-y-auto scroll-quiet ${stacked ? "max-h-[420px]" : "max-h-[560px] xl:max-h-none"}`}
+        className={`flex-1 min-h-0 px-2 py-2 overflow-y-auto scroll-quiet ${maxHeight ? "" : stacked ? "max-h-[420px]" : "max-h-[560px] xl:max-h-none"}`}
         aria-live="polite"
       >
         <AnimatePresence initial={false}>

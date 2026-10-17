@@ -4,6 +4,9 @@ import { useState } from "react";
 import type { TimelinePoint } from "@/lib/types";
 import { C, prose } from "./parts";
 
+/** "17:03Z" from an ISO time. */
+const hhmm = (iso: string) => /T(\d\d:\d\d)/.exec(iso)?.[1]?.concat("Z") ?? "";
+
 const TONE: Record<TimelinePoint["tone"], string> = {
   grey: C.grey,
   blue: C.blue,
@@ -20,6 +23,9 @@ export function Timeline({ points, label }: { points: TimelinePoint[]; label: st
   const [hover, setHover] = useState<number | null>(null);
   if (!points.length) return null;
   const n = points.length;
+  // Points are named by date; two snapshots on the same day add the UTC time to tell them apart.
+  const day = points.map((p) => prose(p.at));
+  const when = (i: number) => (day.filter((d) => d === day[i]).length > 1 ? `${day[i]} ${hhmm(points[i].at)}` : day[i]);
   return (
     <div className="relative" onMouseLeave={() => setHover(null)}>
       <ol className="relative grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }} aria-label={label}>
@@ -37,14 +43,14 @@ export function Timeline({ points, label }: { points: TimelinePoint[]; label: st
                 type="button"
                 className="relative z-[1] h-[14px] w-[14px] rounded-full"
                 style={p.current ? { background: color, boxShadow: `0 0 0 3px ${C.selected}` } : { background: "#FFFFFF", border: `2px solid ${color}` }}
-                aria-label={`${p.snapshot_id}${p.current ? ", current" : ""}: ${p.detail}`}
+                aria-label={`${when(i)}${p.current ? ", current" : ""}: ${p.detail}`}
                 aria-current={p.current ? "step" : undefined}
                 onMouseEnter={() => setHover(i)}
                 onFocus={() => setHover(i)}
                 onBlur={() => setHover(null)}
               />
-              <span className="mono mt-1 text-[10.5px] font-bold" style={{ color: p.current ? C.text : C.secondary }}>
-                {p.snapshot_id}
+              <span className="mt-1 whitespace-nowrap text-[11px] font-bold" style={{ color: p.current ? C.text : C.secondary }}>
+                {when(i)}
               </span>
               <span className="line-clamp-2 text-[11px] leading-[1.3]" style={{ color: p.current ? C.text : C.secondary }}>
                 {p.label}
@@ -65,7 +71,7 @@ export function Timeline({ points, label }: { points: TimelinePoint[]; label: st
           }}
         >
           <div className="font-bold">
-            {points[hover].snapshot_id} · {prose(points[hover].at)}
+            {prose(points[hover].at)} · {hhmm(points[hover].at)}
           </div>
           <div>{points[hover].detail}</div>
         </div>

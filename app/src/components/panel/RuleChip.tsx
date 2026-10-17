@@ -57,21 +57,47 @@ const TILE_TONE: Record<DashboardTile["tone"], { fg: string; bg: string }> = {
   grey: { fg: C.grey, bg: C.greyBg },
 };
 
-/** Three tiles from PackageView.dashboard (design v4.1 decision 4). Value and label are the engine's. */
-export function Tiles({ tiles }: { tiles: DashboardTile[] }) {
+/**
+ * Three tiles from PackageView.dashboard (design v4.1 decision 4). Value and label are the engine's. With onSelect,
+ * each tile is a toggle that filters the panel list; a tile at 0 is not selectable.
+ */
+export function Tiles({ tiles, selected = null, onSelect }: { tiles: DashboardTile[]; selected?: DashboardTile["key"] | null; onSelect?: (key: DashboardTile["key"] | null) => void }) {
   if (!tiles.length) return null;
   return (
     <ul className="grid gap-2" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }} aria-label="Overview">
       {tiles.map((t) => {
         const tone = TILE_TONE[t.tone] ?? TILE_TONE.grey;
-        return (
-          <li key={t.key} className="rounded-[6px] px-3 py-2.5 text-center" style={{ background: tone.bg }} data-tile={t.key}>
+        const on = selected === t.key;
+        const dim = selected !== null && !on;
+        const body = (
+          <>
             <div className="text-[26px] font-bold leading-none tabular-nums" style={{ color: tone.fg }}>
               {t.value}
             </div>
             <div className="mt-1 text-[12px] font-bold" style={{ color: tone.fg }}>
               {t.label}
             </div>
+          </>
+        );
+        return (
+          <li key={t.key} data-tile={t.key}>
+            {onSelect ? (
+              <button
+                type="button"
+                aria-pressed={on}
+                disabled={t.value === 0 && !on}
+                onClick={() => onSelect(on ? null : t.key)}
+                title={on ? "Show all" : `Show only ${t.label}`}
+                className="w-full rounded-[6px] px-3 py-2.5 text-center transition-[opacity,box-shadow] enabled:hover:brightness-[0.97] disabled:cursor-default"
+                style={{ background: tone.bg, opacity: dim ? 0.45 : 1, boxShadow: on ? `inset 0 0 0 1.5px ${tone.fg}` : undefined }}
+              >
+                {body}
+              </button>
+            ) : (
+              <div className="rounded-[6px] px-3 py-2.5 text-center" style={{ background: tone.bg }}>
+                {body}
+              </div>
+            )}
           </li>
         );
       })}

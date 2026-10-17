@@ -79,7 +79,7 @@ export function packageTimeline(store: Store, profile: ControlProfile): Timeline
     const n = rows.length;
     const t = tag(names);
     const withTag = (s: string) => (t && labelWords(`${t} · ${s}`) <= TIMELINE_LABEL_MAX_WORDS ? `${t} · ${s}` : s);
-    if (state === "pending") return { ...base, label: "re-checking", detail: detailOf(`Re-checking ${n} controls on ${id}…`, "Re-checking…"), tone: "grey" as const };
+    if (state === "pending") return { ...base, label: "re-checking", detail: detailOf(`Re-checking ${n} controls…`, "Re-checking…"), tone: "grey" as const };
     if (!prior) return { ...base, label: "baseline", detail: detailOf(`First snapshot: ${snap.files.length} files pinned.`, "First snapshot."), tone: "grey" as const };
     const changedText = names.length ? `${phrase(names)} changed.` : "No file changed.";
     const open = rows.filter((r) => needsDecision(store, r)).length;
@@ -92,7 +92,7 @@ export function packageTimeline(store: Store, profile: ControlProfile): Timeline
       const who = [...new Set(rows.map((r) => r.state.current_disposition?.actor.name).filter((x): x is string => !!x))];
       return { ...base, label: `${n} verified`, detail: detailOf(`${n} controls verified by ${who.join(", ")}.`, `${n} controls verified.`), tone: "blue" as const };
     }
-    if (recorded) return { ...base, label: withTag("recorded"), detail: detailOf(`${changedText} All ${n} recorded on ${id}.`, `All ${n} recorded.`), tone: "blue" as const };
+    if (recorded) return { ...base, label: withTag("recorded"), detail: detailOf(`${changedText} All ${n} recorded.`, `All ${n} recorded.`), tone: "blue" as const };
     if (holds === n) return { ...base, label: withTag("holds"), detail: detailOf(`${changedText} ${n} verifications hold.`, `${n} verifications hold.`), tone: "teal" as const };
     return { ...base, label: withTag("checked"), detail: detailOf(changedText, "Checked."), tone: "grey" as const };
   });

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { ControlRow, FindingCard, PackageView } from "@/lib/types";
+import type { ControlRow, DashboardTile, FindingCard, PackageView } from "@/lib/types";
 import { api, peekFinding } from "@/lib/client";
 import { orderByAttention, orderById } from "@/lib/ui/order";
 import { useKeelState } from "@/components/KeelStateProvider";
@@ -98,7 +98,8 @@ export function Level1() {
 
   const onlyHolds = Boolean(pkg) && groups.holds.length === (pkg?.rows.length ?? -1);
   const [holdsOpen, setHoldsOpen] = useState<boolean | null>(null);
-  const showHolds = holdsOpen ?? onlyHolds;
+  /** The selected dashboard tile filters the list to its group (Need you also covers Acknowledge); null shows all. */
+  const [filter, setFilter] = useState<DashboardTile["key"] | null>(null);
 
   if (!pkg) {
     return (
@@ -112,6 +113,13 @@ export function Level1() {
   // a re-check runs, so the presenter sees that rows are pending.
   const line1 = pkg.changed_line ?? `snapshot ${pkg.snapshot.snapshot_id}`;
   const tiles = pkg.dashboard?.tiles ?? [];
+  // A filter whose tile dropped to 0 (the last decision was recorded) clears itself.
+  const activeFilter = filter && (tiles.find((t) => t.key === filter)?.value ?? 0) > 0 ? filter : null;
+  if (activeFilter !== filter) setFilter(null);
+  // A re-check or replay shows every row; the tiles are not selectable then.
+  const view = locked ? null : activeFilter;
+  const shown = (key: DashboardTile["key"]) => view === null || view === key;
+  const showHolds = view === "hold" || (holdsOpen ?? onlyHolds);
   const holdTile = tiles.find((t) => t.key === "hold");
   // "5 hold": the engine's hold tile, value and label, as the fold title; holds_line when there are no tiles.
   // Baseline (lane E): holds_line is absent and the hold list shows expanded with no fold title. After a run the
@@ -143,7 +151,7 @@ export function Level1() {
         </div>
       ) : null}
       <header className="mb-4 space-y-3">
-        {tiles.length ? <Tiles tiles={tiles} /> : null}
+        {tiles.length ? <Tiles tiles={tiles} selected={view} onSelect={locked ? undefined : setFilter} /> : null}
         <div>
           <div className="text-[13.5px] font-bold" style={{ color: C.text }}>
             {line1}
@@ -157,28 +165,28 @@ export function Level1() {
         {pkg.timeline?.length ? <Timeline points={pkg.timeline} label="Package history, one point per snapshot" /> : null}
       </header>
 
-      {groups.pending.length ? (
+      {groups.pending.length && view === null ? (
         <Section label="Re-check pending">
           {groups.pending.map((r) => (
             <Row key={r.control_id} row={r} locked onOpen={open} />
           ))}
         </Section>
       ) : null}
-      {groups.decide.length ? (
+      {groups.decide.length && shown("need_you") ? (
         <Section label="Need you">
           {groups.decide.map((r) => (
             <Row key={r.control_id} row={r} locked={locked} onOpen={open} awaiting={awaiting.has(r.control_id)} />
           ))}
         </Section>
       ) : null}
-      {groups.ack.length ? (
+      {groups.ack.length && shown("need_you") ? (
         <Section label="Acknowledge">
           {groups.ack.map((r) => (
             <Row key={r.control_id} row={r} locked={locked} onOpen={open} hollow />
           ))}
         </Section>
       ) : null}
-      {groups.recorded.length ? (
+      {groups.recorded.length && shown("recorded") ? (
         <Section label="Recorded">
           {groups.recorded.map((r) => (
             <Row key={r.control_id} row={r} locked={locked} onOpen={open} receipt={receipts[r.control_id]?.receipt} recorded />
@@ -186,7 +194,7 @@ export function Level1() {
         </Section>
       ) : null}
 
-      {groups.holds.length ? (
+      {groups.holds.length && shown("hold") ? (
         <section className="mt-1" aria-label="Verifications that hold">
           {holdText ? (
             <button

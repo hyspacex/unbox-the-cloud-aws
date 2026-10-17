@@ -40,3 +40,20 @@ export function filterText(field: string, text: string | undefined, exempt: stri
   hits.push({ field, words: w });
   return fallback;
 }
+
+const attNorm = (s: string) => s.toLowerCase().split(/\s+/).filter(Boolean).join(" ").replace(/[\s.!?;:,]+$/, "");
+
+/**
+ * Is the profile's attestation phrase in the reviewer's message? Case-insensitive, internal
+ * whitespace collapsed, trailing punctuation and surrounding whitespace ignored (judge B6).
+ * The message itself is stored verbatim. The UI calls this same function for its live checkmark.
+ */
+export function attestationPresent(message: string, phrase: string): boolean {
+  const p = attNorm(phrase);
+  return p.length > 0 && attNorm(message).includes(p);
+}
+
+/** Box task messages are plain text: strip markdown backticks before storage and display (judge B8). */
+export function plainText(s: string): string {
+  return s.replace(/`/g, "");
+}

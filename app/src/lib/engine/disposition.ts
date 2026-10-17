@@ -29,7 +29,7 @@ import { utcNow } from "./ledger";
 import { quoteValid } from "./normalize";
 import { APP_ACTOR, eventOpts, publishProjection } from "./publish";
 import { withPackageLock } from "./lock";
-import { bannedWords } from "./wording";
+import { attestationPresent, bannedWords, plainText } from "./wording";
 import { norm } from "./normalize";
 import { boxAssignee } from "../config";
 import { deriveControlState, latestVerification, snapshotEvaluationState, verificationBinding, type ControlState } from "./state";
@@ -94,13 +94,13 @@ export async function draftAuthorMessage(args: { store: Store; box: BoxAdapter; 
     if (!("unavailable" in r && r.unavailable)) {
       const text = (r as { text: string }).text;
       // Box AI wording is machine text: the reviewer's reason and the lost source quotes are exempt (Codex finding 18).
-      if (!bannedWords(text, [reason, ...brief.lost_quotes]).length) return { text, drafted_by: "box_ai_text_gen" };
+      if (!bannedWords(text, [reason, ...brief.lost_quotes]).length) return { text: plainText(text), drafted_by: "box_ai_text_gen" };
       console.warn("[keel] Box AI draft used wording reserved for a human disposition; using the template draft");
     }
   } catch {
     /* fall through to the labelled template */
   }
-  return { text: draftFromBrief(brief), drafted_by: "template" };
+  return { text: plainText(draftFromBrief(brief)), drafted_by: "template" };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -154,7 +154,7 @@ export function approveDraft(store: Store, args: { finding_id: string; snapshot_
     finding_id: args.finding_id,
     snapshot_id: args.snapshot_id,
     reason: args.reason,
-    text: args.text,
+    text: plainText(args.text), // Box task messages are plain text (judge B8)
     drafted_by: args.drafted_by ?? prev?.drafted_by ?? "box_ai_text_gen",
     approved_at: utcNow(),
     edited_before_sending: !!prev && prev.text !== args.text,
@@ -243,7 +243,7 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
   const who = view.assigned_to;
   const reviewer = config.reviewers.find((r) => r.box_user_id === who.id || r.login === who.login);
   const isAuthor = config.author.box_user_id === who.id || config.author.login === who.login;
-  const attestation = view.message.includes(profile.attestation_phrase);
+  const attestation = attestationPresent(view.message, profile.attestation_phrase); // tolerant match; message stored verbatim
   const mapped: IngestResult["mapped_action"] = proc
     ? (proc.mapped_action as IngestResult["mapped_action"])
     : view.resolution_state === "rejected" && view.message.trim()
@@ -460,7 +460,7 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
   }
 
   const due_at = proc?.due_at ?? input.due_at ?? addBusinessDays(now(), profile.default_remediation_window_business_days);
-  const authorMessage = approved?.text ?? "";
+  const authorMessage = plainText(approved?.text ?? "");
   const drafted_by = approved?.drafted_by ?? "box_ai_text_gen";
   const lost_clauses = target.clause_support.filter((c) => c.support !== "supported").map((c) => c.clause);
   const authorFileId = b?.fileId ?? target.prior_verification?.fileId ?? "";
@@ -537,6 +537,7 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
       finding_id: mapping.finding_id,
       task: { ...boxTaskB, message_drafted_by: drafted_by === "box_ai_text_gen" ? "Box AI text generation from the finding and the reviewer's reason" : "template (Box AI text generation unavailable)", shown_to_reviewer_before_sending: true, stored_verbatim: true } as never,
       drafted_by,
+      plain_text: true,
       edited_before_sending: approved?.edited_before_sending ?? false,
       lost_clauses,
       server_mapping: mappingB,

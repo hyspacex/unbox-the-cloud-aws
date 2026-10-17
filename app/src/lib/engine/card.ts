@@ -79,6 +79,44 @@ export function verifyAction(st: ControlState, row: RowWithState, attestation: s
   return { enabled: false, reason: `Verify is disabled: no document in this package supports the ${listJoin(nouns, "or")} clause.`, attestation_phrase: attestation };
 }
 
+const COUNT_WORDS = ["", "it", "both", "all three", "all four", "all five", "all six"];
+const short = (standard: string) => {
+  const m = /^(\S+).*?(§\S+)\s*$/.exec(standard);
+  return m ? `${m[1]} ${m[2]}` : standard;
+};
+/** Reviewer-facing noun for a lost clause, worded from the verified sentence when it says more (judge B7). */
+function reasonNoun(clause: string, verifiedQuote: string): string {
+  const q = verifiedQuote.toLowerCase();
+  if (/key management model/i.test(clause)) return q.includes("kms") && q.includes("customer-managed") ? "the KMS customer-managed key model" : "the key management model";
+  if (/rotation period/i.test(clause)) return /annual/.test(q) ? "annual rotation" : "the rotation period";
+  if (/custodian/i.test(clause)) return "the key custodians";
+  return `the ${clauseNoun(clause)}`;
+}
+
+/**
+ * Suggested reason for Return to author, built from the finding: the clauses the verified sentence
+ * supported that no file now supports, where it was, and the standard. For the hero this reads:
+ * "architecture.md v3 §4.3 no longer states the KMS customer-managed key model, annual rotation or the
+ * key custodians; no other file in the package does either. IS-STD-014 §5.1 requires all three. Restore
+ * them or cite where they are now documented." The reviewer edits it; it is never sent unedited by code.
+ */
+export function suggestedReason(store: Store, finding: Finding, control: { standard: string }, st: ControlState): string | null {
+  const unsupported = st.clause_support.filter((c) => c.support !== "supported");
+  if (!unsupported.length) return null;
+  const prior = finding.prior_evidence[0];
+  const pvEvent = latestVerification(store.events, finding.control_id);
+  const supportedByVerified = new Set((pvEvent?.clause_support ?? []).filter((c) => c.quote && prior && c.quote.quote === prior.quote).map((c) => c.clause_id));
+  const lost = prior ? unsupported.filter((c) => supportedByVerified.has(c.clause_id)) : [];
+  const clauses = lost.length ? lost : unsupported;
+  const nouns = clauses.map((c) => reasonNoun(c.clause, prior?.quote ?? ""));
+  const snap = store.snapshot(finding.snapshot_id);
+  const where = prior ? snap?.files.find((f) => f.fileId === prior.fileId) : undefined;
+  const whereLabel = where ? `${where.fileName} ${where.versionLabel ?? store.versionLabel(where.fileId, where.versionId) ?? ""} ${prior!.section.split(" ")[0]}` : `${st.binding?.fileName ?? "the package"}`;
+  const n = nouns.length;
+  const one = n === 1;
+  return `${whereLabel.replace(/\s+/g, " ").trim()} ${lost.length ? "no longer states" : "does not state"} ${listJoin(nouns, "or")}; no other file in the package does either. ${short(control.standard)} requires ${COUNT_WORDS[n] ?? `all ${n}`}. Restore ${one ? "it" : "them"} or cite where ${one ? "it is" : "they are"} now documented.`;
+}
+
 export function buildFindingCard(store: Store, profile: ControlProfile, config: KeelConfig, finding: Finding & { run_id?: string }): FindingCard {
   const control = profile.controls.find((c) => c.id === finding.control_id)!;
   const currentId = store.data.current_snapshot_id ?? finding.snapshot_id;
@@ -96,10 +134,25 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
   const snap = store.snapshot(finding.snapshot_id);
   const binding: EvidenceRef | null = finding.evidence[0] ?? null;
   const sameFile = prior ? snap?.files.find((f) => f.fileId === prior.fileId) : undefined;
-  const newFile = sameFile ?? (binding ? snap?.files.find((f) => f.fileId === binding.fileId) : undefined);
+  const bindingFile = binding ? snap?.files.find((f) => f.fileId === binding.fileId) : undefined;
+  // Moved binding (judge A1): the new version block describes the NEW binding; the old location goes behind a disclosure.
+  const moved = finding.change_classification === "moved" && !!bindingFile;
+  const newFile = moved ? bindingFile : (sameFile ?? bindingFile);
   const newText = newFile ? store.text(newFile.versionId) : undefined;
   const newQuote = binding && newFile && binding.fileId === newFile.fileId ? binding.quote : null;
-  const nBlock = newFile ? blockText(newText, newQuote, prior?.section ?? binding?.section) : {};
+  const nBlock = newFile ? blockText(newText, newQuote, moved ? binding?.section : (prior?.section ?? binding?.section)) : {};
+  let old_location: FindingCard["old_location"] = null;
+  if (moved && prior && sameFile) {
+    const oldText = store.text(sameFile.versionId);
+    const oldSec = oldText ? sectionByLabel(oldText, prior.section) : null;
+    const oldLabel = sameFile.versionLabel ?? store.versionLabel(sameFile.fileId, sameFile.versionId) ?? sameFile.versionId;
+    old_location = {
+      file: { ...sameFile, versionLabel: oldLabel },
+      section: oldSec?.label ?? prior.section,
+      text: oldSec?.body,
+      note: `${sameFile.fileName} ${oldLabel} ${(oldSec?.label ?? prior.section).split(" ")[0]} no longer contains the quote`,
+    };
+  }
   const newInfo = newFile ? store.versionInfo(newFile.fileId, newFile.versionId) : undefined;
   const newLoc = newQuote && binding ? binding : null;
 
@@ -111,8 +164,7 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
     author: config.author.name,
   };
   // A starting point for the reviewer's reason, built from the unsupported clauses; the reviewer edits it.
-  const uns = st.clause_support.filter((c) => c.support !== "supported").map((c) => clauseNoun(c.clause));
-  if (rta.enabled && uns.length) rta.suggested_reason = `${listJoin(uns)} ${uns.length === 1 ? "is" : "are"} no longer supported. ${control.standard} requires ${uns.length === 1 ? "it" : "them"} restored.`;
+  if (rta.enabled) rta.suggested_reason = suggestedReason(store, finding, control, st) ?? undefined;
 
   const thread = store.events
     .filter((e) => e.control_id === control.id)
@@ -155,6 +207,7 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
           text: pBlock.raw,
         }
       : null,
+    old_location,
     new_version: newFile
       ? {
           file: { ...newFile, versionLabel: newFile.versionLabel ?? newInfo?.label },

@@ -15,6 +15,7 @@ import { APP_ACTOR } from "./publish";
 import { buildRows, type RowWithState } from "./state";
 import { utcNow } from "./ledger";
 import { bindingsEqual } from "./assess";
+import { plainText } from "./wording";
 
 const KIND_PRIORITY: Record<string, number> = { needs_review_weakened: 0, needs_review_absent: 0, needs_review_conflict: 0, needs_review_binding: 1, acknowledge: 2, pending_review: 3 };
 const TIER_PRIORITY: Record<string, number> = { Critical: 0, High: 1, Medium: 2 };
@@ -125,7 +126,7 @@ export async function createReviewTasks(args: {
     fileId: r.state.binding?.fileId ?? r.state.prior_verification?.fileId ?? "",
     control_id: r.control_id,
     finding_id: r.finding_id ?? "",
-    message: reviewTaskMessage(r, store),
+    message: plainText(reviewTaskMessage(r, store)),
   }));
   for (const q of args.quarantined ?? []) {
     const already = store.data.tasks.some((t) => t.status === "open" && (t as { purpose?: string }).purpose === "input_gate_quarantine" && t.fileId === q.fileId && (t as { versionId?: string }).versionId === q.versionId);
@@ -138,7 +139,7 @@ export async function createReviewTasks(args: {
       versionId: q.versionId,
       control_id: all[0].control_id,
       finding_id: all[0].finding_id ?? "",
-      message: `Snapshot ${snapshotId}: ${q.fileName} ${label} was quarantined by the input gate (instructions addressed to an AI agent, p=${q.injection.probability.toFixed(2)}). Its text was not sent to the evaluator; ${all.map((r) => r.control_id).join(", ")} ${all.length === 1 ? "is" : "are"} Not evaluated. Review the file. Findings: ${all.map((r) => r.finding_id).join(", ")}.`,
+      message: plainText(`Snapshot ${snapshotId}: ${q.fileName} ${label} was quarantined by the input gate (instructions addressed to an AI agent, p=${q.injection.probability.toFixed(2)}). Its text was not sent to the evaluator; ${all.map((r) => r.control_id).join(", ")} ${all.length === 1 ? "is" : "are"} Not evaluated. Review the file. Findings: ${all.map((r) => r.finding_id).join(", ")}.`),
     });
   }
   const created: StoredTask[] = [];
@@ -168,7 +169,7 @@ export async function createReviewTasks(args: {
       store.data.tasks.push(task);
       store.data.task_mappings[asg.assignment_id] = Object.freeze(mapping) as TaskMapping;
       const { status: _s, created_at: _c, ...boxTask } = task;
-      append({ event_type: "box_task_created", actor: APP_ACTOR, snapshot_id: snapshotId, control_id: p.control_id, finding_id: p.finding_id, task: boxTask, server_mapping: mapping });
+      append({ event_type: "box_task_created", actor: APP_ACTOR, snapshot_id: snapshotId, control_id: p.control_id, finding_id: p.finding_id, task: boxTask, plain_text: true, server_mapping: mapping });
       created.push(task);
     } catch (err) {
       failed.push(p.control_id);

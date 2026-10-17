@@ -88,7 +88,8 @@ describe("acceptance 7 and 15: unreadable file and fabricated quote", () => {
     expect(row.machine_assessment).toBe("not_evaluated");
     expect(row.status.projection_code).toBe("NOT_EVALUATED");
     expect(row.state.not_evaluated_reason?.code).toBe("TEXT_REPRESENTATION_NOT_READY");
-    expect(row.status.label).toMatch(/^Not evaluated: approved-services-and-exceptions\.md v2 could not be read/);
+    expect(row.status.label).toBe("Not evaluated: file unreadable");
+    expect(row.status.detail).toMatch(/^approved-services-and-exceptions\.md v2 could not be read/);
     const tf = h.eventsOf("texts_fetched", "S4")[0];
     expect(tf.coverage).toEqual({ readable: 4, total: 5 });
     expect((tf.files as { readable: boolean }[]).filter((f) => !f.readable)).toHaveLength(1);
@@ -249,7 +250,8 @@ describe("acceptance 16: missing finding", () => {
     expect(r.error).toMatchObject({ code: "MISSING_FINDING" });
     expect(h.eventsOf("evaluation_completed", "S4")[0].evaluation_state).toBe("error");
     expect(h.rows().every((x) => x.status.rule === 2)).toBe(true);
-    expect(h.rows()[0].status.label).toMatch(/^Not evaluated: no finding for SEC-ARCH-20/);
+    expect(h.rows()[0].status.label).toBe("Not evaluated: evaluation error");
+    expect(h.rows()[0].status.detail).toMatch(/^no finding for SEC-ARCH-20/);
     expect(h.store.data.tasks).toHaveLength(0);
   });
 });

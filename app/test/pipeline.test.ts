@@ -149,7 +149,7 @@ describe("demo state machine on the mock adapters", () => {
     const a = await h.respond("SEC-ARCH-07", "rejected", DANA_REASON, { completed_at: "2026-10-17T15:33:40Z" });
     expect(a.result).toBe("applied");
     expect(a.mapped_action).toBe("returned_to_author");
-    expect(a.author_task?.message).toBe(fixtureEvent("EVT-0094").task!.message);
+    expect(a.author_task?.message).toBe(fixtureEvent("EVT-0094").task!.message.replace(/`/g, "")); // fixture text, as plain text (judge B8)
     expect(a.author_task?.due_at).toBe("2026-10-23T17:00:00Z");
     expect(a.author_task?.assignee).toBe("J. Park (Eng)");
     const types = a.events.map((e) => e.event_type);

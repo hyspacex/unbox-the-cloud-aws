@@ -117,6 +117,15 @@ export function onCurrentBinding(i: DisplayInputs): boolean {
 }
 const normQ = (q?: string) => norm(q ?? "");
 
+/** Short category for a Not evaluated label (judge B11); the full reason goes to `detail`. */
+export function notEvaluatedCategory(code: string | undefined, state?: DisplayInputs["evaluation_state"]): string {
+  if (code === "input_gate") return "input quarantined";
+  if (code && /^QUOTE_/.test(code)) return "quote not found";
+  if (code && /(UNREADABLE|NOT_READY|VERSION_NOT_FOUND|READ|DOWNLOAD)/.test(code)) return "file unreadable";
+  void state;
+  return "evaluation error";
+}
+
 /** Spec 4, the sixteen ordered rules. First match wins. */
 export function displayStatus(i: DisplayInputs, o: DisplayOptions = {}): DisplayedStatus {
   const mk = (rule: number, kind: DisplayKind, label: string, projection_code: ProjectionCode, tone: DisplayedStatus["tone"], extra: Partial<DisplayedStatus> = {}): DisplayedStatus => ({
@@ -135,7 +144,10 @@ export function displayStatus(i: DisplayInputs, o: DisplayOptions = {}): Display
   if (i.evaluation_state === "pending") return mk(1, "pending_recheck", "Re-check pending", "PENDING", "grey", { struck: i.prior_displayed_status, secondary: prior2nd });
   // Rule 2
   if (i.evaluation_state === "error" || i.machine_assessment === "not_evaluated") {
-    return mk(2, "not_evaluated", i.evaluation_reason ? `Not evaluated: ${i.evaluation_reason}` : "Not evaluated", "NOT_EVALUATED", "grey", { secondary: prior2nd });
+    return mk(2, "not_evaluated", `Not evaluated: ${notEvaluatedCategory(i.evaluation_reason_code, i.evaluation_state)}`, "NOT_EVALUATED", "grey", {
+      secondary: prior2nd,
+      ...(i.evaluation_reason ? { detail: i.evaluation_reason } : {}),
+    });
   }
   // Rules 3 to 7: proposed dispositions (no transition behind them in the build)
   if (dispOnSnapshot === "superseded") return mk(3, "superseded", `Superseded, re-verify under profile v${d?.profile_version ?? "?"}`, "PENDING", "amber", { secondary: prior2nd });

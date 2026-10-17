@@ -86,10 +86,29 @@ export type RunSummary = {
 
 export type DraftAuthorMessage = { text: string; drafted_by: "box_ai_text_gen" | "template" | string };
 
+/** Finding cards already fetched, so the drawer opens filled (B5). Cleared on every new run. */
+const findingCache = new Map<string, FindingCard>();
+export function peekFinding(id: string): FindingCard | undefined {
+  return findingCache.get(id);
+}
+export function clearFindingCache() {
+  findingCache.clear();
+}
+export function prefetchFindings(ids: string[]) {
+  ids.forEach((id) => {
+    if (!findingCache.has(id)) api.finding(id).catch(() => {});
+  });
+}
+
 export const api = {
   config: () => req<AppConfig>("/api/config"),
   package: () => req<PackageView>("/api/package"),
-  finding: (id: string) => req<FindingCard>(`/api/finding/${encodeURIComponent(id)}`),
+  finding: async (id: string) => {
+    const c = await req<FindingCard>(`/api/finding/${encodeURIComponent(id)}`);
+    findingCache.set(id, c);
+    findingCache.set(c.finding.finding_id, c);
+    return c;
+  },
   submit: (body: SubmitRequest) => post<SubmitResponse>("/api/submit", body),
   run: (runId: string) => req<RunState>(`/api/run/${encodeURIComponent(runId)}`),
   runs: async (): Promise<RunSummary[]> => {
@@ -139,6 +158,8 @@ export function followRun(
     onDone: (run?: RunState) => void;
     onError?: (err: unknown) => void;
     onMeta?: (run: RunState) => void;
+    /** The run no longer exists (404, e.g. after a reset): stop quietly. */
+    onGone?: () => void;
   },
 ): () => void {
   let cancelled = false;
@@ -155,7 +176,7 @@ export function followRun(
       try {
         run = await api.run(runId);
       } catch {
-        /* ignore */
+        /* the run may be gone; deliver what we have */
       }
     }
     if (run) {
@@ -176,6 +197,12 @@ export function followRun(
       seen = Math.max(seen, run.steps.length);
       if (run.done) return finish(run);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 404) {
+        finished = true;
+        es?.close();
+        handlers.onGone?.();
+        return;
+      }
       handlers.onError?.(e);
     }
     timer = setTimeout(poll, 400);

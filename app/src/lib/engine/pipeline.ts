@@ -70,6 +70,8 @@ export interface PipelineResult {
   search_tool: RunRecord["search_tool"];
   box_ai_asks: BoxAiAskRecord[];
   error?: { code: string; message: string };
+  /** For the trace's Done line: controls with a machine assessment vs not evaluated. */
+  summary?: { evaluated: number; not_evaluated: number };
 }
 
 const DECIDER_ACTOR = (kind: InputGate["kind"]): Actor => ({
@@ -572,7 +574,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
     });
     emit({ source: "app", kind: "quotes_validated", label: `Model output rejected: ${validation.error.code}. Evaluation state error; no partial application.`, ...since(start), detail: validation.error });
     await project(ctx, snapshotId, emit, t0, newEvents);
-    return result("error", snapshotId, "error", { error: validation.error });
+    return result("error", snapshotId, "error", { error: validation.error, summary: { evaluated: 0, not_evaluated: profile.controls.length } });
   }
   emit({
     source: "app",
@@ -734,6 +736,9 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
       change_classification: o.classification,
       ...machineCtx(o),
       verification_holds: o.staleness?.holds ?? null,
+      // Exact "changed nothing" (judge B10): unchanged binding and the verification holds, so no
+      // acknowledgment, binding change or needs-review outcome exists for this control on this snapshot.
+      changed_nothing: o.classification === "unchanged" && o.staleness?.holds === true,
       fileId: o.binding?.fileId ?? null,
       fileName: o.binding?.fileName ?? null,
       versionId: o.binding?.versionId ?? null,
@@ -893,7 +898,11 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
       detail: { tasks: tasks.created, failed: tasks.failed, carried: tasks.carried.map((t) => ({ task_id: t.task_id, control_id: t.control_id, snapshot_id: t.snapshot_id })) },
     });
   }
-  return result("complete", snapshotId, "complete", { findings: findingsOut, tasks: tasks.created });
+  return result("complete", snapshotId, "complete", {
+    findings: findingsOut,
+    tasks: tasks.created,
+    summary: { evaluated: outcomes.filter((o) => o.assessment !== "not_evaluated").length, not_evaluated: outcomes.filter((o) => o.assessment === "not_evaluated").length },
+  });
 }
 
 /**

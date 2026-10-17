@@ -277,6 +277,8 @@ export interface DisplayInputs {
   unsupported_clauses: string[]; // clause text of unsupported required clauses
   evaluation_state: EvaluationState;
   evaluation_reason?: string;
+  /** Added: reason code (input_gate, QUOTE_NOT_IN_PINNED_TEXT, TEXT_REPRESENTATION_NOT_READY, ...) for the short label. */
+  evaluation_reason_code?: string;
   tier: ControlTier;
   prior_displayed_status?: string; // for strike-through while pending
   current_binding?: EvidenceBinding;
@@ -311,6 +313,8 @@ export interface DisplayedStatus {
   secondary?: string;
   /** Prior label to render struck through (rule 1). */
   struck?: string;
+  /** Added: full reason behind a short label (rule 2), rendered on the secondary line. */
+  detail?: string;
   /** Who, visually: machine-grey, human-blue, needs-review amber, human-verified green. */
   tone: "grey" | "blue" | "amber" | "green" | "red";
 }
@@ -550,6 +554,8 @@ export interface Trace {
   prior_snapshot_id?: string;
   started_at: string;
   total_duration_ms: number;
+  /** Added: for the trace's Done line ("6 re-checked, 2 not evaluated"). */
+  summary?: { evaluated: number; not_evaluated: number };
   model_id: string;
   inference_profile: string;
   mrm_model_id: string;
@@ -599,7 +605,7 @@ export interface ControlRow {
   severity?: Severity;
   reviewer_role: string;
   status: DisplayedStatus;
-  evidencing: { fileName: string; versionLabel?: string; versionId: string; section?: string } | null;
+  evidencing: { fileName: string; versionLabel?: string; versionId: string; section?: string; /** Added */ quarantined?: boolean } | null;
   finding_id?: string;
   machine_assessment: MachineAssessment;
   change_classification: ChangeClassification;
@@ -648,6 +654,8 @@ export interface FindingCard {
     deep_link?: string;
     text?: string; // section text for context
   } | null;
+  /** Added: for a moved binding, what became of the prior location (new_version describes the new binding). */
+  old_location?: { file: SnapshotFile; section?: string; text?: string; note: string } | null;
   new_version: {
     file: SnapshotFile;
     uploader?: string;
@@ -715,6 +723,10 @@ export interface ActionResponse {
 }
 
 export interface ExportManifest {
+  /** Added: per-phase counts (seed fixture vs this app's runs). */
+  counts_by_phase?: Record<string, { events: number; controls_evaluated: number; verification_holds: number; human_dispositions: number }>;
+  /** Added: "run" when filtered to the live phase, "ledger" for everything. */
+  scope?: "run" | "ledger";
   exported_at: string;
   run_ids: string[];
   snapshot_ids: string[];

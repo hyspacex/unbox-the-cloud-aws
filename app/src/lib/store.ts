@@ -379,8 +379,15 @@ export function recoverInterruptedRuns(store: Store, opts: { mrmModelId: string;
 }
 
 /** Reset to the seed (mock) or empty (live) and persist. */
-export function resetToSeed(store: Store, mode: RunMode): void {
+export function resetToSeed(store: Store, mode: RunMode, opts: { keepRuns?: boolean } = {}): void {
+  const { runs, run_order, counters } = store.data;
   store.data = mode === "mock" ? seedData("mock") : emptyData();
+  if (opts.keepRuns) {
+    // Recorded traces survive a reset so the labelled-replay fallback still works (judge A2).
+    store.data.runs = runs;
+    store.data.run_order = run_order;
+    store.data.counters.run = counters.run;
+  }
   store.save();
 }
 

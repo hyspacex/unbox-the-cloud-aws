@@ -320,6 +320,7 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
       run.gate = r.gate;
       run.search_tool = r.search_tool;
       run.box_ai_asks = r.box_ai_asks;
+      run.summary = r.summary;
       run.status = r.outcome === "error" ? "error" : "done";
       if (r.error) run.error = `${r.error.code}: ${r.error.message}`;
       return run;
@@ -561,22 +562,42 @@ function csvCell(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function exportCsv(): string {
-  const events = store().events;
+/** Events in scope: everything (ledger), or one phase such as "live" (this app's runs, without the seed fixture). */
+function scopedEvents(s: Store, phase?: string): LedgerEvent[] {
+  return phase ? s.events.filter((e) => e.phase === phase) : s.events;
+}
+
+export function exportCsv(phase?: string): string {
+  const events = scopedEvents(store(), phase);
   return CSV_COLUMNS.join(",") + "\n" + events.map((e) => CSV_COLUMNS.map((col) => csvCell(pick(e, col))).join(",")).join("\n") + "\n";
 }
 
 export const EXPORT_LIMITATION =
   "Observed revisions, evaluations, and human responses from this run. Complete-period reconciliation against Box's version list and independent integrity protection are not implemented.";
 
-export function exportManifest(): ExportManifest & Record<string, unknown> {
+export function exportManifest(phase?: string): ExportManifest & Record<string, unknown> {
   const s = store();
-  const events: LedgerEvent[] = s.events;
+  const events: LedgerEvent[] = scopedEvents(s, phase);
+  const counts_by_phase: NonNullable<ExportManifest["counts_by_phase"]> = {};
+  for (const e of s.events) {
+    const c = (counts_by_phase[e.phase] ??= { events: 0, controls_evaluated: 0, verification_holds: 0, human_dispositions: 0 });
+    c.events++;
+    if (e.event_type === "control_evaluated") c.controls_evaluated++;
+    if (e.event_type === "verification_holds") c.verification_holds++;
+    if (e.event_type === "human_disposition_recorded") c.human_dispositions++;
+  }
   const count = (t: string) => events.filter((e) => e.event_type === t).length;
   const runIds = [...new Set(events.map((e) => e.run_id as string | undefined).filter((x): x is string => !!x))];
-  const csv = exportCsv();
+  const csv = exportCsv(phase);
+  const scope: "run" | "ledger" = phase ? "run" : "ledger";
   return {
-    export: "Observed revisions, evaluations, and human responses from this run",
+    export:
+      scope === "run"
+        ? `Observed revisions, evaluations and human responses from this app's runs (phase ${phase}): ${runIds.join(", ") || "none yet"}`
+        : `Observed revisions, evaluations and human responses in this ledger: seed fixture and run ${runIds.join(", ") || "none yet"}`,
+    scope,
+    ...(phase ? { phase, chain_note: "chain_head and chain_verification cover the full ledger; the exported events are a contiguous suffix of it" } : {}),
+    counts_by_phase,
     mode: getConfig().mode,
     exported_at: utcNow(),
     run_ids: runIds,
@@ -635,7 +656,7 @@ export function reset(): { ok: true; snapshot_id: string | null; count_line: str
     s = store();
   }
   if (Object.values(s.data.runs).some((r) => !r.done)) throw new ServiceError("RUN_ACTIVE", "a run is in progress", 409);
-  resetToSeed(s, c.mode);
+  resetToSeed(s, c.mode, { keepRuns: true });
   const snap = s.data.current_snapshot_id;
   return { ok: true, snapshot_id: snap, count_line: snap ? countLine(buildRows(s, profile(), snap), snap) : null, ...(backed_up ? { backed_up } : {}) };
 }

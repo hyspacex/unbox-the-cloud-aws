@@ -29,6 +29,7 @@ export interface ControlState {
   snapshot_id: string;
   evaluation_state: EvaluationState;
   evaluation_reason?: string;
+  evaluation_reason_code?: string;
   not_evaluated_reason?: { code: string; message: string };
   evaluation_event: LedgerEvent | null;
   machine_assessment: MachineAssessment;
@@ -54,7 +55,7 @@ const EVAL_TYPES = new Set(["control_evaluated", "evaluation_error"]);
  * Evaluation state of a snapshot: the outcome of its latest attempt. An attempt started after the
  * last evaluation_completed (a retry, Codex finding 8) makes the snapshot pending again.
  */
-export function snapshotEvaluationState(events: LedgerEvent[], snapshotId: string): { state: EvaluationState; reason?: string } {
+export function snapshotEvaluationState(events: LedgerEvent[], snapshotId: string): { state: EvaluationState; reason?: string; code?: string } {
   let completed: LedgerEvent | undefined;
   let completedAt = -1;
   let attemptAt = -1;
@@ -71,7 +72,7 @@ export function snapshotEvaluationState(events: LedgerEvent[], snapshotId: strin
   if (completed && completedAt > attemptAt) {
     const done = completed as LedgerEvent;
     const st = (done.evaluation_state ?? "complete") as EvaluationState;
-    return { state: st, reason: st === "error" ? done.error?.message ?? "evaluation error" : undefined };
+    return { state: st, reason: st === "error" ? done.error?.message ?? "evaluation error" : undefined, code: st === "error" ? done.error?.code : undefined };
   }
   return { state: captured ? "pending" : "complete" };
 }
@@ -188,6 +189,7 @@ export function deriveControlState(store: Store, control: Control, snapshotId: s
     snapshot_id: snapshotId,
     evaluation_state,
     evaluation_reason,
+    evaluation_reason_code: notEval?.code ?? (snapState.state === "error" ? snapState.code ?? "evaluation_error" : undefined),
     not_evaluated_reason: notEval,
     evaluation_event: evalEvent,
     machine_assessment: assessment,
@@ -221,6 +223,7 @@ export function displayInputsFor(st: ControlState, priorDisplayed?: string): Dis
     unsupported_clauses: st.clause_support.filter((c) => c.support !== "supported").map((c) => c.clause),
     evaluation_state: st.evaluation_state,
     evaluation_reason: st.evaluation_reason,
+    evaluation_reason_code: st.evaluation_reason_code,
     tier: st.control.tier,
     prior_displayed_status: priorDisplayed,
     current_binding: st.binding ? { fileId: st.binding.fileId, fileName: st.binding.fileName, versionId: st.binding.versionId, section: st.binding.section, quote: st.binding.quote } : undefined,
@@ -251,7 +254,9 @@ export function buildRows(store: Store, profile: ControlProfile, snapshotId: str
       severity: status.severity,
       reviewer_role: control.reviewer_role,
       status,
-      evidencing: b ? { fileName: b.fileName, versionLabel: b.versionLabel ?? store.versionLabel(b.fileId, b.versionId), versionId: b.versionId, section: b.section } : null,
+      evidencing: b
+        ? { fileName: b.fileName, versionLabel: b.versionLabel ?? store.versionLabel(b.fileId, b.versionId), versionId: b.versionId, section: b.section }
+        : quarantinedEvidence(store, st),
       finding_id: st.finding_id,
       machine_assessment: st.machine_assessment,
       change_classification: st.change_classification,
@@ -263,6 +268,13 @@ export function buildRows(store: Store, profile: ControlProfile, snapshotId: str
       state: st,
     };
   });
+}
+
+/** A control not evaluated because the input gate quarantined its evidencing file still names that file. */
+function quarantinedEvidence(store: Store, st: ControlState): ControlRow["evidencing"] {
+  const e = st.evaluation_event;
+  if (st.not_evaluated_reason?.code !== "input_gate" || !e?.fileId || !e.versionId) return null;
+  return { fileName: e.fileName ?? "", versionLabel: store.versionLabel(e.fileId, e.versionId), versionId: e.versionId, quarantined: true };
 }
 
 /** Strip the internal state for the API. */

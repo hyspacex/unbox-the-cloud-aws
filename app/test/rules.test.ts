@@ -36,7 +36,7 @@ const label = (f: string, v: string) => ({ v2id: "v2", v3id: "v3" })[v] ?? `${f}
 describe("display: the sixteen ordered rules (spec 4)", () => {
   const cases: [number, DisplayInputs, string, string][] = [
     [1, base({ evaluation_state: "pending", prior_displayed_status: "Verified, holds" }), "Re-check pending", "PENDING"],
-    [2, base({ machine_assessment: "not_evaluated", evaluation_reason: "architecture.md v3 could not be read" }), "Not evaluated: architecture.md v3 could not be read", "NOT_EVALUATED"],
+    [2, base({ machine_assessment: "not_evaluated", evaluation_reason: "architecture.md v3 could not be read", evaluation_reason_code: "TEXT_REPRESENTATION_NOT_READY" }), "Not evaluated: file unreadable", "NOT_EVALUATED"],
     [3, base({ current_disposition: disp("superseded", { profile_version: "2026.4" }) }), "Superseded, re-verify under profile v2026.4", "PENDING"],
     [4, base({ current_disposition: disp("not_applicable") }), "Not applicable", "NOT_APPLICABLE"],
     [5, base({ current_disposition: disp("exception_approved", { expires_at: "2027-06-30T00:00:00Z" }) }), "Exception approved until 2027-06-30", "EXCEPTION"],

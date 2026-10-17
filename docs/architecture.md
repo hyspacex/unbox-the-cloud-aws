@@ -1,5 +1,9 @@
 # Architecture and API Breakdown
 
+> **Superseded.** This document describes idea #2 (EpistemicBox / agreement drift). The current
+> build is Keel's folder checks; see [`v1-local-design.md`](v1-local-design.md) and
+> [`../keel/README.md`](../keel/README.md).
+
 Status: proposed design, not implemented or tenant-validated.
 
 ## 1. Design principle

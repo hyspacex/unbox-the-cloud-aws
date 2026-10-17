@@ -1,0 +1,30 @@
+{
+  "total": 114.669,
+  "chapters": [
+    {
+      "name": "01-connect-first-run",
+      "title": "Connect a Box folder and run the checks",
+      "at": 0
+    },
+    {
+      "name": "02-uploads-rerun-checks",
+      "title": "Every upload reruns the checks",
+      "at": 31.426
+    },
+    {
+      "name": "03-regression-blame-notify",
+      "title": "A rewrite breaks two checks — Keel says who and why",
+      "at": 61.813
+    },
+    {
+      "name": "04-rule-packs",
+      "title": "Install a standard as checks",
+      "at": 89.18
+    },
+    {
+      "name": "05-run-history",
+      "title": "Run history: who changed what, and what it did",
+      "at": 105.871
+    }
+  ]
+}

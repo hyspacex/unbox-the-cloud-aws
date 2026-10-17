@@ -1,0 +1,11 @@
+Project Lantern — kickoff call transcript (auto-generated)
+Date: 2026-10-02 · Attendees: Maya Chen, J. Park, Dana Okafor, Priya Natarajan
+
+[00:01:05] Maya Chen: Thanks all. Goal for today is to agree the launch shape for Lantern.
+[00:03:12] Priya Natarajan: The contact-center leads were clear. Suggestions have to land within 50 ms p99, otherwise agents stop waiting for them.
+[00:03:40] J. Park: 50 ms p99 is fine with the cache in front of the model gateway. I'll write that into the architecture doc.
+[00:05:18] Dana Okafor: Keys need to be customer-managed and rotated yearly, same as every Tier 1 system.
+[00:06:02] J. Park: Agreed, KMS with customer-managed keys.
+[00:07:45] Maya Chen: Privacy still owes us a decision on how long we keep conversation text.
+[00:08:10] Dana Okafor: I'll leave that item open on the checklist until it's written down.
+[00:09:30] Maya Chen: Great. Next check-in is the architecture review on the 14th.

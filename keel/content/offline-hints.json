@@ -1,0 +1,133 @@
+{
+  "_comment": "Hints for the offline (regex) judge, keyed by rule title. The Bedrock judge ignores these and reads the rule text.",
+  "rules": {
+    "security checklist complete": {
+      "kind": "checklist_complete",
+      "file": "security-checklist.md"
+    },
+    "encryption and key management documented": {
+      "kind": "require_all",
+      "files": [
+        "architecture.md"
+      ],
+      "clauses": [
+        {
+          "label": "encryption at rest",
+          "any": [
+            "encrypt\\w* at rest"
+          ]
+        },
+        {
+          "label": "customer-managed keys",
+          "any": [
+            "customer[- ]managed keys?",
+            "\\bCMKs?\\b"
+          ]
+        },
+        {
+          "label": "key rotation period",
+          "any": [
+            "rotat\\w+ every \\d+",
+            "rotat\\w+ (yearly|annually)"
+          ]
+        }
+      ]
+    },
+    "latency targets consistent": {
+      "kind": "consistency",
+      "label": "p99 latency target",
+      "unit": "ms",
+      "patterns": [
+        "p99[^.\\n]{0,40}?(\\d+)\\s*ms",
+        "(\\d+)\\s*ms\\s+p99"
+      ]
+    },
+    "scale estimates present": {
+      "kind": "require_all",
+      "clauses": [
+        {
+          "label": "expected peak load",
+          "any": [
+            "peak of [\\d,]+ requests per second",
+            "peak[^.\\n]{0,30}[\\d,]+ (requests per second|rps)"
+          ]
+        },
+        {
+          "label": "provisioned capacity",
+          "any": [
+            "provisioned for [\\d,]+ requests per second",
+            "capacity[^.\\n]{0,40}[\\d,]+ (requests per second|rps)"
+          ]
+        }
+      ]
+    },
+    "data residency stated": {
+      "kind": "require_all",
+      "clauses": [
+        {
+          "label": "storage and processing region",
+          "any": [
+            "(stored|processed)[^.\\n]{0,40}\\b(EU|US|UK|eu-[a-z]+-\\d|us-[a-z]+-\\d)\\b"
+          ]
+        }
+      ]
+    },
+    "data retention stated": {
+      "kind": "require_all",
+      "clauses": [
+        {
+          "label": "conversation data retention period",
+          "any": [
+            "(conversation|transcript)[^.\\n]{0,60}retained for \\d+ (days|months|years?)"
+          ]
+        },
+        {
+          "label": "log retention period",
+          "any": [
+            "logs?[^.\\n]{0,40}retained for \\d+ (days|months|years?)"
+          ]
+        }
+      ]
+    },
+    "rollback and recovery documented": {
+      "kind": "require_all",
+      "clauses": [
+        {
+          "label": "rollback path",
+          "any": [
+            "roll(ed)? ?back"
+          ]
+        },
+        {
+          "label": "RTO",
+          "any": [
+            "\\bRTO\\b[^.\\n]{0,20}\\d"
+          ]
+        },
+        {
+          "label": "RPO",
+          "any": [
+            "\\bRPO\\b[^.\\n]{0,20}\\d"
+          ]
+        }
+      ]
+    },
+    "owners named": {
+      "kind": "require_all",
+      "clauses": [
+        {
+          "label": "accountable owner",
+          "any": [
+            "accountable owner: [A-Z]"
+          ]
+        },
+        {
+          "label": "on-call escalation",
+          "any": [
+            "on-call (escalation|rotation)"
+          ]
+        }
+      ]
+    }
+  }
+}

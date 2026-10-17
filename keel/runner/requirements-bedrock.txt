@@ -1,0 +1,4 @@
+# Only needed for KEEL_JUDGE=bedrock. The offline judge and the local stack use the standard library only.
+strands-agents>=1.10
+boto3>=1.40
+pydantic>=2.7

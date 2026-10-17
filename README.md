@@ -10,9 +10,7 @@ evidence-backed changes, and approve the exact revision they intend to accept.
 The history connects what changed, when the system observed it, who reviewed it,
 and which proposal version became the team's accepted baseline.
 
-**Architecture in one sentence:** Box provides content, metadata extraction, AI
-analysis and human review tasks; AWS provides the application, workflow
-orchestration and version-bound decision ledger.
+**Architecture in one sentence:** Box provides folder storage, metadata templates, AI extraction/citations and human review tasks; AWS provides the Idea Hub, an Amazon Bedrock decision model that recommends the right Project Template for an uploaded folder, Step Functions orchestration and a version-bound decision ledger.
 
 > Status: product and architecture proposal. This repository does not yet contain
 > a working application or deployed infrastructure. API availability, licenses,
@@ -60,12 +58,36 @@ Template generation is verified as a Box product UI capability, not assumed to
 be a public API. Reference documents define review criteria; they do not
 automatically become approved business facts.
 
+### Folder intake with Amazon's decision model
+
+Instead of manually tagging every file, a project owner uploads or selects a
+**Box folder of documents**. An **Amazon Bedrock decision model** (`Converse`
+API) inspects the folder inventory and document summaries against the controlled
+template registry and Amazon's **Type 1 (One-Way Door) vs. Type 2 (Two-Way Door)**
+decision framework:
+
+1. **Suggests the Project Template bundle** best matching the folder (for example,
+   `Enterprise AI Initiative / v1`, `Vendor Onboarding / v1`, or `Internal Fast-Track Pilot / v1`).
+2. **Classifies the decision tier** (`Type 1 One-Way Door` for irreversible or
+   high-consequence commitments such as cross-border data transfer, sensitive data
+   or major spend; `Type 2 Two-Way Door` for bounded reversible experiments).
+3. **Maps each file in the folder to a document role** (`Proposal.docx -> Business Case`,
+   `Architecture.pdf -> Architecture`, `DPIA.docx -> Data & Privacy`,
+   `Budget.xlsx -> Finance`) so the matching Box Metadata Template runs on each file.
+4. **Flags missing required documents or tier escalations** (for example, when a
+   folder shifts from a Type 2 pilot to a Type 1 rollout).
+
+The project owner confirms or adjusts the recommendation before extraction and
+approval routing run.
+
 ## User journey
 
-1. Select a Project Template and create a project.
-2. Upload or select proposal documents in Box and assign document roles.
-3. Capture a revision manifest containing each document's exact version.
-4. Extract relevant fields with Box AI and compare with the approved baseline.
+1. Upload or select a Box folder of project documents.
+2. Review and confirm the Amazon Bedrock decision model's suggested Project
+   Template, Type 1 / Type 2 decision tier and file-to-role mapping.
+3. Capture a revision manifest containing each folder document's exact version.
+4. Extract relevant fields across the folder with the grouped Box AI Metadata
+   Templates and compare with the approved baseline.
 5. Inspect material changes, old/new excerpts and unresolved evidence.
 6. Confirm a proposed review plan and create Box review tasks.
 7. Reviewers approve or reject using their own Box identities.

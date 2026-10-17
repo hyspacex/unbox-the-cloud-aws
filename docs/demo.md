@@ -16,10 +16,14 @@ reviewer. Finance and multi-role routing remain supporting test fixtures.
 Also introduce a harmless wording change. The system should distinguish it
 from material agreement drift.
 
-Select an Enterprise AI Initiative Project Template containing Business Case,
-Architecture, Data & Privacy and Finance metadata templates. For a compact demo,
-the relevant values can be in one proposal document; expand to multiple roles
-only after the end-to-end path works.
+Select an `Enterprise AI Initiative` Project Template containing Business Case,
+Architecture, Data & Privacy and Finance metadata templates. When the project
+owner uploads the project folder, **Amazon Bedrock's decision model** suggests
+the `Enterprise AI Initiative` Project Template, maps the folder's documents to
+their template roles, and flags that moving from an EU pilot to US customer-data
+processing escalates the proposal to a **Type 1 (One-Way Door) decision**.
+For a compact demo, keep the stage focus on that single region drift while
+showing the folder-level template recommendation badge.
 
 ## Three-minute stage plan: 60-second introduction, 100-second demo
 
@@ -32,8 +36,8 @@ the demo, not a claim that live AI inference finishes in 15 seconds.
 | --- | --- | --- |
 | 0:00-0:15 | Introduce team name and members' actual build responsibilities in one sentence | No individual biographies or invented credentials |
 | 0:15-0:40 | Explain the bank's problem: an approved EU-only plan becomes a US rollout draft | Old approval is not consent to a new commitment |
-| 0:40-1:00 | State the promise and show one architecture strip: Box content/AI/review, AWS app/workflow/ledger | The platform roles are clear without an architecture tour |
-| 1:00-1:15 | Open the prepared comparison: "EU only" becomes "US processing" while V1 remains approved | A large before/after card exposes the hidden change immediately |
+| 0:40-1:00 | State the promise and show one architecture strip: Box folders/AI/review, AWS Bedrock decision model/workflow/ledger | The platform roles are clear without an architecture tour |
+| 1:00-1:15 | Open the prepared folder comparison: Bedrock suggests `Enterprise AI Initiative (Type 1 One-Way Door)` and highlights `"EU only" -> "US processing"` while V1 remains approved | Folder triage + a large before/after card expose the hidden escalation immediately |
 | 1:15-1:35 | Expand the old/new source excerpts, version IDs and observation time | The finding has inspectable evidence, not just an AI verdict |
 | 1:35-1:55 | Confirm the review plan and create the required Privacy review task in Box | A detected change becomes a real assigned workflow |
 | 1:55-2:20 | The actual reviewer approves the synthetic region exception in a pre-opened Box tab; refresh authoritative status | Consent is a human action on a version-bound review packet |
@@ -55,10 +59,12 @@ draft must not silently supersede an active review.
 
 - Team: "We are [team name]. [Names] built the Box integration, AWS workflow and
   review experience." Replace placeholders with true names and responsibilities.
-- Problem: "Your team approved EU-only processing. Someone changes one sentence
-  to US processing. The document still looks approved. Did your team agree?"
-- Reveal: "This is not a wording change. It changes where customer data goes."
-- Review: "Box AI found the difference. It cannot approve it. The assigned
+- Problem: "Your team approved a reversible EU pilot. Someone uploads a new
+  folder that changes one sentence to US processing. Did your team agree?"
+- Reveal: "Amazon Bedrock classifies the uploaded folder as an Enterprise AI
+  Type-1 One-Way Door decision and maps its files to our Box Metadata Templates.
+  Box AI then pinpoints the exact drift: EU-only became US processing."
+- Review: "AI found the escalation. It cannot approve it. The assigned Privacy
   reviewer must make that decision."
 - Payoff: "Now we can show exactly what changed, who accepted it, and which
   version that acceptance applies to. The next draft does not inherit consent."
@@ -108,8 +114,10 @@ These are targets to measure, not achieved results:
    templates, versions, two real reviewer accounts, Tasks and webhook reachability.
 2. **Create the native template bundle:** reference documents, human-confirmed
    fields, role mappings and a captured template revision.
-3. **Build intake and manifest capture:** one document type, source versions,
-   access checks, content hashes and an explicitly initialized approved fixture.
+3. **Build folder intake, Bedrock template suggestion and manifest capture:**
+   folder item listing, Amazon Bedrock Project Template + Type 1/Type 2
+   suggestion, human confirmation, source versions, content hashes and an
+   explicitly initialized approved fixture.
 4. **Build extraction and comparison:** typed comparisons plus cited AI analysis,
    clear unsupported/error states and one change-review screen.
 5. **Wire real approval:** review packet, controlled routing, Box Tasks,
@@ -123,7 +131,10 @@ These are targets to measure, not achieved results:
 
 These are planned tests, not results already achieved.
 
-- The stage fixture detects EU-to-US processing with correct old/new evidence.
+- Folder intake suggests the expected Project Template, maps folder files to
+  their document roles, and requires human confirmation before extraction.
+- The stage fixture detects EU-to-US processing with correct old/new evidence
+  and flags the Type 1 (One-Way Door) decision requirement.
 - A separate multi-change fixture changes retention to 365 days and annual cost
   to USD 180,000 as well; all three material changes are detected and routed.
 - The harmless paraphrase does not trigger business approval.

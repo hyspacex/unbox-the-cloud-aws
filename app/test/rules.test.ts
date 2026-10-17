@@ -87,6 +87,11 @@ describe("display: the sixteen ordered rules (spec 4)", () => {
     expect(displayStatus(base({ current_disposition: disp("verified", { binding: { fileId: "f1", fileName: "architecture.md", versionId: "other" } }) })).rule).not.toBe(9);
   });
 
+  it("rule 10 Verified, holds is teal, distinct from the green of rule 9", () => {
+    expect(displayStatus(base({ prior_verification: PV, verification_holds: true, change_classification: "unchanged" })).tone).toBe("teal");
+    expect(RULES.find((r) => r.rule === 10)!.tone).toBe("teal");
+  });
+
   it("acceptance 13: the prior verification is the secondary line, never the current disposition", () => {
     const s = displayStatus(base({ prior_verification: PV, verification_holds: true, change_classification: "unchanged" }), { versionLabel: label });
     expect(s.secondary).toBe("Verified by Priya Natarajan, Principal Security Architect, ARB reviewer, on architecture.md v2, 2026-10-08T10:32:00Z");

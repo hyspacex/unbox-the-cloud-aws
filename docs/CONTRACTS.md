@@ -120,6 +120,7 @@ Additive only; nothing above is renamed or removed.
 - `PackageView.awaiting_drafts`: `[{ finding_id, control_id, task_id, target_snapshot_id, updated_at }]`.
 - `FindingCard.opened_at`, `FindingCard.pending_author_draft`: `{ reason, draft?, drafted_by?, task_id, snapshot_id? }`.
 - `FindingCard.actions.return_to_author.suggested_reason`.
+- `DisplayedStatus.tone` gains `"teal"`: rule 10 "Verified, holds" returns teal; green stays only for a rule 9 Verified. The UI maps API tones directly.
 
 **Ledger fields added.** `wording_filter` (machine text withheld by the banned-word filter); `removed: true` on `file_version_observed`; `attempt` N on retries of the same `evaluation_id`; `client_snapshot_id` in `freshness_check`; `orphaned_author_task_id` on `action_rejected_stale`; `late_result_recorded` with `superseded_by`; `RUN_INTERRUPTED` on restart recovery.
 

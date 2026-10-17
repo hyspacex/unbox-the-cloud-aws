@@ -5,8 +5,8 @@
  * current disposition. The UI never decides a label; it renders `label`, `secondary` and `tone`.
  *
  * Tone: grey = machine state, amber = needs review or acknowledge, blue = human-owned state
- * (returned, pending review, a prior verification that holds), green ONLY for a human Verified on
- * the current snapshot and binding (rule 9).
+ * (returned, pending review), teal = a prior verification that holds (rule 10), green ONLY for a
+ * human Verified on the current snapshot and binding (rule 9).
  */
 import type { DisplayedStatus, DisplayInputs, DisplayKind, ProjectionCode, Severity } from "../types";
 import { norm } from "./normalize";
@@ -39,7 +39,7 @@ export const RULES: DisplayRule[] = [
   { rule: 7, condition: "Disposition compensating_control with its evidence validated", label: "Compensating control", kind: "compensating_control", projection_code: "EXCEPTION", tone: "blue", built: false, note: "Proposed." },
   { rule: 8, condition: "Disposition returned_to_author on the current binding", label: "Returned to author, open", kind: "returned_to_author", projection_code: "RETURNED_TO_AUTHOR", tone: "blue", built: true },
   { rule: 9, condition: "Disposition verified on the current binding", label: "Verified", kind: "verified", projection_code: "VERIFIED", tone: "green", built: true, note: "The only green status." },
-  { rule: 10, condition: "Prior verification holds (classification unchanged, materiality permits)", label: "Verified, holds (secondary line names the original review)", kind: "verified_holds", projection_code: "VERIFIED_HOLDS", tone: "blue", built: true },
+  { rule: 10, condition: "Prior verification holds (classification unchanged, materiality permits)", label: "Verified, holds (secondary line names the original review)", kind: "verified_holds", projection_code: "VERIFIED_HOLDS", tone: "teal", built: true, note: "Muted teal: a prior human verification that holds, never the green of a current Verified." },
   { rule: 11, condition: "Prior verification, classification unchanged, materiality requires acknowledgment", label: "Acknowledge: evidencing file changed (Critical) / Acknowledge: evidencing section changed (High)", kind: "acknowledge", projection_code: "ACKNOWLEDGE", tone: "amber", built: true },
   { rule: 12, condition: "Assessment evidence_found, classification moved", label: "Needs review: evidence binding changed (severity Low)", kind: "needs_review_binding", projection_code: "NEEDS_REVIEW_BINDING", tone: "amber", built: true },
   { rule: 13, condition: "Assessment evidence_weakened", label: "Needs review: [unsupported clause] missing (prior verification on the secondary line)", kind: "needs_review_weakened", projection_code: "NEEDS_REVIEW_WEAKENED", tone: "amber", built: true },
@@ -171,7 +171,7 @@ export function displayStatus(i: DisplayInputs, o: DisplayOptions = {}): Display
   const hasPrior = !!i.prior_verification || (d?.disposition === "verified" && d.snapshot_id !== i.current_snapshot_id);
   // Rule 10
   if (hasPrior && i.verification_holds && i.change_classification === "unchanged") {
-    return mk(10, "verified_holds", "Verified, holds", "VERIFIED_HOLDS", "blue", { secondary: prior2nd });
+    return mk(10, "verified_holds", "Verified, holds", "VERIFIED_HOLDS", "teal", { secondary: prior2nd });
   }
   // Rule 11
   if (hasPrior && i.change_classification === "unchanged" && i.acknowledgment_required) {

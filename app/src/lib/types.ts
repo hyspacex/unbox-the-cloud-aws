@@ -316,7 +316,7 @@ export interface DisplayedStatus {
   /** Added: full reason behind a short label (rule 2), rendered on the secondary line. */
   detail?: string;
   /** Who, visually: machine-grey, human-blue, needs-review amber, human-verified green. */
-  tone: "grey" | "blue" | "amber" | "green" | "red";
+  tone: "grey" | "blue" | "amber" | "green" | "red" | "teal"; // "teal" added: Verified, holds (rule 10)
 }
 
 // ---------------------------------------------------------------------------

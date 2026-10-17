@@ -239,6 +239,15 @@ fn main() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(Mutex::new(Presentation::default()))
         .manage(Mutex::new(connection::Connections::default()))
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) =
+                    event
+                {
+                    connection::record_drop(window.app_handle(), paths.clone());
+                }
+            }
+        })
         .setup(|app| {
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
@@ -272,7 +281,8 @@ fn main() {
             connection::decline_project,
             connection::open_project_details,
             connection::open_source,
-            connection::take_link_error
+            connection::take_link_error,
+            connection::upload_dropped_files
         ])
         .run(tauri::generate_context!())
         .expect("Keel could not start. Check the system WebView and desktop runtime.");

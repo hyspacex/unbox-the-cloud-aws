@@ -68,6 +68,7 @@ test("every accordion excerpt and reviewer is bound to the current repository fi
 });
 
 const remoteState = () => ({
+  mode: "mock",
   projectId: "lantern",
   projectName: "Project Lantern",
   snapshotId: "S4",

@@ -128,9 +128,10 @@
       || !Number.isSafeInteger(event.beforeVerified) || event.beforeVerified < 0 || event.beforeVerified > 500) {
       throw new Error("Invalid project change event. No status was applied.");
     }
+    if (value.mode !== "mock" && value.mode !== "live") throw new Error("Project response must identify mock or live mode.");
     return {
       ...event, snapshot: value.snapshotId, controls: value.controls,
-      projectName: value.projectName, time: value.observedAt, sequence: value.sequence
+      projectName: value.projectName, time: value.observedAt, sequence: value.sequence, mode: value.mode
     };
   }
 

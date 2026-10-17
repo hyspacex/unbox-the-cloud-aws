@@ -2,6 +2,8 @@ use reqwest::{redirect::Policy, Client, Response};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
+    io::Read,
+    path::{Path, PathBuf},
     sync::Mutex,
     time::{Duration, Instant},
 };
@@ -40,6 +42,7 @@ pub struct Connections {
     last_link: Option<String>,
     generation: u64,
     last_error: Option<String>,
+    dropped_paths: Vec<PathBuf>,
 }
 
 pub fn record_link_error(app: &tauri::AppHandle, error: String) {
@@ -71,6 +74,10 @@ fn valid_project(value: &str) -> bool {
         && value
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+}
+
+fn local_demo_origin(url: &Url) -> bool {
+    url.scheme() == "http" && matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"))
 }
 
 pub fn parse_link(raw: &str) -> Result<Link, String> {
@@ -112,7 +119,7 @@ pub fn parse_link(raw: &str) -> Result<Link, String> {
         .ok_or("Invalid project identifier.")?;
     let server = Url::parse(&server.ok_or("Missing project server.")?)
         .map_err(|_| "Invalid project server.")?;
-    if server.scheme() != "https"
+    if (server.scheme() != "https" && !local_demo_origin(&server))
         || server.host_str().is_none()
         || !server.username().is_empty()
         || server.password().is_some()
@@ -120,9 +127,7 @@ pub fn parse_link(raw: &str) -> Result<Link, String> {
         || server.query().is_some()
         || server.fragment().is_some()
     {
-        return Err(
-            "The project server must be an HTTPS origin without a path or credentials.".into(),
-        );
+        return Err("Use an HTTPS server origin, or loopback HTTP for a local demo.".into());
     }
     let code = code
         .filter(|value| {
@@ -250,11 +255,135 @@ async fn bounded_json<T: serde::de::DeserializeOwned>(
 
 fn client() -> Result<Client, String> {
     Client::builder()
-        .https_only(true)
         .redirect(Policy::none())
         .timeout(Duration::from_secs(12))
         .build()
         .map_err(|_| "Could not create the HTTPS client.".into())
+}
+
+pub fn record_drop(app: &tauri::AppHandle, paths: Vec<PathBuf>) {
+    match app.state::<Mutex<Connections>>().lock() {
+        Ok(mut connections) => connections.dropped_paths = paths,
+        Err(error) => eprintln!("Could not retain file selection: {error}"),
+    }
+}
+
+fn collect_files(path: &Path, files: &mut Vec<PathBuf>, depth: usize) -> Result<(), String> {
+    if depth > 8 || files.len() >= 20 {
+        return Err("Drop at most 20 files, with no more than eight folder levels.".into());
+    }
+    let metadata = std::fs::symlink_metadata(path).map_err(|_| "Cannot read a dropped item.")?;
+    if metadata.file_type().is_symlink() {
+        return Err("Symbolic links are not uploaded.".into());
+    }
+    if path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.starts_with('.'))
+    {
+        return Err("Hidden files are not uploaded. Choose only the project documents.".into());
+    }
+    if metadata.is_dir() {
+        for entry in std::fs::read_dir(path).map_err(|_| "Cannot read the dropped folder.")? {
+            collect_files(
+                &entry.map_err(|_| "Cannot read a folder item.")?.path(),
+                files,
+                depth + 1,
+            )?;
+        }
+    } else if metadata.is_file() {
+        files.push(path.to_path_buf());
+    } else {
+        return Err("Only regular files and folders can be uploaded.".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn upload_dropped_files(
+    window: WebviewWindow,
+    state: State<'_, Mutex<Connections>>,
+) -> Result<serde_json::Value, String> {
+    super::require_widget(&window)?;
+    let (active, selected, generation) = {
+        let mut connections = state.lock().map_err(|error| error.to_string())?;
+        let active = connections
+            .active
+            .clone()
+            .ok_or("Connect this widget to a project before dropping files.")?;
+        (
+            active,
+            std::mem::take(&mut connections.dropped_paths),
+            connections.generation,
+        )
+    };
+    if Instant::now() >= active.expires_at {
+        return Err("Sign in again before uploading.".into());
+    }
+    if selected.is_empty() {
+        return Err("Drop files from Explorer or Finder to select them.".into());
+    }
+    let mut files = Vec::new();
+    for path in selected {
+        collect_files(&path, &mut files, 0)?;
+    }
+    if files.is_empty() {
+        return Err("The folder has no uploadable documents.".into());
+    }
+    let mut total = 0;
+    let mut names = HashSet::new();
+    let mut form = reqwest::multipart::Form::new();
+    for path in files {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or("Invalid filename.")?
+            .to_string();
+        if !names.insert(name.to_lowercase()) {
+            return Err("Use unique filenames in a folder batch; the demo package is flat.".into());
+        }
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if !["md", "txt", "pdf", "docx", "xlsx", "pptx", "json", "csv"]
+            .contains(&extension.as_str())
+        {
+            return Err("Choose Markdown, text, PDF or Office project documents.".into());
+        }
+        let metadata = std::fs::metadata(&path).map_err(|_| "Cannot read a selected file.")?;
+        total += metadata.len();
+        if total > 16 * 1024 * 1024 {
+            return Err("Limit a drop batch to 16 MiB.".into());
+        }
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)
+            .map_err(|_| "Cannot open a selected file.")?
+            .take(16 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| "Cannot read a selected file.")?;
+        if bytes.len() as u64 != metadata.len() {
+            return Err(
+                "A selected file changed during capture. Select the stable file again.".into(),
+            );
+        }
+        form = form.part(
+            "files",
+            reqwest::multipart::Part::bytes(bytes).file_name(name),
+        );
+    }
+    let response = client()?.post(format!("{}/api/desktop/projects/{}/uploads", active.info.origin, active.info.project_id))
+        .bearer_auth(&active.token).multipart(form).timeout(Duration::from_secs(120)).send().await
+        .map_err(|_| "Upload status is uncertain. Inspect the project before retrying; files may already exist in Box.")?;
+    let result = bounded_json(response, 65536).await?;
+    if state.lock().map_err(|error| error.to_string())?.generation != generation {
+        return Err(
+            "The project changed during upload. Inspect the original project's upload result."
+                .into(),
+        );
+    }
+    Ok(result)
 }
 
 #[tauri::command]

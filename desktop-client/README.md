@@ -29,7 +29,9 @@ branding are included.
 > **Delivery status:** working local UI and native client transport. Windows
 > ARM64 builds and NSIS packaging are verified here. macOS and Windows x64
 > installer builds are configured for CI, not claimed as tested on this machine.
-> Box uploads and the project backend remain separate integrations.
+> The demo-release branch includes the signed-in Next.js project API and upload
+> bridge. Live Box/AWS operation still needs the private server configuration
+> described in the [release runbook](../docs/DEMO-RELEASE.md).
 
 ## Glance, hover, act
 
@@ -145,16 +147,19 @@ signed-in user. **Do not put an API key or long-lived bearer token in a link.**
   origin can connect directly.
 - The native client exchanges the code, checks the returned project ID, and
   fetches that project's state. Connection tokens stay in native memory.
-- Data refreshes every 15 seconds. This is polling, **not a claimed live
+- Data refreshes every three seconds. This is polling, **not a claimed live
   topic-broker integration**. New event IDs update the notification.
 - Invalid, older or mismatched data is rejected. Failed refreshes retain a
   clearly marked stale view rather than showing a successful demo fallback.
 - After app restart or token expiry, open a fresh link. No automatic startup
   task, hidden credential persistence or unattended login is installed.
 
-The repository has no deployed project API. The client transport and its
-[backend contract](project-connection.md) are implemented; an actual service
-must provide those endpoints before real project data can be verified.
+The consolidated branch implements the [backend contract](project-connection.md)
+in the Next.js application. Start it and sign in at `/connect`. Loopback HTTP
+is supported for the local demo; all remote connections require HTTPS.
+The widget preserves the server's **MOCK / LIVE** label. Cloud execution
+requires the server's actual Box and AWS setup; it is not inferred from a
+successful local connection.
 
 ## Preview and development
 
@@ -197,11 +202,13 @@ submission.
 - **Implemented:** compact hover UI, accordion details, reversible notifications,
   persisted settings, native sizing/docking, scheme handling, single instance,
   code exchange, bounded HTTPS project reads, filtered web links and installers.
-- **Local preview only:** file/folder drop intake records selected item names.
-  It does **not** upload to Box, run a model, or grant verification. The old
-  automatic-green-on-drop behavior has been removed.
-- **Not provided here:** the production authorization/data API, Box upload
-  backend, model execution, a live push broker, or signing certificates.
+- **Connected uploads:** native file/folder drops send up to 20 documents /
+  16 MiB to the signed-in project's server. Live mode uses the user's Box
+  access for upload and server credentials for the review engine; mock mode
+  updates the fixture through the same pipeline. No upload grants verification.
+- **Disconnected preview:** drops remain local. They do not upload or evaluate.
+- **Not provided here:** a deployed or tenant-validated cloud service, durable
+  production session storage, a live push broker or signing certificates.
 - **Validation scope:** Windows native build and installer generation, Rust and
   JavaScript tests, and browser interaction checks. macOS packaging is defined
   for a macOS builder; native macOS interaction and signing still require that
@@ -222,8 +229,9 @@ submission.
 
 ![Toolbar detail with separated line icons](screenshots/toolbar-detail.png)
 
-The Windows ARM64 installer measured **1,630,988 bytes (about 1.56 MiB)**;
-this is a measured local build, not a cross-platform size or memory guarantee.
+The earlier UI-only Windows ARM64 installer measured about **1.56 MiB**.
+The integrated upload build adds native HTTP support; its current package size
+is printed by the release build, not assumed equal to the UI-only measurement.
 WebView2 may be downloaded separately on Windows machines that do not have it.
 
 ## Files

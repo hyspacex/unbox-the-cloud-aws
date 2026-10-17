@@ -30,6 +30,7 @@ let liveStale = false;
 let refreshTimer;
 let refreshGeneration = 0;
 let refreshing = false;
+let uploading = false;
 
 const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const escape = value => String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
@@ -128,7 +129,7 @@ function renderSummary() {
   const event = currentEvent();
   const count = model.counts(event);
   const available = dataAvailable();
-  const mode = connectedInfo ? (liveStale ? "STALE" : liveEvent ? "LIVE" : "WAIT") : "DEMO";
+  const mode = connectedInfo ? (liveStale ? "STALE" : liveEvent ? (liveEvent.mode === "mock" ? "MOCK" : "LIVE") : "WAIT") : "DEMO";
   document.querySelector(".drag-label small").textContent = mode;
   document.querySelector(".demo-mark").textContent = mode;
   document.querySelector(".demo-mark").title = connectedInfo ? connectedInfo.origin : "Simulated data. No Box or AWS calls.";
@@ -157,7 +158,7 @@ function renderPanel() {
   if (!panel) { syncWindow(); return; }
 
   $("panelEyebrow").textContent = connectedInfo
-    ? `${liveEvent?.projectName || connectedInfo.projectId} / ${liveEvent?.snapshot || "connecting"}`
+    ? `${liveEvent?.projectName || connectedInfo.projectId} / ${liveEvent?.snapshot || "connecting"} / ${liveEvent?.mode || "waiting"}`
     : `Lantern / ${currentEvent().snapshot} / demo`;
   const body = $("panelBody");
   body.replaceChildren();
@@ -180,9 +181,11 @@ function renderPanel() {
       <p class="event-note">${escape(event.note)} ${connectedInfo ? `Observed ${escape(event.time)}.` : "All activity is simulated."}</p>`;
     body.append(detailsAction("all", event.affected[0]));
   } else if (panel === "drop") {
-    $("panelTitle").textContent = "Try a local drop";
-    body.innerHTML = '<p class="panel-copy">Files and folders stay on this device. A drop does not upload or verify anything in this UI preview.</p>';
-    for (const [label, input] of [["Choose files", "filePicker"], ["Choose a folder", "folderPicker"]]) {
+    $("panelTitle").textContent = connectedInfo ? "Upload documents" : "Try a local drop";
+    body.innerHTML = connectedInfo
+      ? '<p class="panel-copy">Drag files or a folder from Explorer or Finder onto the widget. The connected server uploads and starts review; a drop never grants verification.</p>'
+      : '<p class="panel-copy">Not connected: files and folders stay on this device. A preview drop does not upload or verify anything.</p>';
+    for (const [label, input] of (native && connectedInfo ? [] : [["Choose files", "filePicker"], ["Choose a folder", "folderPicker"]])) {
       const button = document.createElement("button");
       button.className = "text-action";
       button.textContent = label;
@@ -432,7 +435,7 @@ async function connectInvitation() {
     collapse();
     renderSummary();
     await refreshProject();
-    refreshTimer = setInterval(refreshProject, 15000);
+    refreshTimer = setInterval(refreshProject, 3000);
   } catch (error) {
     if (pendingInvitation !== invitation) return;
     pendingInvitation = null;
@@ -482,12 +485,24 @@ async function disconnectProject() {
   renderPanel();
 }
 
-function onLocalDrop(names) {
+async function onLocalDrop(names) {
   dragging = false;
   dropDepth = 0;
   $("dropOverlay").hidden = true;
   if (!names.length) { showStatus("No readable drop items received."); return; }
   const firstName = String(names[0]).split(/[\\/]/).pop();
+  if (native && connectedInfo) {
+    if (uploading) return;
+    uploading = true;
+    showStatus(`Uploading ${names.length} selected item(s)...`, false);
+    try {
+      const result = await native.core.invoke("upload_dropped_files");
+      showStatus(`${result.mode === "mock" ? "Mock" : "Live"} upload accepted. Review ${result.runId} is running.`, false);
+      await refreshProject();
+    } catch (error) { showStatus(`Upload failed: ${String(error)}`, false); }
+    finally { uploading = false; }
+    return;
+  }
   showStatus(`${names.length} local item${names.length === 1 ? "" : "s"}: ${firstName}. Preview only; not uploaded or verified.`);
   scheduleClose();
 }
@@ -533,7 +548,7 @@ async function initialize() {
   $("detailPanel").addEventListener("pointerenter", () => { clearTimeout(closeTimer); clearTimeout(openTimer); });
   shell.addEventListener("focusin", () => { clearTimeout(closeTimer); clearTimeout(dockTimer); syncWindow(); });
   shell.addEventListener("focusout", () => queueMicrotask(() => {
-    if (!shell.contains(document.activeElement)) { if (!hovering) collapse(); scheduleClose(); }
+    if (!shell.contains(document.activeElement)) { if (!hovering && panel !== "connection") collapse(); scheduleClose(); }
   }));
   for (const [kind, element] of Object.entries(triggers)) {
     if (kind === "settings") continue;
@@ -569,13 +584,13 @@ async function initialize() {
   $("edgeTab").addEventListener("pointerenter", reveal);
   $("edgeTab").addEventListener("focus", reveal);
   $("edgeTab").addEventListener("click", reveal);
-  document.addEventListener("pointerdown", event => { if (!anchor.contains(event.target)) collapse(); });
+  document.addEventListener("pointerdown", event => { if (panel !== "connection" && !anchor.contains(event.target)) collapse(); });
   document.addEventListener("keydown", event => { if (event.key === "Escape") { collapse(true); $("statusMessage").hidden = true; } });
   window.addEventListener("blur", () => {
     hovering = false;
     shell.classList.remove("engaged");
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    collapse();
+    if (panel !== "connection") collapse();
   });
   $("dragHandle").addEventListener("pointerdown", event => {
     if (native && event.button === 0 && !event.target.closest("button")) void command("drag_widget");
@@ -607,7 +622,7 @@ async function initialize() {
       if (invitation) await receiveInvitation(invitation);
       else {
         connectedInfo = await native.core.invoke("connected_project");
-        if (connectedInfo) { await refreshProject(); refreshTimer = setInterval(refreshProject, 15000); }
+        if (connectedInfo) { await refreshProject(); refreshTimer = setInterval(refreshProject, 3000); }
       }
     } catch (error) { showStatus(`Desktop integration failed: ${String(error)}`, false); }
   }

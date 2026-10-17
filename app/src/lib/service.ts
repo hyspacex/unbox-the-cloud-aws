@@ -28,7 +28,7 @@ import { AbsentInputGate, MockInputGate } from "./agent/mock-gate";
 import { runReview } from "./engine/pipeline";
 import { buildRows, publicRow, snapshotEvaluationState } from "./engine/state";
 import { countLine, displayedCounts } from "./engine/display";
-import { currentProjection } from "./engine/publish";
+import { currentProjection, projectionInFlight } from "./engine/publish";
 import { approveDraft, awaitingDrafts, draftAuthorMessage as draftMessage, ingestTaskResponse, pollAssignments as pollAll, type IngestResult } from "./engine/disposition";
 import { buildFindingCard, findingFromState } from "./engine/card";
 import { canonicalJSON, CHAIN_ALGORITHM, sha256Hex, utcNow, verifyChain } from "./engine/ledger";
@@ -139,6 +139,10 @@ export function getPackageView(): PackageView {
     gate,
     search_tool: run?.search_tool ?? { label: "Box AI ask", fallback: false },
     ...(c.mockMode ? {} : { poll: lastPoll() }),
+    ...(snapshotEvaluationState(s.events, snap.snapshot_id).state === "pending" && s.previousSnapshot(snap.snapshot_id)
+      ? { prior_count_line: countLine(buildRows(s, p, s.previousSnapshot(snap.snapshot_id)!.snapshot_id), s.previousSnapshot(snap.snapshot_id)!.snapshot_id) }
+      : {}),
+    projection_in_flight: projectionInFlight.has(snap.snapshot_id),
     awaiting_drafts: awaitingDrafts(s).map((w) => ({ finding_id: w.finding_id, control_id: w.control_id, task_id: w.task_id, target_snapshot_id: w.target_snapshot_id, updated_at: w.updated_at })),
   };
 }

@@ -13,6 +13,10 @@ import { buildProjectionFields, encodeLastHumanReview, projectionFieldKey, recor
 
 export const APP_ACTOR: Actor = { type: "app", name: "keel", role: "snapshot, validation, staleness and projection" };
 
+const PG = globalThis as unknown as { __keelProjecting?: Set<string> };
+/** Snapshots whose Box metadata write is outstanding right now (process-local). */
+export const projectionInFlight: Set<string> = (PG.__keelProjecting ??= new Set());
+
 export const eventOpts = (config: KeelConfig) => ({ mrmModelId: config.mrmModelId, folderId: config.box.folderId });
 
 /** Most recent human disposition anywhere in the ledger, encoded for keel_last_human_review. */
@@ -64,10 +68,13 @@ export async function publishProjection(args: { store: Store; box: BoxAdapter; p
     return { ok: false, event, fields };
   }
   let res: Awaited<ReturnType<BoxAdapter["writeFolderMetadata"]>>;
+  projectionInFlight.add(snapshotId); // PackageView.projection_in_flight while the write is outstanding
   try {
     res = await box.writeFolderMetadata(config.box.folderId, config.box.templateKey, fields);
   } catch (err) {
     res = { ok: false, error: { code: "METADATA_WRITE_THREW", message: err instanceof Error ? err.message : String(err) } };
+  } finally {
+    projectionInFlight.delete(snapshotId);
   }
   if (res.ok) {
     const event = store.append(

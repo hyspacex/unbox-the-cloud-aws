@@ -517,6 +517,7 @@ describe("judge A1: no half-applied state is visible to the API during a run", (
       if (pv.snapshot.snapshot_id !== "S4") continue;
       if (pv.evaluation_state === "pending") {
         expect(pv.count_line).toBe("8 controls on snapshot S4: 8 Re-check pending");
+        expect(pv.prior_count_line).toBe("8 controls on snapshot S3: 8 Verified holds");
         for (const r of pv.rows) {
           expect(r.status.kind).toBe("pending_recheck");
           expect(r.status.struck).toBe("Verified, holds");
@@ -526,6 +527,7 @@ describe("judge A1: no half-applied state is visible to the API during a run", (
         expect(pv.count_line).toBe(fixture.expected().expected_count_line_before);
       }
     }
+    expect(samples.some((pv) => pv.projection_in_flight)).toBe(true); // the 150 ms mock metadata write was observed
     const pendingSamples = samples.filter((s) => s.snapshot.snapshot_id === "S4" && s.evaluation_state === "pending").length;
     expect(pendingSamples).toBeGreaterThan(5);
     // Final statuses appear only once the evaluation events and findings are written.

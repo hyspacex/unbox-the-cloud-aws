@@ -631,6 +631,10 @@ export interface PackageView {
   elapsed_ms?: number;
   gate: { ran: boolean; label: string }; // "Decider 2B: injection no (0.03)..." or "omitted: Decider not running"
   search_tool: { label: string; fallback: boolean }; // "Box AI ask" or "string search (Box AI unavailable)"
+  /** Added: while the current snapshot is pending, the count line of the previous snapshot. */
+  prior_count_line?: string;
+  /** Added: true while a Box folder metadata write for the current snapshot is in flight. */
+  projection_in_flight?: boolean;
   /** Added: live polling status of Box task responses (absent in mock). */
   poll?: { at: string; ok: boolean; ingested: number; errors: { task_id: string; message: string }[] };
   /** Added: returns to author whose author task waits for the reviewer to approve the draft. */

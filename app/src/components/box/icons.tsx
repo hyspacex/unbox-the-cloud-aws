@@ -56,7 +56,7 @@ export const IconNewVersion = ({ size = 18, className }: P) =>
 /** Box's document file icon (text / markdown): a page with a folded corner and text lines. */
 export function FileTypeIcon({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className="shrink-0">
       <path d="M8 3h11l7 7v17a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="#FFFFFF" stroke="#C7CDD6" strokeWidth="1" />
       <path d="M19 3v5a2 2 0 0 0 2 2h5" fill="#EEF1F5" stroke="#C7CDD6" strokeWidth="1" strokeLinejoin="round" />
       <rect x="10" y="14" width="12" height="1.6" rx=".8" fill="#4B6A9B" />

@@ -32,6 +32,32 @@ A file hash says the page changed. A reviewer needs to know which control lost w
 6. Keel writes the status to Box folder metadata and opens a Box task for each finding.
 7. A reviewer verifies, acknowledges or returns each one to the author. Box AI drafts the author's task. Only a person writes a decision.
 
+## AWS and Box features used
+
+The design rule: **agents assess and search, code decides status, a person decides outcomes.** Every agentic service below is either read-only or a draft a person approves.
+
+**AWS**
+
+| Feature | How Keel uses it | Why |
+| --- | --- | --- |
+| **Strands Agents SDK** (TypeScript) | One agent per snapshot with three read-only tools: `get_prior_evidence`, `read_snapshot_file`, `search_snapshot`. Output is a Zod-validated structured finding set | The agent can gather evidence across files but has no tool that writes a status or a decision |
+| **Amazon Bedrock**, Claude Sonnet 4.6 via the `us.` inference profile | The single judge: clause-by-clause support for each control, with quotes, at temperature 0 | Strong reasoning over long policy text. Model id and prompt version are stamped on every ledger event for model risk review |
+| **Strands Decider 2B** (runs locally) | An input gate before Bedrock. It scores each changed file for prompt injection and returns probabilities, never text | A small model that cannot be talked into generating anything checks untrusted input first. Flagged files are quarantined |
+
+**Box**
+
+| Feature | How Keel uses it | Why |
+| --- | --- | --- |
+| **Box AI ask** (multi-file, with citations) | The agent's `search_snapshot` tool: "does any other file in the package support this clause?" Citations are checked against the pinned versions | Evidence often moves to another document. Box AI searches content where it lives, without copying the package |
+| **Box AI text generation** | Drafts the author's task message when a reviewer returns a finding. The reviewer approves it before it is sent | Saves the reviewer time and leaves the wording in their hands |
+| **File versions and download by version** | Each snapshot pins file id, version id and SHA-256 | A verification is bound to the exact version a person read |
+| **Folder metadata** (`keelReview` template) | One status field per control plus the snapshot id, written only if the snapshot is still current | Other Box apps, agents and metadata queries can read review status without calling Keel |
+| **Tasks** (review and complete) | One review task per finding. Keel polls for the reviewer's response and assigns the author a task on return | The human decision happens in Box, with Box's identity on it |
+
+**Proposed, not built:** AgentCore Runtime, Observability and Identity to host the same agent; Box webhooks to Lambda, EventBridge and SQS FIFO; DynamoDB with S3 Object Lock for the ledger.
+
+The live adapters are in `app/src/lib/box/real.ts` and `app/src/lib/agent/`. The demo runs in mock mode, which swaps these services for fixtures but keeps the same engine.
+
 ## What you see
 
 ![One control in the side panel: what the reviewer agreed to in v2, what v3 says instead, and the actions the engine allows](docs/assets/keel-control.png)

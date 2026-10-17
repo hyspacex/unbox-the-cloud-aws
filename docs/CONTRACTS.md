@@ -293,3 +293,10 @@ Design: `docs/research/51-ui-v4-1-team-review.md`, section "API additions". All 
 **New route.** `GET /api/file-text?file_id=&version_id=` returns `{ file_id, version_id, version_label?, file_name, text, snapshot_ids }`.
 - It serves the pinned text of a version some snapshot pinned: from the store, else a live read of that exact version through the adapter, checked against the pinned content hash.
 - A version no snapshot pinned gets 404 `NOT_FOUND`. Missing parameters get 400. The route is read-only.
+
+**Round 6 follow-up: the file-text shape lane A requested.**
+- `GET /api/file-text?file_id=&version_id=[&q=]` returns `{ file_id, file_name, version_id, version_label?, created_at?, uploader?, text, snapshot_ids, versions, match? }`.
+- `versions` is a list of `{ version_id, version_label?, created_at?, uploader?, snapshot_ids }`. It covers every version of the file pinned by any snapshot, oldest first. For architecture.md after the run: v1 [S1], v2 [S2, S3], v3 [S4].
+- With `q`, `match` is `{ start, end, section?, paragraph? }`: raw character offsets of the sentence in `text`, matched under the engine's normalization. It is null when the sentence is not in that version.
+- An unknown file, or a version no snapshot pinned, returns 404 `{ error: { code: "NOT_FOUND", message } }`.
+- `locateInText(quote, text)` in `engine/normalize.ts` is pure and has no imports. It is the offset version of `norm()`.

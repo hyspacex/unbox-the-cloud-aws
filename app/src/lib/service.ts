@@ -35,6 +35,7 @@ import { canonicalJSON, CHAIN_ALGORITHM, sha256Hex, utcNow, verifyChain } from "
 import { createLiveAdapters } from "./live-adapters";
 import { withPackageLock } from "./engine/lock";
 import { withBubble } from "./engine/bubble";
+import { findQuote, locateInText } from "./engine/normalize";
 import { dashboardTiles, packageTimeline } from "./engine/history";
 import { changedFiles, hasRecordedDecision, headerLine, holdsLine, decisionFlags, decisionSummary, decisionSummaryFromRows, needsDecision, needsDecisionOnRow, openDecisionsFromRows, packageFiles, packageFilesFromRows, recordedOnRow, type FolderItemInfo } from "./engine/summary";
 
@@ -447,43 +448,85 @@ async function submitAdmitted(req: SubmitRequest & { scenario?: string }, o: Sub
 // Pinned file text for the Box preview (UI v4.1, GET /api/file-text), read-only
 // ------------------------------------------------------------------------------------------------
 
-export interface FileText {
-  file_id: string;
+export interface FileTextVersion {
   version_id: string;
   version_label?: string;
-  file_name: string;
-  text: string;
+  created_at?: string;
+  uploader?: string;
   /** Snapshots that pinned this version, oldest first. */
   snapshot_ids: string[];
 }
 
+export interface FileText {
+  file_id: string;
+  file_name: string;
+  version_id: string;
+  version_label?: string;
+  created_at?: string;
+  uploader?: string;
+  text: string;
+  /** Snapshots that pinned this version, oldest first. */
+  snapshot_ids: string[];
+  /** Every version of this file pinned by any snapshot, oldest first (the preview's version menu). */
+  versions: FileTextVersion[];
+  /** With `q`: where the sentence sits in `text` (raw character offsets, matched under the engine's normalization), else null. */
+  match?: { start: number; end: number; section?: string; paragraph?: number } | null;
+}
+
 /**
  * The text of a file version that some snapshot pinned: the stored pinned text (mock and live), else a
- * live read of that exact version through the Box adapter. A version no snapshot pinned is 404.
+ * live read of that exact version through the Box adapter. An unknown file or a version no snapshot
+ * pinned is 404. `q` (optional) is located in the text for the highlight.
  */
-export async function getFileText(fileId: string, versionId: string): Promise<FileText> {
+export async function getFileText(fileId: string, versionId: string, q?: string): Promise<FileText> {
   if (!fileId || !versionId) throw new ServiceError("BAD_REQUEST", "file_id and version_id are required", 400);
   const s = store();
-  const pinned = s.data.snapshots.filter((x) => x.files.some((f) => f.fileId === fileId && f.versionId === versionId));
-  if (!pinned.length) throw new ServiceError("NOT_FOUND", `version ${versionId} of file ${fileId} is not pinned by any snapshot`, 404);
-  const f = pinned[0].files.find((x) => x.fileId === fileId && x.versionId === versionId)!;
+  const ofFile = s.data.snapshots.filter((x) => x.files.some((f) => f.fileId === fileId));
+  if (!ofFile.length) throw new ServiceError("NOT_FOUND", `file ${fileId} is not in any snapshot`, 404);
+  const versions: FileTextVersion[] = [];
+  for (const snap of ofFile) {
+    const f = snap.files.find((x) => x.fileId === fileId)!;
+    let v = versions.find((x) => x.version_id === f.versionId);
+    if (!v) {
+      const info = s.versionInfo(fileId, f.versionId);
+      const label = f.versionLabel ?? info?.label;
+      v = { version_id: f.versionId, ...(label ? { version_label: label } : {}), ...(info?.createdAt ? { created_at: info.createdAt } : {}), ...(info?.uploader ? { uploader: info.uploader } : {}), snapshot_ids: [] };
+      versions.push(v);
+    }
+    v.snapshot_ids.push(snap.snapshot_id);
+  }
+  const me = versions.find((v) => v.version_id === versionId);
+  if (!me) throw new ServiceError("NOT_FOUND", `version ${versionId} of file ${fileId} is not pinned by any snapshot`, 404);
+  const pinnedFile = ofFile.find((x) => x.snapshot_id === me.snapshot_ids[0])!.files.find((x) => x.fileId === fileId)!;
   let text = s.text(versionId);
   if (text === undefined) {
     const a = await adapters();
     const r = await a.box.downloadVersionText(fileId, versionId);
     if (!r.ok) throw new ServiceError(r.error.code, r.error.message, 502);
-    if (f.contentHash && f.contentHash !== "unavailable" && r.sha256 !== f.contentHash) {
-      throw new ServiceError("CONTENT_HASH_MISMATCH", `${f.fileName} ${versionId}: downloaded text does not match the pinned content hash`, 409);
+    if (pinnedFile.contentHash && pinnedFile.contentHash !== "unavailable" && r.sha256 !== pinnedFile.contentHash) {
+      throw new ServiceError("CONTENT_HASH_MISMATCH", `${pinnedFile.fileName} ${versionId}: downloaded text does not match the pinned content hash`, 409);
     }
     text = r.text;
   }
+  let match: FileText["match"];
+  if (q !== undefined) {
+    const at = locateInText(q, text);
+    const loc = at ? findQuote(q, text) : null;
+    match = at ? { ...at, ...(loc ? { section: loc.section, paragraph: loc.paragraph } : {}) } : null;
+  }
+  // The latest name a snapshot recorded for the file.
+  const fileName = ofFile[ofFile.length - 1].files.find((x) => x.fileId === fileId)!.fileName;
   return {
     file_id: fileId,
+    file_name: fileName,
     version_id: versionId,
-    ...(f.versionLabel ?? s.versionLabel(fileId, versionId) ? { version_label: f.versionLabel ?? s.versionLabel(fileId, versionId) } : {}),
-    file_name: f.fileName,
+    ...(me.version_label ? { version_label: me.version_label } : {}),
+    ...(me.created_at ? { created_at: me.created_at } : {}),
+    ...(me.uploader ? { uploader: me.uploader } : {}),
     text,
-    snapshot_ids: pinned.map((x) => x.snapshot_id),
+    snapshot_ids: me.snapshot_ids,
+    versions,
+    ...(match !== undefined ? { match } : {}),
   };
 }
 

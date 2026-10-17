@@ -926,3 +926,36 @@ describe("v4.1: GET /api/file-text", () => {
     svc.reset();
   });
 });
+
+import { locateInText, norm } from "../src/lib/engine/normalize";
+
+describe("v4.1: file-text versions and highlight (lane A shape)", () => {
+  it("lists every pinned version of the file oldest first, with created_at and uploader; q locates the sentence", async () => {
+    await runV3();
+    const c7 = svc.getFindingCard("SEC-ARCH-07");
+    const o = c7.open_in_document!;
+    const ft = await svc.getFileText(o.file_id, o.version_id, o.sentence);
+    expect(ft).toMatchObject({ file_id: "1650233401", file_name: "architecture.md", version_id: "1801102233", version_label: "v3", uploader: "svc-confluence-export" });
+    expect(ft.created_at).toBeTruthy();
+    expect(ft.versions.map((v) => [v.version_label, v.snapshot_ids])).toEqual([["v1", ["S1"]], ["v2", ["S2", "S3"]], ["v3", ["S4"]]]);
+    expect(ft.versions.every((v) => !!v.created_at && !!v.uploader)).toBe(true);
+    expect(ft.match).toBeTruthy();
+    expect(norm(ft.text.slice(ft.match!.start, ft.match!.end))).toBe(norm(o.sentence!));
+    expect(ft.match!.section).toMatch(/^§4\.3/);
+    // The agreed sentence is in v2, not in v3.
+    expect((await svc.getFileText(o.file_id, o.version_id, c7.agreed!.quote)).match).toBeNull();
+    const v2 = await svc.getFileText(c7.agreed!.file_id, c7.agreed!.version_id, c7.agreed!.quote);
+    expect(norm(v2.text.slice(v2.match!.start, v2.match!.end))).toBe(norm(c7.agreed!.quote));
+    expect((await svc.getFileText(o.file_id, o.version_id)).match).toBeUndefined();
+    await expect(svc.getFileText("nope", "1801102233")).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+    svc.reset();
+  });
+
+  it("locateInText maps normalized matches back to raw offsets", () => {
+    const text = "Intro.\n\nKeys are  `AWS KMS` customer‑managed,\nrotated “annually”.";
+    const at = locateInText('keys are aws kms customer-managed, rotated "annually"', text)!;
+    expect(text.slice(at.start, at.end)).toBe("Keys are  `AWS KMS` customer‑managed,\nrotated “annually”");
+    expect(locateInText("absent sentence", text)).toBeNull();
+    expect(locateInText("", text)).toBeNull();
+  });
+});

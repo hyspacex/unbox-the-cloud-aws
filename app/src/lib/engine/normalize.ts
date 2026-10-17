@@ -143,3 +143,40 @@ export function sentences(text: string): string[] {
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && !/^#/.test(s));
 }
+
+/**
+ * UI v4.1 (file preview highlight): where `quote` sits in the RAW `text`, as character offsets
+ * [start, end), matched under exactly the rules of `norm` (backticks dropped, curly quotes and hyphen
+ * variants folded, whitespace collapsed, case ignored). Pure; null when the quote is not in the text.
+ */
+export function locateInText(quote: string, text: string): { start: number; end: number } | null {
+  const nq = norm(quote);
+  if (!nq) return null;
+  const out: string[] = [];
+  const map: number[] = [];
+  let pendingSpace = -1;
+  for (let i = 0; i < text.length; i++) {
+    let ch = text[i];
+    if (ch === "`") continue;
+    if (/\s/.test(ch)) {
+      if (out.length && pendingSpace < 0) pendingSpace = i;
+      continue;
+    }
+    if (pendingSpace >= 0) {
+      out.push(" ");
+      map.push(pendingSpace);
+      pendingSpace = -1;
+    }
+    if (ch === "‘" || ch === "’") ch = "'";
+    else if (ch === "“" || ch === "”") ch = '"';
+    else if ("‐‑–—".includes(ch)) ch = "-";
+    const low = ch.toLowerCase();
+    for (const c of low) {
+      out.push(c);
+      map.push(i);
+    }
+  }
+  const at = out.join("").indexOf(nq);
+  if (at < 0) return null;
+  return { start: map[at], end: map[at + nq.length - 1] + 1 };
+}

@@ -18,7 +18,7 @@
   "chain": {
     "algorithm": "sha256(previous chain_hash + canonical JSON of event without chain_hash)",
     "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
-    "head": "c2aa16bef3ab20d4611bf9762d9d528497bff907aa428e2951335b5573fb57c1",
+    "head": "130607795fc27ba93f6b80e73ece3fd9fce1c775e2ba00d1d1e3fa8c5d5fed6b",
     "note": "Events with ts LIVE are re-chained by the app when the real timestamp is known."
   },
   "population": {
@@ -31,9 +31,9 @@
     "verification_holds": 1,
     "binding_changed": 1,
     "box_metadata_written": 4,
-    "box_task_created": 2,
-    "box_task_response_ingested": 1,
-    "human_disposition_recorded": 4
+    "box_task_created": 3,
+    "box_task_response_ingested": 2,
+    "human_disposition_recorded": 5
   },
   "events": [
     {
@@ -1787,6 +1787,59 @@
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
+      "control_id": "SEC-ARCH-22",
+      "event_type": "box_task_created",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "finding_id": "KEEL-2026-0408",
+      "task": {
+        "task_id": "box-task-77120932",
+        "assignment_id": "box-asgn-88120932",
+        "action": "review",
+        "fileId": "1650233403",
+        "assignee": "Dana Okafor",
+        "assignee_box_user_id": "30118804",
+        "finding_id": "KEEL-2026-0408",
+        "control_id": "SEC-ARCH-22",
+        "snapshot_id": "S4",
+        "message": "KEEL-2026-0408 (snapshot S4): SEC-ARCH-22 evidence binding changed (Low). The recovery sentence left architecture.md v3; the same sentence is in runbook.md §3. Confirm the new binding."
+      },
+      "server_mapping": {
+        "task_id": "box-task-77120932",
+        "assignment_id": "box-asgn-88120932",
+        "finding_id": "KEEL-2026-0408",
+        "control_id": "SEC-ARCH-22",
+        "snapshot_id": "S4",
+        "immutable": true
+      },
+      "chain_hash": "f9e72f0f556dadb9eeeddb23fffb4388a49e730876e483d50600796f35f76c87"
+    },
+    {
+      "event_id": "EVT-0027",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
       "control_id": "SEC-ARCH-07",
       "event_type": "box_task_response_ingested",
       "machine_assessment": null,
@@ -1830,10 +1883,10 @@
         "source": "identity as returned by Box (task assignment assigned_to)"
       },
       "mapped_action": "returned_to_author",
-      "chain_hash": "6222da3993f6282b4fdd7374b4dd14bd917de0d5518b17cea573031b5e10ab56"
+      "chain_hash": "5cc40225743dc3f66a6e538e5d7d4b9977f00bccf420ebe7c53d7d60a18bd563"
     },
     {
-      "event_id": "EVT-0027",
+      "event_id": "EVT-0028",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1893,10 +1946,10 @@
         "snapshot_id": "S4",
         "immutable": true
       },
-      "chain_hash": "05d0497392cc4705a606c31a371db7ae5962451af50f6bfc3c306b3d214dd867"
+      "chain_hash": "ed8b32682a1b315c41f1969c3681fb68c299c3640b8fb46176d2c20040565422"
     },
     {
-      "event_id": "EVT-0028",
+      "event_id": "EVT-0029",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -1997,10 +2050,156 @@
       "due_at": "2026-10-23T17:00:00Z",
       "author_task_id": "box-task-77120944",
       "recorded_after": "author task created successfully",
-      "chain_hash": "bd3ea960375661e92782c45b124a1d8cef27e2c280c89438041341ace5afa65d"
+      "chain_hash": "ef3e0b821f5e5ee7416e09543c2d87b3c7e4cdb035e3ff327e7fc58670f1fd1c"
     },
     {
-      "event_id": "EVT-0029",
+      "event_id": "EVT-0030",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": "SEC-ARCH-22",
+      "event_type": "box_task_response_ingested",
+      "machine_assessment": null,
+      "prior_machine_assessment": null,
+      "change_classification": null,
+      "human_disposition": null,
+      "actor": {
+        "type": "app",
+        "name": "keel",
+        "role": "snapshot, validation, staleness and projection"
+      },
+      "fileId": null,
+      "fileName": null,
+      "versionId": null,
+      "contentHash": null,
+      "quote": null,
+      "basis": null,
+      "clause_support": null,
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "n/a"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/folder/318840021",
+      "finding_id": "KEEL-2026-0408",
+      "response": {
+        "task_id": "box-task-77120932",
+        "assignment_id": "box-asgn-88120932",
+        "resolution_state": "approved",
+        "message": "Recovery targets present in runbook §3; binding updated. I attest the cited evidence meets the requirement.",
+        "completed_at": "LIVE",
+        "ingested_at": "LIVE",
+        "attestation_present": true
+      },
+      "reviewer_identity": {
+        "assigned_to": {
+          "id": "30118804",
+          "login": "dana.okafor@meridiantrust.example",
+          "name": "Dana Okafor"
+        },
+        "source": "identity as returned by Box (task assignment assigned_to)"
+      },
+      "mapped_action": "verified",
+      "acknowledgment_duration_s": 30,
+      "chain_hash": "ac3b6af7d23715010f4c45953ecfce44b1be979e0bf8031c435ae70e11d86ca6"
+    },
+    {
+      "event_id": "EVT-0031",
+      "ts": "LIVE",
+      "phase": "live_v3",
+      "snapshot_id": "S4",
+      "control_id": "SEC-ARCH-22",
+      "event_type": "human_disposition_recorded",
+      "machine_assessment": "evidence_found",
+      "prior_machine_assessment": null,
+      "change_classification": "moved",
+      "human_disposition": "verified",
+      "actor": {
+        "type": "human",
+        "name": "Dana Okafor",
+        "role": "ARB reviewer, Technology Resilience",
+        "box_user_id": "30118804"
+      },
+      "fileId": "1650233403",
+      "fileName": "runbook.md",
+      "versionId": "1801102251",
+      "contentHash": "sha256:4a1da7eafa81fa4fef9b5223dd912354508504dd11619206dc98047dcbecb6f7",
+      "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+      "basis": null,
+      "clause_support": [
+        {
+          "clause_id": "SEC-ARCH-22.1",
+          "clause": "RTO and RPO stated",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233403",
+            "fileName": "runbook.md",
+            "versionId": "1801102251",
+            "versionLabel": "v1",
+            "section": "§3 Deployment and rollback",
+            "paragraph": 2,
+            "page": 1,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
+          }
+        },
+        {
+          "clause_id": "SEC-ARCH-22.2",
+          "clause": "rollback path described",
+          "support": "supported",
+          "quote": {
+            "fileId": "1650233403",
+            "fileName": "runbook.md",
+            "versionId": "1801102251",
+            "versionLabel": "v1",
+            "section": "§3 Deployment and rollback",
+            "paragraph": 2,
+            "page": 1,
+            "quote": "Deployments roll back to the previous published Lambda version within 15 minutes; RTO 4 hours and RPO 15 minutes per BIA Tier 1.",
+            "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251"
+          }
+        }
+      ],
+      "prompt_hash": null,
+      "projection": {
+        "box_metadata": "pending"
+      },
+      "mrm_model_id": "MRM-AI-0271",
+      "normalization": "whitespace, quotes, hyphens, case",
+      "box_deep_link": "https://app.box.com/file/1650233403?version=1801102251",
+      "comment": "Recovery targets present in runbook §3; binding updated. I attest the cited evidence meets the requirement.",
+      "via": {
+        "channel": "Box task",
+        "task_id": "box-task-77120932",
+        "assignment_id": "box-asgn-88120932",
+        "resolution_state": "approved"
+      },
+      "reviewer_identity": {
+        "assigned_to": {
+          "id": "30118804",
+          "login": "dana.okafor@meridiantrust.example",
+          "name": "Dana Okafor"
+        },
+        "source": "identity as returned by Box (task assignment assigned_to)"
+      },
+      "checks": {
+        "reviewer_on_configured_list": true,
+        "reviewer_is_not_author": true,
+        "binding_current": true,
+        "all_clauses_supported": true
+      },
+      "freshness_check": {
+        "decision_snapshot_id": "S4",
+        "current_snapshot_id": "S4",
+        "result": "pass"
+      },
+      "finding_id": "KEEL-2026-0408",
+      "rebinding": "re-verified on runbook.md",
+      "chain_hash": "6816a242c9d896448192a7b4eaec7590879a579e72ecc7ac54a2ad2fd0de53f9"
+    },
+    {
+      "event_id": "EVT-0032",
       "ts": "LIVE",
       "phase": "live_v3",
       "snapshot_id": "S4",
@@ -2042,13 +2241,13 @@
       "fields_written": {
         "keel_snapshot_id": "S4",
         "keel_status_SEC_ARCH_07": "RETURNED_TO_AUTHOR",
-        "keel_status_SEC_ARCH_22": "NEEDS_REVIEW_BINDING",
+        "keel_status_SEC_ARCH_22": "VERIFIED",
         "keel_status_SEC_ARCH_17": "VERIFIED_HOLDS",
-        "keel_last_human_review": "Dana Okafor|ARB reviewer, Technology Resilience|SEC-ARCH-07|S4|LIVE",
+        "keel_last_human_review": "Dana Okafor|ARB reviewer, Technology Resilience|SEC-ARCH-22|S4|LIVE",
         "keel_record_url": "https://keel.local/record/318840021?snapshot=S4"
       },
       "last_projected_snapshot": "S4",
-      "chain_hash": "c2aa16bef3ab20d4611bf9762d9d528497bff907aa428e2951335b5573fb57c1"
+      "chain_hash": "130607795fc27ba93f6b80e73ece3fd9fce1c775e2ba00d1d1e3fa8c5d5fed6b"
     }
   ]
 }

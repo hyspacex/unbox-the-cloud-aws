@@ -325,18 +325,34 @@
       "startMs": 11375,
       "durationMs": 390,
       "kind": "box_task_created",
-      "label": "Box task A created for Dana Okafor (review)",
+      "label": "Box review tasks created: task A for SEC-ARCH-07, task C for SEC-ARCH-22 (both Dana Okafor)",
       "detail": {
-        "task_id": "box-task-77120931",
-        "assignment_id": "box-asgn-88120931",
-        "action": "review",
-        "fileId": "1650233401",
-        "assignee": "Dana Okafor",
-        "assignee_box_user_id": "30118804",
-        "finding_id": "KEEL-2026-0405",
-        "control_id": "SEC-ARCH-07",
-        "snapshot_id": "S4",
-        "message": "KEEL-2026-0405 (snapshot S4): SEC-ARCH-07 needs review. Encryption is still stated in architecture.md v3 §4.3, but the key model and rotation have no support. Priya Natarajan verified the v2 sentence on 2026-10-08."
+        "tasks": [
+          {
+            "task_id": "box-task-77120931",
+            "assignment_id": "box-asgn-88120931",
+            "action": "review",
+            "fileId": "1650233401",
+            "assignee": "Dana Okafor",
+            "assignee_box_user_id": "30118804",
+            "finding_id": "KEEL-2026-0405",
+            "control_id": "SEC-ARCH-07",
+            "snapshot_id": "S4",
+            "message": "KEEL-2026-0405 (snapshot S4): SEC-ARCH-07 needs review. Encryption is still stated in architecture.md v3 §4.3, but the key model and rotation have no support. Priya Natarajan verified the v2 sentence on 2026-10-08."
+          },
+          {
+            "task_id": "box-task-77120932",
+            "assignment_id": "box-asgn-88120932",
+            "action": "review",
+            "fileId": "1650233403",
+            "assignee": "Dana Okafor",
+            "assignee_box_user_id": "30118804",
+            "finding_id": "KEEL-2026-0408",
+            "control_id": "SEC-ARCH-22",
+            "snapshot_id": "S4",
+            "message": "KEEL-2026-0408 (snapshot S4): SEC-ARCH-22 evidence binding changed (Low). The recovery sentence left architecture.md v3; the same sentence is in runbook.md §3. Confirm the new binding."
+          }
+        ]
       }
     }
   ]

@@ -15,7 +15,7 @@ This is a self-contained subset of the full Lantern fixture in the parent folder
 
 Code derives each assessment from clause support. For SEC-ARCH-07, encryption at rest is supported and the key model, rotation, custodians and AES-256 are unsupported, so the result is weakened rather than absent. For SEC-ARCH-22, the runbook quote already existed, so support did not move; only the selected binding did.
 
-The human actions are as follows:
+The human actions are as follows (tasks A, B and C):
 
 1. Keel creates Box task A for Dana Okafor, carrying the finding id and snapshot id.
 2. Dana completes it with her reason: "Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored." The disposition becomes returned_to_author.
@@ -23,7 +23,7 @@ The human actions are as follows:
 
 Keel records returned_to_author only after task B exists. The ledger records both task ids, the reviewer identity as returned by Box, the freshness check, and a folder-level projection after each change.
 
-As specified for the slice, there are only two tasks. SEC-ARCH-22 therefore ends the slice displayed as "Needs review: evidence binding changed". The full fixture adds review task C, and there Dana re-verifies it.
+Keel also creates review task C for SEC-ARCH-22, assigned to Dana. She approves it with the attestation phrase, and SEC-ARCH-22 is re-verified on runbook.md, so it ends the slice as "Verified". The count line after the human actions is "3 controls on snapshot S4: 1 Verified holds, 1 Verified, 1 Returned to author".
 
 | File | Contents |
 | --- | --- |

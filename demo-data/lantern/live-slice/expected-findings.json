@@ -10,7 +10,7 @@
     "chair": "R. Alvarez"
   },
   "expected_count_line_before": "3 controls on snapshot S4: 1 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)",
-  "expected_count_line_after": "3 controls on snapshot S4: 1 Verified holds, 1 Needs review (Low), 1 Returned to author",
+  "expected_count_line_after": "3 controls on snapshot S4: 1 Verified holds, 1 Verified, 1 Returned to author",
   "snapshot_id": "S4",
   "prior_snapshot_id": "S2",
   "control_profile_version": "2026.3-live",
@@ -40,7 +40,7 @@
     },
     "displayed_counts_after": {
       "Returned to author, open": 1,
-      "Needs review: evidence binding changed": 1,
+      "Verified": 1,
       "Verified, holds": 1
     }
   },
@@ -82,7 +82,8 @@
   ],
   "box_tasks": {
     "A_review_SEC_ARCH_07": "box-task-77120931",
-    "B_author_remediation": "box-task-77120944"
+    "B_author_remediation": "box-task-77120944",
+    "C_review_SEC_ARCH_22": "box-task-77120932"
   },
   "human_actions_expected": [
     {
@@ -94,6 +95,15 @@
       "message": "Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored.",
       "author_task": "box-task-77120944",
       "due_at": "2026-10-23T17:00:00Z"
+    },
+    {
+      "control_id": "SEC-ARCH-22",
+      "actor": "Dana Okafor",
+      "task": "box-task-77120932",
+      "resolution": "approved",
+      "disposition": "verified",
+      "binding": "runbook.md",
+      "message": "Recovery targets present in runbook §3; binding updated. I attest the cited evidence meets the requirement."
     }
   ],
   "findings": [
@@ -278,8 +288,8 @@
       "verification_holds": false,
       "expected_display": "Needs review: evidence binding changed",
       "expected_projection_code": "NEEDS_REVIEW_BINDING",
-      "expected_display_after_human_action": "Needs review: evidence binding changed",
-      "expected_projection_code_after_human_action": "NEEDS_REVIEW_BINDING",
+      "expected_display_after_human_action": "Verified",
+      "expected_projection_code_after_human_action": "VERIFIED",
       "model_id": "anthropic.claude-sonnet-4-6",
       "inference_profile": "us.anthropic.claude-sonnet-4-6",
       "prompt_version": "v3",

@@ -767,6 +767,10 @@ LTASK_A = {**TASK_A, "finding_id": LFIND["SEC-ARCH-07"],
            "message": f"{LFIND['SEC-ARCH-07']} (snapshot S4): SEC-ARCH-07 needs review. Encryption is still stated in architecture.md v3 §4.3, but the key model and rotation have no support. Priya Natarajan verified the v2 sentence on 2026-10-08."}
 LS.L.add("LIVE", "live_v3", "S4", "box_task_created", APP, control_id="SEC-ARCH-07", finding_id=LFIND["SEC-ARCH-07"], task=LTASK_A,
          server_mapping={"task_id": LTASK_A["task_id"], "assignment_id": LTASK_A["assignment_id"], "finding_id": LFIND["SEC-ARCH-07"], "control_id": "SEC-ARCH-07", "snapshot_id": "S4", "immutable": True})
+LTASK_C = {**TASK_C, "finding_id": LFIND["SEC-ARCH-22"],
+           "message": f"{LFIND['SEC-ARCH-22']} (snapshot S4): SEC-ARCH-22 evidence binding changed (Low). The recovery sentence left architecture.md v3; the same sentence is in runbook.md §3. Confirm the new binding."}
+LS.L.add("LIVE", "live_v3", "S4", "box_task_created", APP, control_id="SEC-ARCH-22", finding_id=LFIND["SEC-ARCH-22"], task=LTASK_C,
+         server_mapping={"task_id": LTASK_C["task_id"], "assignment_id": LTASK_C["assignment_id"], "finding_id": LFIND["SEC-ARCH-22"], "control_id": "SEC-ARCH-22", "snapshot_id": "S4", "immutable": True})
 LDANA = "Encrypted is stated; the key model and rotation are not. Requirement IS-STD-014 §5.1 needs the KMS CMK statement restored."
 LS.L.add("LIVE", "live_v3", "S4", "box_task_response_ingested", APP, control_id="SEC-ARCH-07", finding_id=LFIND["SEC-ARCH-07"],
          response={"task_id": LTASK_A["task_id"], "assignment_id": LTASK_A["assignment_id"], "resolution_state": "rejected", "message": LDANA, "completed_at": "LIVE", "ingested_at": "LIVE"},
@@ -778,6 +782,13 @@ LS.L.add("LIVE", "live_v3", "S4", "box_task_created", APP, control_id="SEC-ARCH-
 LS.record_disposition("LIVE", "live_v3", "S4", "SEC-ARCH-07", DANA, "returned_to_author", LDANA,
                       {"channel": "Box task", "task_id": LTASK_A["task_id"], "assignment_id": LTASK_A["assignment_id"], "resolution_state": "rejected"},
                       finding_id=LFIND["SEC-ARCH-07"], due_at=LTASK_B["due_at"], author_task_id=LTASK_B["task_id"], recorded_after="author task created successfully")
+LS.L.add("LIVE", "live_v3", "S4", "box_task_response_ingested", APP, control_id="SEC-ARCH-22", finding_id=LFIND["SEC-ARCH-22"],
+         response={"task_id": LTASK_C["task_id"], "assignment_id": LTASK_C["assignment_id"], "resolution_state": "approved", "message": DANA_22,
+                   "completed_at": "LIVE", "ingested_at": "LIVE", "attestation_present": True},
+         reviewer_identity=box_identity(DANA), mapped_action="verified", acknowledgment_duration_s=30)
+LS.record_disposition("LIVE", "live_v3", "S4", "SEC-ARCH-22", DANA, "verified", DANA_22,
+                      {"channel": "Box task", "task_id": LTASK_C["task_id"], "assignment_id": LTASK_C["assignment_id"], "resolution_state": "approved"},
+                      finding_id=LFIND["SEC-ARCH-22"], rebinding="re-verified on runbook.md")
 ldisp_after = {c: LS.display(c) for c in LCIDS}
 LS.project("live_v3", "S4", "LIVE")
 LS.L.verify()
@@ -791,15 +802,17 @@ lledger = {"folderId": FOLDER_ID, "folderName": "Project Lantern - ARB package (
            "population": LS.L.population(), "events": LS.L.events}
 LCL_BEFORE, LCL_AFTER = count_line(LS, "S4", ldisp_before), count_line(LS, "S4", ldisp_after)
 assert LCL_BEFORE == "3 controls on snapshot S4: 1 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)", LCL_BEFORE
-assert LCL_AFTER == "3 controls on snapshot S4: 1 Verified holds, 1 Needs review (Low), 1 Returned to author", LCL_AFTER
+assert LCL_AFTER == "3 controls on snapshot S4: 1 Verified holds, 1 Verified, 1 Returned to author", LCL_AFTER
+assert ldisp_after["SEC-ARCH-22"][1] == "Verified" and ldisp_after["SEC-ARCH-07"][1] == "Returned to author, open"
 lexpected = {**PROJECT, "expected_count_line_before": LCL_BEFORE, "expected_count_line_after": LCL_AFTER, "snapshot_id": "S4", "prior_snapshot_id": "S2", "control_profile_version": profile_live["profile_version"], "trigger": expected["trigger"],
              "summary": {"controls_evaluated": 3, "evidence_found": 2, "evidence_weakened": 1, "change_classification": {"weakened": 1, "moved": 1, "unchanged": 1},
                          "displayed_counts_before": counts(ldisp_before), "displayed_counts_after": counts(ldisp_after)},
-             "prior_quote_diff_hints": lhints, "box_tasks": {"A_review_SEC_ARCH_07": LTASK_A["task_id"], "B_author_remediation": LTASK_B["task_id"]},
-             "human_actions_expected": [{"control_id": "SEC-ARCH-07", "actor": "Dana Okafor", "task": LTASK_A["task_id"], "resolution": "rejected", "disposition": "returned_to_author", "message": LDANA, "author_task": LTASK_B["task_id"], "due_at": LTASK_B["due_at"]}],
+             "prior_quote_diff_hints": lhints, "box_tasks": {"A_review_SEC_ARCH_07": LTASK_A["task_id"], "B_author_remediation": LTASK_B["task_id"], "C_review_SEC_ARCH_22": LTASK_C["task_id"]},
+             "human_actions_expected": [{"control_id": "SEC-ARCH-07", "actor": "Dana Okafor", "task": LTASK_A["task_id"], "resolution": "rejected", "disposition": "returned_to_author", "message": LDANA, "author_task": LTASK_B["task_id"], "due_at": LTASK_B["due_at"]},
+                                        {"control_id": "SEC-ARCH-22", "actor": "Dana Okafor", "task": LTASK_C["task_id"], "resolution": "approved", "disposition": "verified", "binding": "runbook.md", "message": DANA_22}],
              "findings": lfindings}
 ltr = build_trace(LS, "S4", "S2", LCIDS, lr4, lprior, lhints, ["arch-v3", "run-v1"], "2 files", LMETA,
-                  ("Box task A created for Dana Okafor (review)", LTASK_A), 3600, 5900, 1240, "Findings applied: 3", [220, 610, 60, 40, 30, 30, 450, 390])
+                  ("Box review tasks created: task A for SEC-ARCH-07, task C for SEC-ARCH-22 (both Dana Okafor)", {"tasks": [LTASK_A, LTASK_C]}), 3600, 5900, 1240, "Findings applied: 3", [220, 610, 60, 40, 30, 30, 450, 390])
 assert 11500 <= ltr.t <= 12500, ltr.t
 ltrace = {"run_id": "run-live-slice", "mode_label": "Live", "snapshot_id": "S4", "prior_snapshot_id": "S2", "started_at": "LIVE", "total_duration_ms": ltr.t,
           "model_id": MODEL_ID, "inference_profile": INFERENCE_PROFILE, "mrm_model_id": MRM_MODEL_ID, "steps": ltr.steps}

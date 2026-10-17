@@ -268,8 +268,8 @@ Design: `docs/research/51-ui-v4-1-team-review.md`, section "API additions". All 
   `standard` and `clause` are parsed from the profile's `standard` string. These fields also appear on card rows and recorded outcome rows.
 
 **PackageView.**
-- `dashboard: { tiles: DashboardTile[] }`. Each tile is `{ key: "hold" | "need_you" | "recorded", label: "Hold" | "Need you" | "Recorded", value, tone }`, computed from displayed outcomes and decision flags.
-  - Hold counts rule-10 rows with no decision recorded.
+- `dashboard: { tiles: DashboardTile[] }`. Each tile is `{ key: "hold" | "need_you" | "recorded", label: "Still verified" | "Need you" | "Recorded", value, tone }`, computed from displayed outcomes and decision flags.
+  - Still verified counts rule-10 rows with no decision recorded.
   - Need you equals `open_decisions`.
   - Recorded counts rows with `decision_recorded`.
   - Tones are teal, amber and blue, and grey when the value is 0.
@@ -334,3 +334,5 @@ screen folds away; the panel's expand button closes the panel and brings it back
 - Clicking a past point shows "Status on <date>" with that snapshot's board (welcome screen) or status card and rows (panel), read-only, with **Back to now**. Points are labelled by date.
 
 **Panel.** Selecting a dashboard tile filters level 1 to that group (Need you also covers Acknowledge). A tile whose value drops to 0 clears the filter. Tiles are not selectable during a re-check, a replay or a past point. `PANEL_WIDTH` is 540 px, shared with the Box page push.
+
+**Round 7 follow-up: the hold tile's label.** The tile with `key: "hold"` is labelled "Still verified" (was "Hold", which read as "on hold"). The key, value and tone are unchanged. The welcome board's columns are tinted with the tile's tone background (amber, blue, teal; grey at 0).

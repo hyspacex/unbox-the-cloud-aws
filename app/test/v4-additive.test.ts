@@ -818,11 +818,11 @@ describe("v4.1: dashboard tiles", () => {
   it("Hold / Need you / Recorded at S3, after the run, and after all three actions", async () => {
     svc.reset();
     const tiles = () => svc.getPackageView().dashboard!.tiles.map((t) => [t.key, t.label, t.value, t.tone]);
-    expect(tiles()).toEqual([["hold", "Hold", 8, "teal"], ["need_you", "Need you", 0, "grey"], ["recorded", "Recorded", 0, "grey"]]);
+    expect(tiles()).toEqual([["hold", "Still verified", 8, "teal"], ["need_you", "Need you", 0, "grey"], ["recorded", "Recorded", 0, "grey"]]);
     await (await svc.submit({ scenario: "architecture_v3" })).done!;
-    expect(tiles()).toEqual([["hold", "Hold", 5, "teal"], ["need_you", "Need you", 3, "amber"], ["recorded", "Recorded", 0, "grey"]]);
+    expect(tiles()).toEqual([["hold", "Still verified", 5, "teal"], ["need_you", "Need you", 3, "amber"], ["recorded", "Recorded", 0, "grey"]]);
     await allThreeActions();
-    expect(tiles()).toEqual([["hold", "Hold", 5, "teal"], ["need_you", "Need you", 0, "grey"], ["recorded", "Recorded", 3, "blue"]]);
+    expect(tiles()).toEqual([["hold", "Still verified", 5, "teal"], ["need_you", "Need you", 0, "grey"], ["recorded", "Recorded", 3, "blue"]]);
     const t = svc.getPackageView().dashboard!.tiles;
     expect(t.find((x) => x.key === "need_you")!.value).toBe(svc.getPackageView().open_decisions);
     svc.reset();

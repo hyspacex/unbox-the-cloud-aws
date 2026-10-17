@@ -59,7 +59,7 @@ box in the component diagram is this layer.
 
 UI v4.2 adds a project welcome screen above the file list while the panel is closed: the frameworks the control
 profile maps to, a package timeline scrubber that shows each control's status as of any past snapshot, and a
-Need you / Recorded / Hold board headed by the engine's tile counts. A row click opens the control in the side panel.
+Need you / Recorded / Still verified board headed by the engine's tile counts. A row click opens the control in the side panel.
 The new fields (`PackageView.standards`, `PackageView.status_card`, `TimelinePoint.as_of`) are computed in the engine;
 see `docs/CONTRACTS.md` round 7.
 

@@ -24,7 +24,7 @@ export function dashboardTiles(store: Store, rows: RowWithState[]): DashboardTil
   const need = rows.filter((r) => needsDecision(store, r)).length;
   const recorded = rows.filter((r) => hasRecordedDecision(store, r)).length;
   return [
-    { key: "hold", label: "Hold", value: hold, tone: hold ? "teal" : "grey" },
+    { key: "hold", label: "Still verified", value: hold, tone: hold ? "teal" : "grey" },
     { key: "need_you", label: "Need you", value: need, tone: need ? "amber" : "grey" },
     { key: "recorded", label: "Recorded", value: recorded, tone: recorded ? "blue" : "grey" },
   ];

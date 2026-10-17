@@ -354,13 +354,21 @@ export function Level1({ variant = "panel" }: { variant?: "panel" | "page" }) {
 }
 
 const COLUMN_TONE: Record<DashboardTile["tone"], string> = { teal: C.teal, amber: C.amber, blue: C.blue, grey: C.grey };
-const COLUMN_NAME: Record<DashboardTile["key"], string> = { need_you: "Need you", recorded: "Recorded", hold: "Hold" };
+const COLUMN_NAME: Record<DashboardTile["key"], string> = { need_you: "Need you", recorded: "Recorded", hold: "Still verified" };
 
-/** One welcome-board column: the tile's count and label as the header, a tone rule, then its rows. */
+const COLUMN_BG: Record<DashboardTile["tone"], string> = { teal: C.tealBg, amber: C.amberBg, blue: C.blueBg, grey: C.greyBg };
+
+/** One welcome-board column: a tinted card with the tile's count and label as the header, a tone rule, then its rows. */
 function Column({ tile, fallback, past, items }: { tile?: DashboardTile; fallback: DashboardTile["key"]; past: boolean; items: React.ReactNode[] }) {
   const tone = COLUMN_TONE[tile?.tone ?? "grey"] ?? C.grey;
+  const bg = COLUMN_BG[tile?.tone ?? "grey"] ?? C.greyBg;
   return (
-    <section aria-label={tile?.label ?? COLUMN_NAME[fallback]} data-column={fallback} className="min-w-0">
+    <section
+      aria-label={tile?.label ?? COLUMN_NAME[fallback]}
+      data-column={fallback}
+      className="min-w-0 rounded-[10px] px-4 pb-4 pt-3.5"
+      style={{ background: bg, transition: "background-color 300ms" }}
+    >
       <header className="flex items-baseline gap-2 border-b-[3px] pb-2" style={{ borderColor: tone, transition: "border-color 300ms" }}>
         <span className="text-[30px] font-bold leading-none tabular-nums" style={{ color: tone, transition: "color 300ms" }}>
           <Count value={tile?.value ?? 0} />
@@ -374,7 +382,7 @@ function Column({ tile, fallback, past, items }: { tile?: DashboardTile; fallbac
           {items}
         </ul>
       ) : (
-        <p className="mt-3 rounded-[4px] border border-dashed px-3 py-4 text-center text-[12.5px]" style={{ borderColor: C.border, color: C.secondary }}>
+        <p className="mt-3 rounded-[4px] border border-dashed bg-white/60 px-3 py-4 text-center text-[12.5px]" style={{ borderColor: C.border, color: C.secondary }}>
           {past ? "None on this date" : "None"}
         </p>
       )}

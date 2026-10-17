@@ -71,7 +71,7 @@ For encryption, the new document no longer supports the required key-management 
 ## 演示重点
 
 - 主角是固定 checklist 和整体状态。原文对比解释其中一项为什么变化。
-- 首页显示实际 API 标签 Hold / Need you / Recorded，不称合规通过率。数字必须来自运行结果。稿中的 8、5、3 是当前标准 fixture 流程的预期值，实际不同就照实际说。
+- 首页显示实际 API 标签 Still verified / Need you / Recorded，不称合规通过率。数字必须来自运行结果。稿中的 8、5、3 是当前标准 fixture 流程的预期值，实际不同就照实际说。
 - timeline 进入主流程，但只用 15 秒。指向以前谁验证、哪次文件更新触发复核即可。
 - 每个 timeline 点对应文档包快照。同一快照内的人工作业会更新节点状态，完整操作在 audit record。不要描述为每次操作一个节点。
 - 返回作者后，只减少已处理的 reviewer 待办。不要说问题已修复、全部合规或全部通过。
@@ -84,7 +84,7 @@ For encryption, the new document no longer supports the required key-management 
 
 This file plans the experience. It does not certify that every feature or live integration is ready.
 
-- As of `3a0b91d` (merged to `main` Oct 17), the panel tiles, package and control timelines, rule-source chips and AGREED/CHANGED blocks are wired. The folder page opens on the project welcome screen: the frameworks checked against, a timeline scrubber that shows the status on any past date, and a Need you / Recorded / Hold board.
+- As of `3a0b91d` (merged to `main` Oct 17), the panel tiles, package and control timelines, rule-source chips and AGREED/CHANGED blocks are wired. The folder page opens on the project welcome screen: the frameworks checked against, a timeline scrubber that shows the status on any past date, and a Need you / Recorded / Still verified board.
 - The Box-style file preview, version menu and **Open in document ↗** highlight are wired from the panel. Highlight preview remains optional in the two-minute core.
 - Confirm the mode before presenting. With mock adapters, say “This demo uses simulated integrations with the same review engine.” In section C, introduce the integration description with “In the live design”. Do not present simulated calls as live Box or Bedrock execution.
 - The Box page is a replica. In mock mode describe it as “our Box replica”, not an installed native Box extension.

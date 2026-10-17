@@ -278,12 +278,21 @@ describe("16: approvals bind to snapshot and binding; mock never auto-approves",
     await svc.submit({ scenario: "architecture_v3" }, { wait: true });
     const a = await svc.act({ finding_id: "KEEL-2026-0405", control_id: "SEC-ARCH-07", decision_snapshot_id: "S4", action: "return_to_author", reason: DANA_REASON });
     expect((a as { awaiting_draft?: unknown }).awaiting_draft).toBeTruthy();
+    const pd = (a as { pending_author_draft?: { draft?: string; drafted_by?: string; task_id: string } }).pending_author_draft!;
+    expect(pd.draft).toMatch(/^Returned by Dana Okafor/);
+    expect(pd.drafted_by).toBe("box_ai_text_gen");
+    expect(pd.task_id).toBe("box-task-77120931");
+    expect(a.events.map((e) => e.event_type)).toEqual(["box_task_response_ingested", "acknowledgment_recorded"]);
     expect(a.row.status.label).toBe("Needs review: key-management evidence missing");
     const card = svc.getFindingCard("SEC-ARCH-07");
     expect(card.pending_author_draft?.draft).toMatch(/^Returned by Dana Okafor/);
-    const b = await svc.act({ finding_id: "KEEL-2026-0405", control_id: "SEC-ARCH-07", decision_snapshot_id: "S4", action: "approve_author_draft", author_message: card.pending_author_draft!.draft! });
+    const edited = card.pending_author_draft!.draft! + " Please reply in the task.";
+    const b = await svc.act({ finding_id: "KEEL-2026-0405", control_id: "SEC-ARCH-07", decision_snapshot_id: "S4", action: "approve_author_draft", author_message: edited, due_at: "2026-10-26T17:00:00Z" });
+    expect(b.result).toBe("applied");
     expect(b.row.status.label).toBe("Returned to author, open");
-    expect(b.author_task?.message).toBe(card.pending_author_draft!.draft);
+    expect(b.author_task?.message).toBe(edited); // the reviewer's edited text, stored verbatim
+    expect(b.author_task?.due_at).toBe("2026-10-26T17:00:00Z");
+    expect(b.events.find((e) => e.event_type === "box_task_created")!.edited_before_sending).toBe(true);
     const types = svc.getLedger({ control: "SEC-ARCH-07" }).events.filter((e) => e.phase === "live" && e.snapshot_id === "S4").map((e) => e.event_type);
     expect(types.slice(-4)).toEqual(["box_task_response_ingested", "acknowledgment_recorded", "box_task_created", "human_disposition_recorded"]);
     svc.reset();

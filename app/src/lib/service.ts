@@ -393,7 +393,19 @@ function actionResponse(s: Store, controlId: string, r: IngestResult): ActionRes
     row: publicRow(rows.find((x) => x.control_id === controlId)!),
     author_task: r.author_task,
     count_line: countLine(rows, snapId),
-    ...(r.awaiting_draft ? { awaiting_draft: r.awaiting_draft } : {}),
+    ...(r.awaiting_draft
+      ? {
+          awaiting_draft: r.awaiting_draft,
+          // The same block the finding card carries, so the UI can show the draft step without a refetch.
+          pending_author_draft: {
+            reason: r.awaiting_draft.reason,
+            draft: s.data.drafts[r.awaiting_draft.finding_id]?.text,
+            drafted_by: s.data.drafts[r.awaiting_draft.finding_id]?.drafted_by,
+            task_id: s.data.processing[r.awaiting_draft.dedup_key]?.task_id ?? "",
+            snapshot_id: r.awaiting_draft.snapshot_id,
+          },
+        }
+      : {}),
     ...(r.fallback ? { fallback: r.fallback } : {}),
   };
 }

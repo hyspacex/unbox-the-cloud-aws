@@ -32,7 +32,7 @@ import type { EvaluatorFileText, EvaluatorInput } from "../src/lib/agent/evaluat
 import type { Snapshot } from "../src/lib/types";
 import { seedFolder, type SeedPlan } from "../scripts/seed-box-folder";
 import { uploadV3 } from "../scripts/upload-v3";
-import { metadataProbe, templateRow } from "../scripts/integration-gate";
+import { metadataProbe, taskRoundTrip, templateRow } from "../scripts/integration-gate";
 
 const APP = join(__dirname, "..");
 const LANTERN = join(APP, "..", "demo-data", "lantern");
@@ -760,5 +760,86 @@ describe("Codex 16: a cancelled or unexpected Bedrock probe is not ready", () =>
   it("requires the trimmed reply 'ready'", async () => {
     expect(await probeBedrock({}, { model: new ScriptedModel([], { reply: " Ready. " }) })).toMatchObject({ ok: true, reply: "Ready." });
     expect(await probeBedrock({}, { model: new ScriptedModel([], { reply: "Hello there" }) })).toMatchObject({ ok: false, code: "BEDROCK_PROBE_UNEXPECTED" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Engine round 4: run deadline (NEW-2), task reconciliation (finding 7), login identity (NEW-1)
+// ---------------------------------------------------------------------------
+
+describe("Round 4 NEW-2: BedrockEvaluator honours the run's transaction signal (4th argument)", () => {
+  it("aborting opts.signal cancels the model loop and in-flight search promptly with RUN_TIMEOUT", async () => {
+    let received: AbortSignal | undefined;
+    const search = { search: (_q: string, _e?: string, signal?: AbortSignal) => ((received = signal), waitForAbort(signal, 5000)) };
+    const model = new ScriptedModel([[{ name: "search_snapshot", input: { query: "AES-256", control_id: "SEC-ARCH-07" } }]]);
+    const ctl = new AbortController();
+    setTimeout(() => ctl.abort(new Error("RUN_TIMEOUT")), 40);
+    const t = Date.now();
+    await expect(new BedrockEvaluator({ timeoutMs: 60_000 }, { model }).evaluate(minimalInput(), { search }, undefined, { signal: ctl.signal })).rejects.toMatchObject({ code: "RUN_TIMEOUT" });
+    expect(Date.now() - t).toBeLessThan(1500);
+    expect(received!.aborted).toBe(true);
+  });
+
+  it("without opts the evaluator's own timeout still applies as EVALUATION_TIMEOUT", async () => {
+    const search = { search: (_q: string, _e?: string, signal?: AbortSignal) => waitForAbort(signal, 5000) };
+    const model = new ScriptedModel([[{ name: "search_snapshot", input: { query: "AES-256" } }]]);
+    await expect(new BedrockEvaluator({ timeoutMs: 40 }, { model }).evaluate(minimalInput(), { search })).rejects.toMatchObject({ code: "EVALUATION_TIMEOUT" });
+  });
+});
+
+describe("Round 4 finding 7: RealBoxAdapter.findTaskByMessage reconciles an ambiguous createTask", () => {
+  const entry = (id: string, message: string, createdAt: string) => ({ id, message, createdAt: { value: new Date(createdAt) } });
+  it("matches the exact message on the file's tasks; the oldest wins; null when none; deadline attached", async () => {
+    let ct: unknown;
+    const getFileTasks = vi.fn(async (_f: string, o: { cancellationToken?: AbortSignal }) => {
+      ct = o.cancellationToken;
+      return { entries: [entry("T3", "KEEL-2026-0405 (snapshot S4): review", "2026-10-17T15:31:00Z"), entry("T2", "KEEL-2026-0405 (snapshot S4): review", "2026-10-17T15:30:00Z"), entry("T9", "KEEL-2026-0405 (snapshot S4): review ", "2026-10-17T15:29:00Z")] };
+    });
+    const box = adapterWith({ tasks: { getFileTasks } });
+    // DateTime wrapper stub: dateTimeToString reads .value
+    expect(await box.findTaskByMessage("F", "KEEL-2026-0405 (snapshot S4): review")).toEqual({ task_id: "T2" });
+    expect(await box.findTaskByMessage("F", "something else")).toBeNull();
+    expect(getFileTasks.mock.calls[0][0]).toBe("F");
+    expect(ct).toBeInstanceOf(AbortSignal);
+  });
+
+  it("a failed lookup throws (the caller must not create blindly)", async () => {
+    const box = adapterWith({ tasks: { getFileTasks: async () => Promise.reject({ responseInfo: { statusCode: 500, body: {} } }) } });
+    await expect(box.findTaskByMessage("F", "m")).rejects.toMatchObject({ code: "BOX_HTTP_500" });
+  });
+});
+
+describe("Round 4 NEW-1: the gate's task round trip checks the configured reviewer login", () => {
+  const mk = (login: string, found: "same" | "none" = "same") => {
+    const deleted: string[] = [];
+    return {
+      deleted,
+      box: {
+        createTask: async () => ({ task_id: "T1" }),
+        assignTask: async () => ({ assignment_id: "A1", assigned_to: { id: "30118804", login, name: "Dana Okafor" } }),
+        listTaskAssignments: async () => [{ assignment_id: "A1", assigned_to: { id: "30118804", login, name: "Dana Okafor" }, resolution_state: "incomplete" as const, message: "", completed_at: null }],
+        findTaskByMessage: async () => (found === "same" ? { task_id: "T1" } : null),
+        deleteTask: async (id: string) => void deleted.push(id),
+      },
+    };
+  };
+  const f = { fileId: "F", fileName: "architecture.md" };
+
+  it("PASS when Box resolves the assignee to KEEL_REVIEWER_LOGIN (case-insensitive) and the lookup finds the task", async () => {
+    const m = mk("Dana.Okafor@MeridianTrust.example");
+    expect(await taskRoundTrip(m.box as never, f, "dana.okafor@meridiantrust.example", 1)).toMatchObject({ status: "PASS" });
+    expect(m.deleted).toEqual(["T1"]);
+  });
+
+  it("FAIL when the assignment resolves to another login (responses would be rejected live)", async () => {
+    const m = mk("svc-keel@meridiantrust.example");
+    const r = await taskRoundTrip(m.box as never, f, "dana.okafor@meridiantrust.example", 1);
+    expect(r).toMatchObject({ status: "FAIL", reason: expect.stringMatching(/resolved to svc-keel@meridiantrust.example.*not KEEL_REVIEWER_LOGIN/) });
+    expect(m.deleted).toEqual(["T1"]); // probe still cleaned up
+  });
+
+  it("FAIL when findTaskByMessage cannot find the task it just created", async () => {
+    const m = mk("dana.okafor@meridiantrust.example", "none");
+    expect(await taskRoundTrip(m.box as never, f, "dana.okafor@meridiantrust.example", 1)).toMatchObject({ status: "FAIL", reason: expect.stringMatching(/could not be reconciled/) });
   });
 });

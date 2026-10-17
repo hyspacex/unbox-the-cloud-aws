@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Keel · 3-minute presentation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  /* Deck: 1920×1080 stage scaled to the window. Served from the app so the demo slide can embed the
+     live app (same origin) and light up the Box / AWS services from the run's own trace. */
+  :root {
+    --navy: #0b1324; --ink: #111827; --mute: #6b7280; --line: #e5e7eb; --blue: #0061d5; --blue-2: #2486fc;
+    --ok: #26c281; --amber: #f5a524; --red: #ed3757; --paper: #ffffff;
+    --sans: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif; --serif: Georgia, "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: var(--sans); }
+  #stage { position: absolute; width: 1920px; height: 1080px; left: 50%; top: 50%; transform-origin: 0 0; }
+  .slide { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .45s ease; overflow: hidden; }
+  .slide.on { opacity: 1; pointer-events: auto; }
+  .dark { background: radial-gradient(1200px 700px at 70% 20%, #13234a 0%, var(--navy) 60%); color: #fff; }
+  .light { background: var(--paper); color: var(--ink); }
+  .kicker { font-size: 22px; letter-spacing: .32em; font-weight: 800; color: #9fb7ff; }
+  .light .kicker { color: var(--blue); }
+  h1 { font-size: 84px; line-height: 1.05; letter-spacing: -.03em; margin: 0; font-weight: 800; }
+  h2 { font-size: 60px; line-height: 1.08; letter-spacing: -.025em; margin: 0; font-weight: 800; }
+  .sub { font-size: 30px; color: #c5d2f0; line-height: 1.4; }
+  .light .sub { color: var(--mute); }
+  .foot { position: absolute; left: 96px; right: 96px; bottom: 44px; display: flex; justify-content: space-between; font-size: 18px; color: #7f8db0; }
+  .light .foot { color: #9ca3af; }
+  .pill { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 999px; font-size: 20px; font-weight: 700; }
+
+  /* ---------- 1 · hook ---------- */
+  #s1 canvas { position: absolute; inset: 0; }
+  #s1 .wrap { position: absolute; left: 140px; right: 140px; top: 170px; }
+  #s1 .label { font-size: 22px; letter-spacing: .14em; text-transform: uppercase; color: #8ea2cf; font-weight: 700; margin-bottom: 22px; display: flex; gap: 16px; align-items: center; }
+  #s1 .label b { color: #fff; }
+  #s1 .new { font-family: var(--serif); font-size: 50px; line-height: 1.32; color: #e8ecf7; min-height: 140px; position: absolute; left: 140px; right: 140px; top: 420px; }
+  #s1 .new .cursor { display: inline-block; width: 3px; height: 50px; background: #9fb7ff; vertical-align: -8px; margin-left: 4px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #s1 .punch { position: absolute; left: 140px; right: 140px; bottom: 110px; opacity: 0; transform: translateY(16px); transition: all .7s ease; }
+  #s1 .punch.on { opacity: 1; transform: none; }
+  #s1 .punch h1 { font-size: 70px; }
+  #s1 .punch h1 em { font-style: normal; color: #ffb4a8; }
+
+  /* ---------- 2 · problem ---------- */
+  #s2 .wrap { position: absolute; left: 120px; right: 120px; top: 150px; }
+  .flow { display: grid; grid-template-columns: 1fr 70px 1fr 70px 1fr; align-items: stretch; margin-top: 70px; }
+  .step { border: 1px solid var(--line); border-radius: 18px; padding: 40px 40px; background: #fafbfc; min-height: 300px; }
+  .step .d { font-size: 20px; font-weight: 800; letter-spacing: .08em; color: var(--mute); text-transform: uppercase; }
+  .step .t { font-size: 40px; font-weight: 800; margin-top: 14px; letter-spacing: -.01em; }
+  .step .x { font-size: 28px; color: #4b5563; margin-top: 14px; line-height: 1.45; }
+  .step.bad { background: #fff6f6; border-color: #ffd6d6; }
+  .arrow { display: grid; place-items: center; font-size: 44px; color: #c0c6d0; }
+  .answer { margin-top: 90px; display: flex; gap: 28px; align-items: center; }
+  .answer .k { width: 76px; height: 76px; border-radius: 18px; background: var(--blue); color: #fff; display: grid; place-items: center; font-size: 38px; font-weight: 900; flex: none; }
+  .answer .s { font-size: 48px; font-weight: 800; letter-spacing: -.015em; line-height: 1.25; }
+  .answer .s span { color: var(--blue); }
+  .who { margin-top: 30px; font-size: 28px; color: var(--mute); padding-left: 104px; }
+
+  /* ---------- 3 · demo ---------- */
+  #s3 { background: #eef1f6; }
+  #s3 .frame { position: absolute; left: 28px; top: 28px; width: 1440px; height: 1024px; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(15, 23, 42, .18); background: #fff; }
+  #s3 iframe, #s3 video { width: 1440px; height: 1024px; border: 0; display: block; }
+  #s3 video { position: absolute; inset: 0; background: #000; display: none; }
+  #s3.fallback video { display: block; }
+  #rail { position: absolute; left: 1496px; top: 28px; width: 396px; height: 1024px; display: flex; flex-direction: column; gap: 14px; }
+  #rail .head { background: var(--navy); color: #fff; border-radius: 14px; padding: 20px 22px; }
+  #rail .head .k { font-size: 15px; letter-spacing: .2em; font-weight: 800; color: #9fb7ff; }
+  #rail .head .now { font-size: 21px; margin-top: 10px; min-height: 58px; line-height: 1.35; }
+  #rail .head .mode { margin-top: 10px; font-size: 14px; color: #8ea2cf; }
+  .grp { background: #fff; border-radius: 14px; padding: 14px 16px 10px; }
+  .grp .g { font-size: 14px; font-weight: 800; letter-spacing: .14em; color: var(--mute); margin-bottom: 6px; }
+  .svc { display: grid; grid-template-columns: 14px 1fr; gap: 12px; align-items: start; padding: 9px 4px; border-radius: 8px; transition: background .3s ease; }
+  .svc i { width: 12px; height: 12px; border-radius: 50%; background: #d1d5db; margin-top: 7px; transition: all .3s ease; }
+  .svc b { font-size: 18px; color: #374151; font-weight: 700; display: block; }
+  .svc code { font-family: var(--mono); font-size: 13px; color: #9ca3af; }
+  .svc.on i { background: var(--blue); box-shadow: 0 0 0 5px rgba(0, 97, 213, .15); }
+  .svc.on b { color: var(--ink); }
+  .svc.hot { background: #eaf2ff; }
+  .svc.human.on i { background: var(--ok); box-shadow: 0 0 0 5px rgba(38, 194, 129, .18); }
+  #rail .hint { font-size: 13px; color: #9ca3af; text-align: center; margin-top: auto; }
+
+  /* ---------- 4 · how it's built ---------- */
+  #s4 .wrap { position: absolute; left: 110px; right: 110px; top: 96px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 46px; }
+  .col { border-radius: 20px; padding: 30px 34px; border: 1px solid var(--line); }
+  .col h3 { margin: 0 0 18px; font-size: 30px; display: flex; align-items: center; gap: 14px; }
+  .col h3 .logo { font-weight: 900; font-size: 34px; letter-spacing: -.04em; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 12px 0; border-top: 1px solid #f0f2f5; font-size: 23px; }
+  .row:first-of-type { border-top: 0; }
+  .row code { font-family: var(--mono); font-size: 16px; color: #6b7280; display: block; margin-top: 3px; }
+  .tag { font-size: 15px; font-weight: 800; padding: 4px 10px; border-radius: 6px; align-self: start; letter-spacing: .04em; }
+  .tag.b { background: #eaf2ff; color: var(--blue); }
+  .tag.p { background: #f3f4f6; color: #6b7280; }
+  .trust { margin-top: 30px; display: flex; gap: 18px; font-size: 26px; font-weight: 700; align-items: center; }
+  .trust span { padding: 14px 22px; border-radius: 14px; background: #f5f7fb; }
+  .trust .ar { color: #c0c6d0; padding: 0; background: none; }
+  .modebadge { font-size: 18px; font-weight: 800; padding: 6px 12px; border-radius: 8px; background: #fff4e0; color: #9a5b00; margin-left: 14px; vertical-align: middle; }
+  .modebadge.live { background: #e7f8ef; color: #127a4c; }
+
+  /* ---------- 5 · close ---------- */
+  #s5 .wrap { position: absolute; left: 140px; right: 140px; top: 220px; }
+  #s5 h1 { font-size: 92px; }
+  #s5 .next { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 70px; }
+  #s5 .next span { font-size: 24px; padding: 14px 22px; border-radius: 14px; border: 1px solid #2a3b66; color: #c5d2f0; }
+  #s5 .next b { color: #fff; }
+
+  /* presenter chrome */
+  #hud { position: fixed; right: 14px; bottom: 10px; color: #6b7280; font: 12px var(--sans); z-index: 9; opacity: .55; }
+  #timer { position: fixed; left: 14px; bottom: 10px; color: #9ca3af; font: 600 13px var(--mono); z-index: 9; display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 1 · HOOK ---------------------------------------------------------------------------------- -->
+  <section class="slide dark on" id="s1">
+    <canvas id="fire" width="1920" height="1080"></canvas>
+    <div class="wrap">
+      <div class="label"><span>architecture.md</span><b>v2 · approved Oct 7</b><span>· verified by the review board</span></div>
+    </div>
+    <div class="new" id="newline"></div>
+    <div class="punch" id="punch">
+      <div class="kicker" style="margin-bottom:18px">KEEL</div>
+      <h1>One sentence changed.<br/><em>Your ISO 27001 evidence went with it.</em></h1>
+    </div>
+    <div class="foot"><span>Synthetic bank scenario · Meridian Trust Bank · Project Lantern</span><span>Box + AWS · Agentic Enterprise AI Hackathon</span></div>
+  </section>
+
+  <!-- 2 · PROBLEM -------------------------------------------------------------------------------- -->
+  <section class="slide light" id="s2">
+    <div class="wrap">
+      <div class="kicker">THE PROBLEM</div>
+      <h2 style="margin-top:18px">Approved design documents keep changing.</h2>
+      <div class="flow">
+        <div class="step"><div class="d">Oct 7</div><div class="t">Review board approves</div><div class="x">8 security controls, each backed by a sentence in 5 documents, verified by a named reviewer.</div></div>
+        <div class="arrow">→</div>
+        <div class="step"><div class="d">Oct 17</div><div class="t">“Rewritten for clarity”</div><div class="x">The page still says “encrypted.” The customer-managed keys and rotation are gone.</div></div>
+        <div class="arrow">→</div>
+        <div class="step bad"><div class="d">Today</div><div class="t">Nobody can tell</div><div class="x">Reviewers reread the whole package. Auditors rebuild the evidence by hand.</div></div>
+      </div>
+      <div class="answer">
+        <div class="k">K</div>
+        <div class="s">Keel re-checks every control on every new version —<br/><span>and asks a person only about what changed.</span></div>
+      </div>
+      <div class="who">For security architects and review boards in regulated enterprises, working in Box.</div>
+    </div>
+    <div class="foot"><span>KEEL</span><span>2 / 5</span></div>
+  </section>
+
+  <!-- 3 · DEMO ----------------------------------------------------------------------------------- -->
+  <section class="slide" id="s3">
+    <div class="frame">
+      <iframe id="app" title="Keel live demo" src="about:blank"></iframe>
+      <video id="fallback" src="deck/fallback.mp4" muted playsinline preload="none"></video>
+    </div>
+    <div id="rail">
+      <div class="head">
+        <div class="k">UNDER THE HOOD · LIVE</div>
+        <div class="now" id="now">Waiting for a new version…</div>
+        <div class="mode" id="railmode">Reading the run’s own trace</div>
+      </div>
+      <div class="grp"><div class="g">BOX</div>
+        <div class="svc" data-k="versions"><i></i><div><b>Pin file versions</b><code>GET /files/{id} · /versions</code></div></div>
+        <div class="svc" data-k="read"><i></i><div><b>Read each file by version</b><code>GET /files/{id}/content?version=</code></div></div>
+        <div class="svc" data-k="boxai"><i></i><div><b>Box AI ask · multi-file, cited</b><code>POST /ai/ask</code></div></div>
+        <div class="svc" data-k="metadata"><i></i><div><b>Folder metadata · keelReview</b><code>PUT /folders/{id}/metadata</code></div></div>
+        <div class="svc" data-k="tasks"><i></i><div><b>Review tasks</b><code>POST /tasks · /task_assignments</code></div></div>
+        <div class="svc" data-k="textgen"><i></i><div><b>Box AI drafts the author task</b><code>POST /ai/text_gen</code></div></div>
+      </div>
+      <div class="grp"><div class="g">AWS</div>
+        <div class="svc" data-k="decider"><i></i><div><b>Strands Decider 2B · input gate</b><code>injection? material?</code></div></div>
+        <div class="svc" data-k="bedrock"><i></i><div><b>Bedrock · Claude Sonnet 4.6</b><code>Strands agent · schema-validated</code></div></div>
+      </div>
+      <div class="grp"><div class="g">CODE · PERSON</div>
+        <div class="svc" data-k="quotes"><i></i><div><b>Every quote matched to pinned text</b><code>no match → not evaluated</code></div></div>
+        <div class="svc" data-k="ledger"><i></i><div><b>Status rules · hash-chained ledger</b><code>append-only</code></div></div>
+        <div class="svc human" data-k="human"><i></i><div><b>A named reviewer decides</b><code>only a person writes a disposition</code></div></div>
+      </div>
+      <div class="hint">V · recorded fallback &nbsp; Shift+R · reset demo</div>
+    </div>
+  </section>
+
+  <!-- 4 · HOW IT'S BUILT ------------------------------------------------------------------------- -->
+  <section class="slide light" id="s4">
+    <div class="wrap">
+      <div class="kicker">HOW IT’S BUILT <span class="modebadge" id="modebadge">Mode · …</span></div>
+      <h2 style="margin-top:16px">Box is the governed record. AWS is the judge.</h2>
+      <div class="cols">
+        <div class="col">
+          <h3><span class="logo" style="color:var(--blue)">box</span> APIs</h3>
+          <div class="row"><div>File versions, download by version, upload new version<code>/files/{id}, /versions, /content?version=, upload.box.com</code></div><span class="tag b">BUILT</span></div>
+          <div class="row"><div>Box AI ask — agent’s cross-file search, with citations<code>POST /ai/ask (multiple_item_qa)</code></div><span class="tag b">BUILT</span></div>
+          <div class="row"><div>Box AI text generation — drafts the author’s task<code>POST /ai/text_gen</code></div><span class="tag b">BUILT</span></div>
+          <div class="row"><div>Folder metadata — status per control, permission-inheriting<code>metadata template keelReview</code></div><span class="tag b">BUILT</span></div>
+          <div class="row"><div>Tasks &amp; assignments — the human surface<code>POST /tasks, /task_assignments</code></div><span class="tag b">BUILT</span></div>
+          <div class="row"><div>Webhooks → Keel; Box Automate as the trigger<code>FILE.UPLOADED</code></div><span class="tag p">NEXT</span></div>
+        </div>
+        <div class="col">
+          <h3><span class="logo" style="color:#ff9900">aws</span> services</h3>
+          <div class="row"><div>Amazon Bedrock · Claude Sonnet 4.6<code>us.anthropic.claude-sonnet-4-6</code></div><span class="tag b">BUILT</span></div>
+          <div class="row"><div>Strands Agents — one agent, Box AI as its search tool<code>Zod-validated output, no write tools</code></div><span class="tag b">BUILT</span></div>
+          <div class="row"><div>Strands Decider 2B — prompt-injection input gate<code>quarantined files never reach Bedrock</code></div><span class="tag b">BUILT</span></div>
+          <div class="row"><div>Lambda + SQS FIFO — one run per folder, at-least-once<code>webhook → queue → runner</code></div><span class="tag p">NEXT</span></div>
+          <div class="row"><div>DynamoDB + S3 Object Lock — production ledger<code>append-only, WORM</code></div><span class="tag p">NEXT</span></div>
+          <div class="row"><div>AgentCore Runtime &amp; Identity — hosted agent, Box OAuth<code>per-reviewer identity</code></div><span class="tag p">NEXT</span></div>
+        </div>
+      </div>
+      <div class="trust"><span>The model proposes</span><span class="ar">→</span><span>Code checks every quote against the exact version</span><span class="ar">→</span><span>Only a named person decides</span></div>
+    </div>
+    <div class="foot"><span>KEEL</span><span>4 / 5</span></div>
+  </section>
+
+  <!-- 5 · CLOSE ---------------------------------------------------------------------------------- -->
+  <section class="slide dark" id="s5">
+    <canvas id="embers" width="1920" height="1080" style="position:absolute;inset:0"></canvas>
+    <div class="wrap">
+      <div class="kicker">KEEL</div>
+      <h1 style="margin-top:22px">Know what changed,<br/>and who reviewed that exact evidence.</h1>
+      <p class="sub" style="margin-top:30px">Files have versions. Compliance evidence should too.</p>
+      <div class="next">
+        <span><b>Next:</b> decisions ledger across every document</span>
+        <span>certification packs · ISO 27001 · NIST CSF · GDPR</span>
+        <span>desktop glance widget</span>
+        <span>governed endpoint for downstream agents</span>
+      </div>
+    </div>
+    <div class="foot"><span>Harry Xie · Max Luo · Sean Sun</span><span>Synthetic data · illustrative framework mappings · no certification claimed</span></div>
+  </section>
+</div>
+
+<div id="hud">← → slides · F fullscreen · T timer</div>
+<div id="timer">0:00</div>
+
+<script>
+(() => {
+  // ------------------------------------------------------------------ stage + navigation
+  const stage = document.getElementById("stage");
+  const fit = () => {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    stage.style.transformOrigin = "center center";
+    stage.style.transform = `translate(-50%, -50%) scale(${s})`;
+  };
+  addEventListener("resize", fit); fit();
+
+  const slides = [...document.querySelectorAll(".slide")];
+  let cur = Number(new URLSearchParams(location.search).get("s") || 1) - 1;
+  const show = (i) => {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, j) => s.classList.toggle("on", j === cur));
+    if (slides[cur].id === "s1") hook.start();
+    if (slides[cur].id === "s3") demo.enter();
+    if (slides[cur].id === "s5") embers.start();
+  };
+  addEventListener("keydown", (e) => {
+    if (e.target && e.target.tagName === "IFRAME") return;
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(cur + 1); }
+    else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); show(cur - 1); }
+    else if (e.key === "f" || e.key === "F") document.documentElement.requestFullscreen?.();
+    else if (e.key === "t" || e.key === "T") timer.toggle();
+    else if ((e.key === "v" || e.key === "V") && slides[cur].id === "s3") demo.toggleFallback();
+    else if (e.key === "R" && e.shiftKey && slides[cur].id === "s3") demo.reset();
+    else if (/^[1-5]$/.test(e.key)) show(Number(e.key) - 1);
+  });
+  // The iframe swallows keys while focused: a click outside the frame (or Esc in the app) returns focus.
+  document.addEventListener("click", (e) => { if (!e.target.closest(".frame")) window.focus(); });
+
+  const timer = (() => {
+    const el = document.getElementById("timer"); let t0 = null, id = null;
+    return { toggle() {
+      if (id) { clearInterval(id); id = null; el.style.display = "none"; return; }
+      t0 = Date.now(); el.style.display = "block";
+      id = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; el.style.color = s >= 170 ? "#ed3757" : "#9ca3af"; }, 250);
+    } };
+  })();
+
+  // ------------------------------------------------------------------ 1 · the sentence burns
+  const OLD = "All customer data at rest is encrypted using AWS KMS customer-managed keys, rotated annually; key custodians are the Card Servicing Platform leads.";
+  const NEW = "All customer data is protected with industry-standard encryption, with keys managed through AWS’s native key management capabilities.";
+  const hook = (() => {
+    const cv = document.getElementById("fire"), cx = cv.getContext("2d");
+    const newline = document.getElementById("newline"), punch = document.getElementById("punch");
+    let raf = null, parts = [], front = 0, phase = "idle", t0 = 0, glyphs = [];
+    const X = 140, Y = 250, W = 1640, FONT = '50px Georgia, "Times New Roman", serif', LH = 66;
+
+    function layout() {
+      cx.font = FONT; const words = OLD.split(" "); const lines = []; let line = "";
+      for (const w of words) { const t = line ? line + " " + w : w; if (cx.measureText(t).width > W) { lines.push(line); line = w; } else line = t; }
+      lines.push(line); return lines;
+    }
+    function sample(lines) {
+      // Rasterise the sentence once and turn its pixels into particles that can catch fire.
+      const off = document.createElement("canvas"); off.width = 1920; off.height = 1080; const o = off.getContext("2d");
+      o.font = FONT; o.fillStyle = "#fff"; o.textBaseline = "top";
+      lines.forEach((l, i) => o.fillText(l, X, Y + i * LH));
+      const d = o.getImageData(0, 0, 1920, 1080).data; const pts = [];
+      for (let y = Y - 4; y < Y + lines.length * LH; y += 3) for (let x = X; x < X + W + 20; x += 3) if (d[(y * 1920 + x) * 4 + 3] > 120) pts.push({ x, y, ox: x, oy: y, vx: 0, vy: 0, life: 1, lit: false, delay: Math.random() * 90 });
+      return pts;
+    }
+    function drawText(lines, alpha) {
+      cx.font = FONT; cx.textBaseline = "top"; cx.fillStyle = `rgba(232,236,247,${alpha})`;
+      lines.forEach((l, i) => cx.fillText(l, X, Y + i * LH));
+    }
+    function frame(ts) {
+      const t = ts - t0; cx.clearRect(0, 0, 1920, 1080);
+      if (phase === "show") {
+        drawText(glyphs, 1);
+        // underline the commitment that is about to disappear
+        cx.fillStyle = "rgba(255,180,168,.9)";
+        glyphs.forEach((l, i) => {
+          const a = l.indexOf("customer-managed"); if (a < 0) return;
+          const end = l.indexOf("annually"); const stop = end >= 0 ? end + "annually".length : l.length;
+          cx.fillRect(X + cx.measureText(l.slice(0, a)).width, Y + i * LH + 58, cx.measureText(l.slice(a, stop)).width, 3);
+          if (end < 0 && glyphs[i + 1]) { const e2 = glyphs[i + 1].indexOf("annually"); if (e2 >= 0) cx.fillRect(X, Y + (i + 1) * LH + 58, cx.measureText(glyphs[i + 1].slice(0, e2 + 8)).width, 3); }
+        });
+        if (t > 2200) { phase = "burn"; t0 = ts; parts = sample(glyphs); front = X - 60; }
+      } else if (phase === "burn") {
+        front += 26; // the fire sweeps left to right
+        cx.globalCompositeOperation = "lighter";
+        for (const p of parts) {
+          if (!p.lit && p.ox < front - p.delay) { p.lit = true; p.vx = (Math.random() - .5) * 1.2; p.vy = -1 - Math.random() * 2.6; }
+          if (p.lit) {
+            p.x += p.vx + Math.sin((p.y + ts / 3) / 40) * .6; p.y += p.vy; p.vy -= .03; p.life -= .012 + Math.random() * .01;
+            if (p.life > 0) {
+              const h = 15 + p.life * 40, l = 35 + p.life * 30;
+              cx.fillStyle = `hsla(${h},100%,${l}%,${p.life})`; const s = 2 + (1 - p.life) * 4; cx.fillRect(p.x, p.y, s, s);
+            }
+          } else { cx.fillStyle = "rgba(232,236,247,.95)"; cx.fillRect(p.x, p.y, 2.4, 2.4); }
+        }
+        cx.globalCompositeOperation = "source-over";
+        // glow along the burning edge
+        const g = cx.createLinearGradient(front - 120, 0, front + 30, 0); g.addColorStop(0, "rgba(255,120,40,0)"); g.addColorStop(1, "rgba(255,150,60,.16)");
+        cx.fillStyle = g; cx.fillRect(front - 120, Y - 30, 150, glyphs.length * LH + 50);
+        if (parts.every((p) => p.lit && p.life <= 0)) { phase = "type"; t0 = ts; typeNew(); }
+      } else if (phase === "type" || phase === "done") {
+        // embers keep drifting a little after the burn
+        for (const p of parts.slice(0, 160)) { if (Math.random() < .02) { p.x = X + Math.random() * W; p.y = Y + 170; p.life = 1; p.vy = -0.6 - Math.random(); } if (p.life > 0) { p.y += p.vy; p.life -= .006; cx.fillStyle = `hsla(25,100%,60%,${p.life * .5})`; cx.fillRect(p.x, p.y, 2, 2); } }
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    function typeNew() {
+      let i = 0; newline.innerHTML = '<span style="font:600 20px var(--sans);letter-spacing:.14em;color:#8ea2cf;display:block;margin-bottom:14px">V3 · OCT 17 · “SECTION 4 REWRITE FOR CLARITY”</span><span id="nt"></span><span class="cursor"></span>';
+      const nt = document.getElementById("nt");
+      const id = setInterval(() => { nt.textContent = NEW.slice(0, ++i); if (i >= NEW.length) { clearInterval(id); phase = "done"; setTimeout(() => punch.classList.add("on"), 500); } }, 22);
+    }
+    return { start() {
+      cancelAnimationFrame(raf); punch.classList.remove("on"); newline.innerHTML = "";
+      glyphs = layout(); phase = "show"; parts = []; t0 = performance.now(); raf = requestAnimationFrame((ts) => { t0 = ts; frame(ts); });
+    } };
+  })();
+
+  // ------------------------------------------------------------------ 3 · live demo + API rail
+  const demo = (() => {
+    const iframe = document.getElementById("app"), s3 = document.getElementById("s3"), video = document.getElementById("fallback");
+    const now = document.getElementById("now"), mode = document.getElementById("railmode");
+    const svc = (k) => document.querySelector(`.svc[data-k="${k}"]`);
+    let loaded = false, baseline = null, watching = null, seenSteps = 0, tasksBase = null, poll = null;
+
+    const MAP = (s) => {
+      const k = s.kind, tool = s.tool || (s.args && s.args.agent_tool);
+      if (k === "file_version_observed" || k === "snapshot_captured") return "versions";
+      if (k === "texts_fetched") return "read";
+      if (k === "input_gate" || k === "input_gate_carried") return "decider";
+      if (k === "agent_evaluation" || k === "model_turn") return "bedrock";
+      if (k === "tool_call" && /box_ai|search_snapshot|string_search/.test(String(tool))) return "boxai";
+      if (k === "quotes_validated") return "quotes";
+      if (k === "findings_applied" || k === "ledger_events_written") return "ledger";
+      if (k === "box_folder_metadata_written") return "metadata";
+      if (k === "box_task_created") return "tasks";
+      return null;
+    };
+    const flat = (steps) => steps.flatMap((s) => [s, ...flat(s.substeps || [])]);
+    function light(k) {
+      const el = svc(k); if (!el) return;
+      el.classList.add("on", "hot"); setTimeout(() => el.classList.remove("hot"), 1400);
+    }
+    function clear() { document.querySelectorAll(".svc").forEach((e) => e.classList.remove("on", "hot")); now.textContent = "Waiting for a new version…"; }
+
+    async function j(url, init) { const r = await fetch(url, { cache: "no-store", ...init }); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }
+    async function tick() {
+      try {
+        const { runs } = await j("/api/runs");
+        const latest = runs && runs[0];
+        if (baseline === null) baseline = latest ? latest.run_id : "";
+        if (latest && latest.run_id !== baseline && latest.run_id !== watching) { watching = latest.run_id; seenSteps = 0; clear(); now.textContent = "New version seen…"; }
+        if (watching) {
+          const tr = await j(`/api/run/${watching}`);
+          const steps = flat(tr.steps || []);
+          for (const s of steps.slice(seenSteps)) { const k = MAP(s); if (k) light(k); if (s.bubble) now.textContent = s.bubble; }
+          seenSteps = steps.length;
+          if (tr.done && tasksBase === null) { const t = await j("/api/tasks"); tasksBase = t; }
+          else if (tr.done) {
+            const t = await j("/api/tasks");
+            if (t.awaiting_drafts && t.awaiting_drafts.length) { light("textgen"); now.textContent = "Box AI drafted the author’s task. The reviewer approves it."; }
+            if (t.completed > tasksBase.completed || t.tasks.length > tasksBase.tasks.length) { light("human"); light("tasks"); if (t.tasks.length > tasksBase.tasks.length) light("textgen"); now.textContent = "Recorded against this exact version, under the reviewer’s name."; }
+          }
+        }
+      } catch (e) { now.textContent = "Can’t reach the app — press V for the recording."; }
+    }
+    return {
+      enter() {
+        if (!loaded) { iframe.src = "/"; loaded = true; }
+        j("/api/config").then((c) => { mode.textContent = `Mode · ${c.mode === "mock" ? "Mock — simulated integrations, same engine" : "Live — Box and Bedrock"}`; }).catch(() => {});
+        if (!poll) poll = setInterval(tick, 450);
+      },
+      toggleFallback() { s3.classList.toggle("fallback"); if (s3.classList.contains("fallback")) { video.currentTime = 0; video.play().catch(() => {}); } else video.pause(); },
+      async reset() {
+        try { await fetch("/api/reset", { method: "POST" }); } catch {}
+        baseline = null; watching = null; tasksBase = null; clear(); iframe.src = "/";
+      },
+    };
+  })();
+
+  // ------------------------------------------------------------------ 4 · mode badge from the app
+  fetch("/api/config", { cache: "no-store" }).then((r) => r.json()).then((c) => {
+    const b = document.getElementById("modebadge");
+    b.textContent = c.mode === "mock" ? "Demo mode · simulated integrations" : "Live mode · Box + Bedrock";
+    b.classList.toggle("live", c.mode !== "mock");
+  }).catch(() => { document.getElementById("modebadge").remove(); });
+
+  // ------------------------------------------------------------------ 5 · quiet embers
+  const embers = (() => {
+    const cv = document.getElementById("embers"), cx = cv.getContext("2d"); let raf = null; const ps = [];
+    for (let i = 0; i < 90; i++) ps.push({ x: Math.random() * 1920, y: 1080 + Math.random() * 900, v: .4 + Math.random() * 1.1, s: 1 + Math.random() * 2.2, a: .2 + Math.random() * .5 });
+    function f() {
+      cx.clearRect(0, 0, 1920, 1080);
+      for (const p of ps) { p.y -= p.v; p.x += Math.sin(p.y / 70) * .4; if (p.y < -10) { p.y = 1090; p.x = Math.random() * 1920; } cx.fillStyle = `rgba(255,${140 + p.s * 30},80,${p.a * Math.min(1, p.y / 500)})`; cx.beginPath(); cx.arc(p.x, p.y, p.s, 0, 7); cx.fill(); }
+      raf = requestAnimationFrame(f);
+    }
+    return { start() { cancelAnimationFrame(raf); f(); } };
+  })();
+
+  show(cur);
+})();
+</script>
+</body>
+</html>

@@ -107,12 +107,13 @@ const tierSeverity = (t: DisplayInputs["tier"]): Severity => t;
  * version and normalized quote as the control's current binding. Fails closed when the current
  * binding is unknown; a disposition recorded with no binding matches only a control with none.
  */
-export function onCurrentBinding(i: DisplayInputs): boolean {
+export function onCurrentBinding(i: DisplayInputs, opts: { allowNoBinding?: boolean } = {}): boolean {
   const d = i.current_disposition;
   if (!d || d.snapshot_id !== i.current_snapshot_id) return false;
   const db = d.binding && d.binding.fileId ? d.binding : null;
   const cb = i.current_binding ?? null;
-  if (!db || !cb) return !db && !cb && i.machine_assessment !== "evidence_found";
+  // Verified always needs a concrete binding (Codex finding 14); only a return to author may be bound to "no evidence".
+  if (!db || !cb) return !!opts.allowNoBinding && !db && !cb && i.machine_assessment !== "evidence_found";
   return db.fileId === cb.fileId && db.versionId === cb.versionId && normQ(db.quote) === normQ(cb.quote);
 }
 const normQ = (q?: string) => norm(q ?? "");
@@ -161,7 +162,7 @@ export function displayStatus(i: DisplayInputs, o: DisplayOptions = {}): Display
   if (dispOnSnapshot === "exception_requested") return mk(6, "exception_requested", "Exception requested", "EXCEPTION", "blue");
   if (dispOnSnapshot === "compensating_control") return mk(7, "compensating_control", "Compensating control", "EXCEPTION", "blue");
   // Rule 8
-  if (dispOnSnapshot === "returned_to_author" && onCurrentBinding(i)) {
+  if (dispOnSnapshot === "returned_to_author" && onCurrentBinding(i, { allowNoBinding: true })) {
     return mk(8, "returned_to_author", "Returned to author, open", "RETURNED_TO_AUTHOR", "blue", { secondary: secondaryFromDisposition(i, o) });
   }
   // Rule 9

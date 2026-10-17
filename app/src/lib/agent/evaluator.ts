@@ -105,7 +105,7 @@ export class BedrockEvaluator implements Evaluator {
     this.modelOverride = opts.model;
   }
 
-  async evaluate(input: EvaluatorInput, tools: { search: SearchSnapshotTool }, onStep?: (step: TraceStep) => void): Promise<EvaluatorResult> {
+  async evaluate(input: EvaluatorInput, tools: { search: SearchSnapshotTool }, onStep?: (step: TraceStep) => void, opts: { signal?: AbortSignal } = {}): Promise<EvaluatorResult> {
     const cfg = this.config;
     const { Agent, AfterModelCallEvent, BedrockModel, BeforeModelCallEvent, tool } = await loadStrands();
     const t0 = Date.now();
@@ -273,13 +273,18 @@ export class BedrockEvaluator implements Evaluator {
     try {
       result = await agent.invoke(userPrompt, {
         structuredOutputSchema: FindingSet,
-        cancelSignal: AbortSignal.timeout(cfg.timeoutMs),
+        // Our own evaluation timeout, or the run's transaction deadline, whichever fires first.
+        cancelSignal: opts.signal ? AbortSignal.any([AbortSignal.timeout(cfg.timeoutMs), opts.signal]) : AbortSignal.timeout(cfg.timeoutMs),
         limits: { turns: cfg.maxTurns },
       });
     } catch (e) {
+      if (opts.signal?.aborted) throw new EvaluatorError("RUN_TIMEOUT", `Evaluation aborted by the run's transaction deadline: ${e instanceof Error ? e.message : String(e)}`, e);
       throw mapBedrockError(e, cfg);
     }
-    if (result.stopReason === "cancelled") throw new EvaluatorError("EVALUATION_TIMEOUT", `Evaluation cancelled after ${Date.now() - t0} ms (KEEL_EVAL_TIMEOUT_MS=${cfg.timeoutMs}).`);
+    if (result.stopReason === "cancelled")
+      throw opts.signal?.aborted
+        ? new EvaluatorError("RUN_TIMEOUT", `Evaluation cancelled after ${Date.now() - t0} ms by the run's transaction deadline (KEEL_TRANSACTION_TIMEOUT_MS).`)
+        : new EvaluatorError("EVALUATION_TIMEOUT", `Evaluation cancelled after ${Date.now() - t0} ms (KEEL_EVAL_TIMEOUT_MS=${cfg.timeoutMs}).`);
 
     const parsed = FindingSet.safeParse(result.structuredOutput);
     if (!parsed.success)

@@ -7,6 +7,7 @@
 import { createHash } from "node:crypto";
 import type { Actor, HumanDisposition, LedgerEvent, LedgerEventType, PriorVerification } from "../types";
 import { NORMALIZATION } from "./normalize";
+import { sanitizeMachineEvent } from "./wording";
 
 export const GENESIS = "0".repeat(64);
 export const CHAIN_ALGORITHM = "sha256(previous chain_hash + canonical JSON of event without chain_hash)";
@@ -31,8 +32,18 @@ function pyStr(s: string): string {
 }
 
 /** Python float repr for non-integers: shortest round-trip digits; exponent below 1e-4 or from 1e16. */
+export class CanonicalNumberError extends Error {}
+
+/**
+ * Numeric contract (Codex finding 19), enforced: ledger numbers are safe integers or finite
+ * non-integral floats. Negative zero, NaN, Infinity and unsafe integers are rejected because Python
+ * prints them differently ("-0.0", "NaN", exact big ints) or JSON cannot carry them. Integral floats
+ * cannot be told apart from integers after JSON parsing; the engine never writes them.
+ */
 function pyNumber(n: number): string {
-  if (!Number.isFinite(n)) return n > 0 ? "Infinity" : n < 0 ? "-Infinity" : "NaN";
+  if (!Number.isFinite(n)) throw new CanonicalNumberError(`canonicalJSON: non-finite number ${n} is outside the ledger numeric contract`);
+  if (Object.is(n, -0)) throw new CanonicalNumberError("canonicalJSON: negative zero is outside the ledger numeric contract");
+  if (Number.isInteger(n) && !Number.isSafeInteger(n)) throw new CanonicalNumberError(`canonicalJSON: unsafe integer ${n} is outside the ledger numeric contract`);
   // JSON parsing cannot tell 1 from 1.0; the fixture only holds ints and short floats (0.03, 0.91).
   if (Number.isInteger(n) && Math.abs(n) < 1e21) return String(n);
   const abs = Math.abs(n);
@@ -252,7 +263,7 @@ export function appendEvent(
     if ((ENVELOPE_KEYS as readonly string[]).includes(k) || k === "human_disposition" || k === "chain_hash") continue;
     if (v !== undefined) e[k] = v;
   }
-  const clean = stripUndefined(e) as unknown as LedgerEvent;
+  const clean = sanitizeMachineEvent(stripUndefined(e)) as unknown as LedgerEvent; // wording filter at the persistence boundary
   clean.chain_hash = chainHash(ledger.head, clean);
   ledger.events.push(clean);
   ledger.head = clean.chain_hash;

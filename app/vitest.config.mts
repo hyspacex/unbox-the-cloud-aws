@@ -9,6 +9,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],
+    setupFiles: ["test/setup.ts"],
     env: { MOCK_MODE: "true", KEEL_MOCK_TIME_SCALE: "0", KEEL_STORE_PATH: path.join(os.tmpdir(), `keel-store-test-${process.pid}.json`) },
     testTimeout: 20000,
   },

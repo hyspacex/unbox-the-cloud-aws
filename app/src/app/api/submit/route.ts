@@ -2,7 +2,7 @@ import { handle, readJson } from "@/lib/http";
 import { submit, ServiceError } from "@/lib/service";
 import type { SubmitRequest } from "@/lib/types";
 
-const SCENARIOS = ["architecture_v3", "contradiction", "injection", "unreadable", "fabricated_quote", "missing_finding", "unknown_control", "disposition_field"];
+const SCENARIOS = ["none", "architecture_v3", "contradiction", "injection", "unreadable", "fabricated_quote", "missing_finding", "unknown_control", "disposition_field"];
 
 /** POST /api/submit SubmitRequest -> SubmitResponse (202); the run continues in the background. */
 export async function POST(req: Request) {

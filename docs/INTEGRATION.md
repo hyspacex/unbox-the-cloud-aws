@@ -133,3 +133,4 @@ The engine uses it to map the fixture's seed ledger, snapshots S1 to S3 and prio
 3. Check the folder state with `integration-gate.ts`. It must be the S3 baseline: architecture.md v2 is current and v3 is not uploaded yet. Upload v3 only on stage, with `upload-v3.ts --write`.
 4. Warm Decider and Bedrock once with `decider-smoke.ts` and `integration-gate.ts`. Note the measured latencies for the "measured" slide.
 5. Have the safety net ready. If anything misbehaves 30 minutes before the demo, set `MOCK_MODE=true` and restart `npm run dev`. The mock path runs the same engine.
+6. Store path migration: live mode now defaults to `app/data/runs/store-live.json`, and mock keeps `app/data/store.json`. A live ledger written under the former `app/data/store.json` is not migrated. Move it with `mv app/data/store.json app/data/runs/store-live.json`, or set `KEEL_STORE_PATH`; a store whose mode does not match fails closed with `STORE_UNREADABLE`.

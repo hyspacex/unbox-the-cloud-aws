@@ -30,9 +30,11 @@ export function FindingCardView({
   onClose,
   layout = "drawer",
   project,
+  onRefresh,
 }: {
   card: Card;
   project?: string;
+  onRefresh?: () => void;
   mode?: RunMode;
   onResult?: (r: ActionResponse) => void;
   onSelectRelated?: (row: ControlRow) => void;
@@ -104,7 +106,7 @@ export function FindingCardView({
           </div>
         </div>
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-[132px] lg:self-start">
-          <DispositionBlock card={card} mode={mode} onResult={handleResult} lastResult={lastResult} onSeeThread={seeThread} />
+          <DispositionBlock card={card} mode={mode} onResult={handleResult} lastResult={lastResult} onSeeThread={seeThread} onRefresh={onRefresh} />
           <Related rows={card.related} current={card.finding.control_id} onSelect={onSelectRelated} />
         </aside>
       </div>

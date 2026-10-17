@@ -15,7 +15,7 @@ import { APP_ACTOR } from "./publish";
 import { buildRows, type RowWithState } from "./state";
 import { utcNow } from "./ledger";
 import { bindingsEqual } from "./assess";
-import { plainText } from "./wording";
+import { plainText, sanitizeMachineText } from "./wording";
 
 const KIND_PRIORITY: Record<string, number> = { needs_review_weakened: 0, needs_review_absent: 0, needs_review_conflict: 0, needs_review_binding: 1, acknowledge: 2, pending_review: 3 };
 const TIER_PRIORITY: Record<string, number> = { Critical: 0, High: 1, Medium: 2 };
@@ -114,6 +114,9 @@ export async function createReviewTasks(args: {
     const then = buildRows(store, profile, open.snapshot_id, { withPrior: false }).find((x) => x.control_id === r.control_id);
     if (!then || !bindingsEqual(then.state.binding, r.state.binding) || then.status.kind !== r.status.kind) return false;
     carried.push(open);
+    // Record that this task also answers the new snapshot's finding (the mapping itself stays immutable).
+    const carries = (store.data.task_carries ??= {});
+    if (r.finding_id && !(carries[open.task_id] ??= []).includes(r.finding_id)) carries[open.task_id].push(r.finding_id);
     return true;
   };
   const rows = buildRows(store, profile, snapshotId)
@@ -121,12 +124,28 @@ export async function createReviewTasks(args: {
     .filter((r) => NEEDS_REVIEW_KINDS.includes(r.status.kind) || r.status.kind === "pending_review")
     .filter((r) => !carriedOver(r))
     .sort((a, b) => KIND_PRIORITY[a.status.kind] - KIND_PRIORITY[b.status.kind] || TIER_PRIORITY[a.tier] - TIER_PRIORITY[b.tier]);
-  const plan: { row?: RowWithState; fileId: string; versionId?: string; control_id: string; finding_id: string; message: string }[] = rows.map((r) => ({
+  const snap = store.snapshot(snapshotId);
+  const inSnapshot = (fileId?: string | null) => !!fileId && !!snap?.files.some((f) => f.fileId === fileId);
+  /**
+   * Codex NEW-3: a task must attach to a file that still exists. Prefer the evidencing file, then the
+   * control's other evidence locations in the package, then the folder's first readable file.
+   */
+  const targetFile = (r: RowWithState): { fileId: string; removed?: { fileId: string; fileName: string; versionId: string } } => {
+    const want = r.state.binding?.fileId ?? r.state.prior_verification?.fileId ?? "";
+    if (inSnapshot(want)) return { fileId: want };
+    const pv = r.state.prior_verification;
+    const removed = pv && !inSnapshot(pv.fileId) ? { fileId: pv.fileId, fileName: pv.fileName, versionId: pv.versionId } : undefined;
+    const other = snap?.files.find((f) => r.state.control.evidence.some((e) => e.toLowerCase().includes(f.fileName.replace(/\.[^.]+$/, "").toLowerCase())));
+    const readable = snap?.files.find((f) => f.contentHash !== "unavailable");
+    return { fileId: other?.fileId ?? readable?.fileId ?? snap?.files[0]?.fileId ?? want, removed };
+  };
+  const plan: { row?: RowWithState; fileId: string; versionId?: string; control_id: string; finding_id: string; message: string; removed?: { fileId: string; fileName: string; versionId: string } }[] = rows.map((r) => ({
     row: r,
-    fileId: r.state.binding?.fileId ?? r.state.prior_verification?.fileId ?? "",
+    ...targetFile(r),
     control_id: r.control_id,
     finding_id: r.finding_id ?? "",
-    message: plainText(reviewTaskMessage(r, store)),
+    // Machine text sent to Box passes the same wording filter as the ledger (Codex finding 18).
+    message: sanitizeMachineText("task.message", plainText(reviewTaskMessage(r, store)), r.state.clause_support.flatMap((c) => (c.quote ? [c.quote.quote] : [])), []),
   }));
   for (const q of args.quarantined ?? []) {
     const already = store.data.tasks.some((t) => t.status === "open" && (t as { purpose?: string }).purpose === "input_gate_quarantine" && t.fileId === q.fileId && (t as { versionId?: string }).versionId === q.versionId);
@@ -144,11 +163,30 @@ export async function createReviewTasks(args: {
   }
   const created: StoredTask[] = [];
   const failed: string[] = [];
+  const intents = (store.data.task_intents ??= {});
   for (const p of plan) {
+    const intentKey = `${snapshotId}|${p.control_id}|${p.row ? "review" : "quarantine"}`;
+    if (store.data.tasks.some((t) => t.task_id === intents[intentKey]?.task_id)) continue; // already created and stored
     try {
-      const { task_id } = await box.createTask(p.fileId, p.message, "review");
+      // Intent and created task id are persisted before the next side effect (Codex findings 7, 8):
+      // a retry reuses a created task, assigns it if the assignment failed, and never orphans it.
+      let intent = intents[intentKey];
+      if (!intent) {
+        intent = intents[intentKey] = { fileId: p.fileId, message: p.message, updated_at: utcNow() };
+        store.save();
+      }
+      if (!intent.task_id) {
+        const finder = (box as { findTaskByMessage?: (fileId: string, message: string) => Promise<{ task_id: string } | null> }).findTaskByMessage;
+        const found = finder ? await finder.call(box, intent.fileId, intent.message) : null;
+        intent.task_id = found?.task_id ?? (await box.createTask(intent.fileId, intent.message, "review")).task_id;
+        intent.updated_at = utcNow();
+        store.save();
+      }
+      const task_id = intent.task_id;
+      const existing = (await box.listTaskAssignments(task_id))[0];
       // Assign by tenant id when configured, else by login; record the identity Box returns (Codex finding 9).
-      const asg = await box.assignTask(task_id, boxAssignee(config.reviewer, config.mockMode));
+      const asg = existing ? { assignment_id: existing.assignment_id, assigned_to: existing.assigned_to } : await box.assignTask(task_id, boxAssignee(config.reviewer, config.mockMode));
+      intent.assignment_id = asg.assignment_id;
       const task: StoredTask = {
         task_id,
         assignment_id: asg.assignment_id,
@@ -164,12 +202,23 @@ export async function createReviewTasks(args: {
         status: "open",
         created_at: utcNow(),
         ...(p.row ? {} : { purpose: "input_gate_quarantine", versionId: p.versionId }),
+        ...(p.removed ? { removed_evidence: p.removed } : {}),
       };
       const mapping: TaskMapping = { task_id, assignment_id: asg.assignment_id, finding_id: p.finding_id, control_id: p.control_id, snapshot_id: snapshotId, immutable: true };
       store.data.tasks.push(task);
       store.data.task_mappings[asg.assignment_id] = Object.freeze(mapping) as TaskMapping;
       const { status: _s, created_at: _c, ...boxTask } = task;
-      append({ event_type: "box_task_created", actor: APP_ACTOR, snapshot_id: snapshotId, control_id: p.control_id, finding_id: p.finding_id, task: boxTask, plain_text: true, server_mapping: mapping });
+      append({
+        event_type: "box_task_created",
+        actor: APP_ACTOR,
+        snapshot_id: snapshotId,
+        control_id: p.control_id,
+        finding_id: p.finding_id,
+        task: boxTask,
+        plain_text: true,
+        server_mapping: mapping,
+        ...(p.removed ? { removed_evidence: p.removed, note: `${p.removed.fileName} is no longer in the package; the task is attached to a remaining file` } : {}),
+      });
       created.push(task);
     } catch (err) {
       failed.push(p.control_id);

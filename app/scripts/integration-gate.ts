@@ -61,6 +61,33 @@ export async function metadataProbe(box: ProbeBox, folderId: string, templateKey
   return { status: roundTrip!.status, reason: `${roundTrip!.reason}; ${restore}` };
 }
 
+type TaskBox = Pick<RealBoxAdapter, "createTask" | "assignTask" | "listTaskAssignments" | "findTaskByMessage" | "deleteTask">;
+
+/**
+ * Create a probe review task, assign it to KEEL_REVIEWER_LOGIN, list assignments, reconcile it with
+ * findTaskByMessage, then delete it. FAIL unless Box resolves the assignee to that login
+ * (case-insensitive, as live authorization compares it) and the lookup finds the same task.
+ */
+export async function taskRoundTrip(box: TaskBox, f: { fileId: string; fileName: string }, reviewerLogin: string, now = Date.now()): Promise<Row> {
+  const probeMessage = `Keel integration gate probe ${now}. Safe to ignore; deleted automatically.`;
+  const { task_id } = await box.createTask(f.fileId, probeMessage, "review", new Date(now + 86_400_000).toISOString());
+  try {
+    const a = await box.assignTask(task_id, { login: reviewerLogin });
+    const mine = (await box.listTaskAssignments(task_id)).find((x) => x.assignment_id === a.assignment_id);
+    if (!mine) return { status: "FAIL", reason: `assignment ${a.assignment_id} not listed on task ${task_id}` };
+    if (mine.assigned_to.login.toLowerCase() !== reviewerLogin.toLowerCase())
+      return { status: "FAIL", reason: `assignment ${a.assignment_id} resolved to ${mine.assigned_to.login || "(no login)"} id ${mine.assigned_to.id}, not KEEL_REVIEWER_LOGIN ${reviewerLogin}; live authorization compares logins case-insensitively (or set KEEL_REVIEWER_BOX_USER_ID), so responses on this task would be rejected` };
+    const found = await box.findTaskByMessage(f.fileId, probeMessage);
+    if (found?.task_id !== task_id) return { status: "FAIL", reason: `findTaskByMessage returned ${JSON.stringify(found)} instead of task ${task_id}; an ambiguous task creation could not be reconciled` };
+    return {
+      status: "PASS",
+      reason: `task ${task_id} on ${f.fileName}, assignment ${a.assignment_id} to ${mine.assigned_to.name} <${mine.assigned_to.login}> id ${mine.assigned_to.id}, state ${mine.resolution_state}; login matches KEEL_REVIEWER_LOGIN; findTaskByMessage finds it. Identity check: have ${reviewerLogin} approve one real task in Box and confirm assigned_to is that user, not the service account`,
+    };
+  } finally {
+    await box.deleteTask(task_id).catch(() => undefined);
+  }
+}
+
 /** Read-only template check: every field present with the right type and all twelve enum codes. */
 export function templateRow(have: { key: string; type: string; options?: { key: string }[] }[] | null, profile: { controls: { id: string }[] }, templateKey: string): Row {
   if (!have) return { status: "FAIL", reason: `template ${templateKey} does not exist; rerun with --write to create it (needs Manage enterprise properties)` };
@@ -178,20 +205,7 @@ async function main() {
     if (!write) cl.skip("Box task round trip", "read-only run; pass --write");
     else if (!items.length || !reviewerLogin) cl.skip("Box task round trip", !items.length ? "no files listed" : "needs KEEL_REVIEWER_LOGIN");
     else
-      await cl.run("Box task round trip", async () => {
-        const f = items[0];
-        const { task_id } = await box.createTask(f.fileId, "Keel integration gate probe. Safe to ignore; deleted automatically.", "review", new Date(Date.now() + 86_400_000).toISOString());
-        try {
-          const a = await box.assignTask(task_id, { login: reviewerLogin });
-          const list = await box.listTaskAssignments(task_id);
-          const mine = list.find((x) => x.assignment_id === a.assignment_id);
-          return mine
-            ? { status: "PASS", reason: `task ${task_id} on ${f.fileName}, assignment ${a.assignment_id} to ${a.assigned_to.name} <${a.assigned_to.login}> id ${a.assigned_to.id}, state ${mine.resolution_state}. Identity check: have ${reviewerLogin} approve one task in Box and confirm assigned_to here is that user, not the service account` }
-            : { status: "FAIL", reason: `assignment ${a.assignment_id} not listed on task ${task_id}` };
-        } finally {
-          await box.deleteTask(task_id).catch(() => undefined);
-        }
-      });
+      await cl.run("Box task round trip", () => taskRoundTrip(box, items[0], reviewerLogin));
 
     // Box AI ask over two files with citations, validated against the downloaded text
     const two = items.filter((i) => texts.has(i.fileId)).slice(0, 2);

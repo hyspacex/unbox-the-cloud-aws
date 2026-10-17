@@ -17,6 +17,17 @@ export interface Identity {
   id_explicit?: boolean;
 }
 
+/**
+ * Does the identity Box returned match a configured identity (Codex NEW-1)? Mock: fixture id or
+ * login. Live: the tenant id only when explicitly configured; otherwise the login (case-insensitive).
+ * Fixture numeric ids never authorize anyone in live mode.
+ */
+export function identityMatches(cfg: Identity, who: { id?: string; login?: string }, mockMode: boolean): boolean {
+  const loginMatch = !!cfg.login && !!who.login && cfg.login.toLowerCase() === who.login.toLowerCase();
+  if (mockMode) return cfg.box_user_id === who.id || loginMatch;
+  return (!!cfg.id_explicit && !!who.id && cfg.box_user_id === who.id) || loginMatch;
+}
+
 /** How to address an identity in Box: by tenant id when known, else by login. Mock always uses ids. */
 export function boxAssignee(i: Identity, mockMode: boolean): { id: string } | { login: string } {
   return mockMode || i.id_explicit ? { id: i.box_user_id } : { login: i.login };
@@ -44,6 +55,10 @@ export interface KeelConfig {
   mockTimeScale: number;
   /** Live only: background poll of Box task assignments, started lazily (0 disables). */
   pollIntervalMs: number;
+  /** Bounded wait for the package lock (Codex NEW-2). */
+  lockTimeoutMs: number;
+  /** Deadline for one review transaction; on expiry the run is aborted and RUN_TIMEOUT recorded. */
+  transactionTimeoutMs: number;
   box: {
     folderId: string;
     templateKey: string;
@@ -112,9 +127,14 @@ export function loadConfig(): KeelConfig {
     login: env("KEEL_AUTHOR_LOGIN") ?? FIXTURE_IDENTITIES.jpark.login,
     id_explicit: !!env("KEEL_AUTHOR_BOX_USER_ID"),
   };
-  const others = [FIXTURE_IDENTITIES.marcus, FIXTURE_IDENTITIES.dana, FIXTURE_IDENTITIES.priya].filter(
-    (r) => r.box_user_id !== reviewer.box_user_id,
-  );
+  // Fixture reviewers are mock-only defaults. Live: the configured reviewer plus KEEL_EXTRA_REVIEWER_LOGINS (comma-separated).
+  const others: Identity[] = mockMode
+    ? [FIXTURE_IDENTITIES.marcus, FIXTURE_IDENTITIES.dana, FIXTURE_IDENTITIES.priya].filter((r) => r.box_user_id !== reviewer.box_user_id)
+    : (env("KEEL_EXTRA_REVIEWER_LOGINS") ?? "")
+        .split(",")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .map((login) => ({ name: login, role: "ARB reviewer", box_user_id: "", login, id_explicit: false }));
   return {
     mockMode,
     mode: mockMode ? "mock" : "live",
@@ -132,6 +152,8 @@ export function loadConfig(): KeelConfig {
     mockGate: env("KEEL_MOCK_GATE") === "absent" ? "absent" : "mock",
     mockTimeScale: Number(env("KEEL_MOCK_TIME_SCALE") ?? 1),
     pollIntervalMs: Number(env("KEEL_POLL_INTERVAL_MS") ?? 5000),
+    lockTimeoutMs: Number(env("KEEL_LOCK_TIMEOUT_MS") ?? 60_000),
+    transactionTimeoutMs: Number(env("KEEL_TRANSACTION_TIMEOUT_MS") ?? 240_000),
     box: {
       folderId: env("BOX_FOLDER_ID") ?? "318840021",
       templateKey: env("BOX_METADATA_TEMPLATE_KEY") ?? "keelReview",

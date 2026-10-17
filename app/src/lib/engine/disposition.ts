@@ -31,7 +31,7 @@ import { APP_ACTOR, eventOpts, publishProjection } from "./publish";
 import { withPackageLock } from "./lock";
 import { attestationPresent, bannedWords, plainText } from "./wording";
 import { norm } from "./normalize";
-import { boxAssignee } from "../config";
+import { boxAssignee, identityMatches } from "../config";
 import { deriveControlState, latestVerification, snapshotEvaluationState, verificationBinding, type ControlState } from "./state";
 import { draftFromBrief, type AuthorDraftBrief } from "./draft";
 
@@ -148,7 +148,7 @@ const boxTime = (e: LedgerEvent | null | undefined) => {
 };
 
 /** Record a reviewer-approved author-task draft, bound to finding, reason and snapshot (spec 3 step 11). */
-export function approveDraft(store: Store, args: { finding_id: string; snapshot_id: string; reason: string; text: string; drafted_by?: "box_ai_text_gen" | "template" }): void {
+export function approveDraft(store: Store, args: { finding_id: string; snapshot_id: string; reason: string; text: string; drafted_by?: "box_ai_text_gen" | "template"; binding?: { fileId: string; versionId: string; quote?: string } | null }): void {
   const prev = store.data.drafts[args.finding_id];
   store.data.approved_drafts[args.finding_id] = {
     finding_id: args.finding_id,
@@ -158,21 +158,29 @@ export function approveDraft(store: Store, args: { finding_id: string; snapshot_
     drafted_by: args.drafted_by ?? prev?.drafted_by ?? "box_ai_text_gen",
     approved_at: utcNow(),
     edited_before_sending: !!prev && prev.text !== args.text,
+    binding: args.binding === undefined ? undefined : args.binding ? { fileId: args.binding.fileId, versionId: args.binding.versionId, quote: args.binding.quote } : null,
   };
   store.save();
 }
 
-function approvedDraftFor(store: Store, findingIds: string[], reason: string) {
+/**
+ * An approval counts only for the same finding, reason, snapshot and evidence binding the reviewer
+ * saw (Codex finding 16): an S3 approval never authorizes an S4 author task.
+ */
+function approvedDraftFor(store: Store, findingIds: string[], reason: string, snapshotId?: string, binding?: { fileId: string; versionId: string; quote?: string } | null) {
   for (const id of findingIds) {
     const d = store.data.approved_drafts[id];
-    if (d && norm(d.reason) === norm(reason)) return d;
+    if (!d || norm(d.reason) !== norm(reason)) continue;
+    if (snapshotId !== undefined && d.snapshot_id !== snapshotId) continue;
+    if (binding !== undefined && d.binding !== undefined && !bindingsEqual(d.binding ?? null, binding ?? null)) continue;
+    return d;
   }
   return null;
 }
 
 /** Serialized per package (Codex finding 6): no snapshot capture can interleave with a response. */
 export function ingestTaskResponse(deps: DispositionDeps, input: IngestInput): Promise<IngestResult> {
-  return withPackageLock(deps.config.box.folderId, () => ingestLocked(deps, input));
+  return withPackageLock(deps.config.box.folderId, () => ingestLocked(deps, input), { timeoutMs: deps.config.lockTimeoutMs });
 }
 
 async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<IngestResult> {
@@ -182,6 +190,12 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
   const events: LedgerEvent[] = [];
   const append = (e: Parameters<Store["append"]>[0]) => {
     const ev = store.append({ phase: "live", ...e }, opts);
+    events.push(ev);
+    return ev;
+  };
+  /** Append without saving; the following setStage writes event and stage in a single save. */
+  const appendAtomic = (e: Parameters<Store["append"]>[0], _r?: boolean) => {
+    const ev = store.append({ phase: "live", ...e }, opts, { save: false });
     events.push(ev);
     return ev;
   };
@@ -226,6 +240,12 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
     store.save();
   };
 
+  // 0. Reconcile: a crash after the disposition append but before the terminal stage was saved (Codex finding 7).
+  if (proc && !TERMINAL_STAGES.includes(proc.stage) && store.events.some((e) => e.event_type === "human_disposition_recorded" && e.dedup_key === dedup_key)) {
+    setStage("disposition_recorded");
+    return { result: "applied", mapped_action: proc.mapped_action as IngestResult["mapped_action"], explanation: "Reconciled: the disposition for this response was already recorded.", events };
+  }
+
   // 1. Dedup on a finished response (acceptance 12). Unfinished processing resumes instead (Codex finding 7).
   if ((proc && TERMINAL_STAGES.includes(proc.stage)) || (!proc && store.data.dedup_keys.includes(dedup_key))) {
     append({
@@ -241,8 +261,8 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
 
   // 2. Identity, freshness and preconditions, from server records only.
   const who = view.assigned_to;
-  const reviewer = config.reviewers.find((r) => r.box_user_id === who.id || r.login === who.login);
-  const isAuthor = config.author.box_user_id === who.id || config.author.login === who.login;
+  const reviewer = config.reviewers.find((r) => identityMatches(r, who, config.mockMode));
+  const isAuthor = identityMatches(config.author, who, config.mockMode);
   const attestation = attestationPresent(view.message, profile.attestation_phrase); // tolerant match; message stored verbatim
   const mapped: IngestResult["mapped_action"] = proc
     ? (proc.mapped_action as IngestResult["mapped_action"])
@@ -285,7 +305,8 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
   const standing = target.current_disposition_event;
   const standingAt = boxTime(standing);
   const thisAt = Date.parse(view.completed_at);
-  const supersededBy = !rejection && !proc && standing && standingAt !== null && Number.isFinite(thisAt) && standingAt > thisAt ? standing : null;
+  // Checked on first delivery and on every resume (Codex finding 15); a response never supersedes itself.
+  const supersededBy = !rejection && standing && standing.dedup_key !== dedup_key && standingAt !== null && Number.isFinite(thisAt) && standingAt > thisAt ? standing : null;
 
   if (!rejection && !supersededBy && mapped === "verified") {
     const pre = verifyPrecondition(target.machine_assessment, target.clause_support);
@@ -415,20 +436,20 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
   if (mapped === "verified") {
     const pvEvent = latestVerification(store.events, control.id);
     const rebinding = pvEvent && b && !bindingsEqual({ fileId: pvEvent.fileId, versionId: pvEvent.versionId, quote: pvEvent.quote }, b) ? `re-verified on ${b.fileName} ${b.versionLabel ?? store.versionLabel(b.fileId, b.versionId)}` : undefined;
-    append({
+    appendAtomic({
       ...dispBase,
       human_disposition: "verified" as never,
       disposition_detail: { disposition: "verified", binding: b, task_id: mapping.task_id, assignment_id: view.assignment_id, attestation_present: true },
       checks,
       ...(rebinding ? { rebinding } : {}),
     });
-    setStage("disposition_recorded");
+    setStage("disposition_recorded"); // one save: the disposition event and the terminal stage land together
     await publishProjection({ store, box, profile, config, snapshotId: snap, extra: { phase: "live" } }).then((r) => events.push(r.event));
     return { result: resultKind, mapped_action: "verified", explanation: clientNote + (freshness === "reapplied" ? `Verified, re-applied to ${snap}: the binding is unchanged.` : `Verified on ${bindingText(store, b)}.`), events };
   }
 
   // returned_to_author: needs the reviewer-approved draft, then the author task, then the disposition.
-  const approved = approvedDraftFor(store, [mapping.finding_id, target.finding_id ?? ""], view.message);
+  const approved = approvedDraftFor(store, [mapping.finding_id, target.finding_id ?? ""], view.message, target.snapshot_id, target.binding);
   if (!approved && !proc?.author_task_id) {
     const awaiting = { finding_id: mapping.finding_id, reason: view.message, snapshot_id: snap, dedup_key };
     if (proc?.stage !== "awaiting_draft") {
@@ -463,12 +484,23 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
   const authorMessage = plainText(approved?.text ?? "");
   const drafted_by = approved?.drafted_by ?? "box_ai_text_gen";
   const lost_clauses = target.clause_support.filter((c) => c.support !== "supported").map((c) => c.clause);
-  const authorFileId = b?.fileId ?? target.prior_verification?.fileId ?? "";
+  // Codex NEW-3: attach to a file still in the package; remember the removed evidence separately.
+  const snapFiles = store.snapshot(snap)?.files ?? [];
+  const wantFile = b?.fileId ?? target.prior_verification?.fileId ?? "";
+  const authorFileId = snapFiles.some((f) => f.fileId === wantFile)
+    ? wantFile
+    : (snapFiles.find((f) => control.evidence.some((e) => e.toLowerCase().includes(f.fileName.replace(/\.[^.]+$/, "").toLowerCase()))) ?? snapFiles[0])?.fileId ?? wantFile;
   let authorTask: StoredTask | null = proc?.author_task_id ? store.data.tasks.find((t) => t.task_id === proc.author_task_id) ?? null : null;
   if (!authorTask) {
     try {
       // Resume: the author task may already exist in Box from an interrupted attempt (Codex finding 7).
-      const existingId = store.data.processing[dedup_key]?.author_task_id;
+      let existingId = store.data.processing[dedup_key]?.author_task_id;
+      if (!existingId && store.data.processing[dedup_key]?.stage === "author_task_creating") {
+        // Ambiguous: the previous attempt may have created the task before crashing. Look it up first.
+        const finder = (box as { findTaskByMessage?: (fileId: string, message: string) => Promise<{ task_id: string } | null> }).findTaskByMessage;
+        existingId = finder ? (await finder.call(box, authorFileId, authorMessage))?.task_id : undefined;
+      }
+      if (!existingId) setStage("author_task_creating", { due_at }); // intent persisted before the Box side effect
       const task_id = existingId ?? (await box.createTask(authorFileId, authorMessage, "complete", due_at)).task_id;
       if (!existingId) setStage("author_task_created", { author_task_id: task_id, due_at }); // persisted before anything else can fail
       const prior = existingId ? (await box.listTaskAssignments(task_id))[0] : undefined;
@@ -493,6 +525,13 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
       };
     } catch (err) {
       if (store.data.processing[dedup_key]?.author_task_id) throw err; // assignment failed after creation: retry resumes
+      // Ambiguous failure: Box may have created the task before the error. Reconcile before falling back.
+      const finder = (box as { findTaskByMessage?: (fileId: string, message: string) => Promise<{ task_id: string } | null> }).findTaskByMessage;
+      const found = finder ? await finder.call(box, authorFileId, authorMessage).catch(() => null) : null;
+      if (found) {
+        setStage("author_task_created", { author_task_id: found.task_id, due_at });
+        return ingestLocked(deps, input); // resume with the reconciled task id
+      }
       // Confirm-finding fallback (acceptance 18): acknowledgment only, row unchanged, routing proposed.
       append({
         event_type: "box_task_create_failed",
@@ -549,7 +588,7 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
     setStage("rejected");
     return { result: "rejected", mapped_action: "rejected", explanation: msg, events };
   }
-  append({
+  appendAtomic({
     ...dispBase,
     human_disposition: "returned_to_author" as never,
     disposition_detail: { disposition: "returned_to_author", reason: view.message, due_at, binding: b, task_id: mapping.task_id, assignment_id: view.assignment_id, author_task_id: authorTask.task_id },
@@ -557,8 +596,8 @@ async function ingestLocked(deps: DispositionDeps, input: IngestInput): Promise<
     due_at,
     author_task_id: authorTask.task_id,
     recorded_after: "author task created successfully",
-  });
-  setStage("disposition_recorded");
+  }, true);
+  setStage("disposition_recorded"); // one save: the disposition event and the terminal stage land together
   await publishProjection({ store, box, profile, config, snapshotId: snap, extra: { phase: "live" } }).then((r) => events.push(r.event));
   const { status: _s2, created_at: _c2, ...boxTask } = authorTask;
   return {
@@ -590,7 +629,7 @@ export async function pollAssignments(deps: DispositionDeps): Promise<{ results:
       for (const v of views) {
         if (v.assignment_id !== t.assignment_id || v.resolution_state === "incomplete" || !v.completed_at) continue;
         const p = deps.store.data.processing[`${v.assignment_id}|${v.completed_at}`];
-        if (p?.stage === "awaiting_draft" && !approvedDraftFor(deps.store, [p.finding_id], v.message)) continue; // nothing new until the draft is approved
+        if (p?.stage === "awaiting_draft" && !approvedDraftFor(deps.store, [p.finding_id], v.message, p.target_snapshot_id)) continue; // nothing new until the draft is approved
         results.push(await ingestTaskResponse(deps, { view: v, mapping }));
       }
     } catch (err) {

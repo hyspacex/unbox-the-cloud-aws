@@ -166,7 +166,10 @@ describe("integration round: intake failures, search cancellation, unreadable co
       kind: "mock",
       evaluate: (i, tools, s) => inner.evaluate(i, { search: { search: (q, ex) => tools.search.search(q, ex, ac.signal) } }, s),
     });
-    expect(seen).toEqual([ac.signal, ac.signal]);
+    // First the transaction-deadline signal scopes every Box call; then each search uses the evaluation's own signal.
+    expect(seen[0]).toBeInstanceOf(AbortSignal);
+    expect(seen[0]).not.toBe(ac.signal);
+    expect(seen.slice(1)).toEqual([ac.signal, ac.signal]);
   });
 
   it("binary-extraction read errors are labelled file unreadable", async () => {

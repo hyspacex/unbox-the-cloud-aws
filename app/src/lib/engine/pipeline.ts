@@ -56,6 +56,10 @@ export interface PipelineContext {
   compressedTiming?: boolean;
   /** Called once the snapshot id is known (new capture, or the snapshot being retried). */
   onSnapshot?: (snapshotId: string, retry: boolean) => void;
+  /** Override config.transactionTimeoutMs (tests). */
+  transactionTimeoutMs?: number;
+  /** Set by runReview: aborted when the transaction deadline passes. */
+  signal?: AbortSignal;
 }
 
 export interface PipelineResult {
@@ -89,9 +93,32 @@ export function controlDependsOn(control: Pick<Control, "evidence">, fileName: s
 
 const fmtProb = (p: number) => p.toFixed(2);
 
-/** One review transaction per package at a time (Codex finding 6): capture and evaluation hold the package lock. */
+export class RunTimeoutError extends Error {
+  readonly code = "RUN_TIMEOUT";
+}
+
+/**
+ * One review transaction per package at a time (Codex finding 6), bounded (Codex NEW-2): lock
+ * acquisition waits at most config.lockTimeoutMs, and the transaction has a deadline
+ * (config.transactionTimeoutMs). On expiry the abort signal cancels the Box and model calls that
+ * honour it; the run stops at its next checkpoint, after the in-flight operation settled, and records
+ * RUN_TIMEOUT. The lock is held until then, so no late side effect lands after release.
+ */
 export function runReview(ctx: PipelineContext): Promise<PipelineResult> {
-  return withPackageLock(ctx.config.box.folderId, () => runReviewLocked(ctx));
+  return withPackageLock(
+    ctx.config.box.folderId,
+    async () => {
+      const ac = new AbortController();
+      const ms = ctx.transactionTimeoutMs ?? ctx.config.transactionTimeoutMs;
+      const timer = setTimeout(() => ac.abort(new RunTimeoutError(`review transaction exceeded ${ms} ms`)), ms);
+      try {
+        return await runReviewLocked({ ...ctx, signal: ac.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    { timeoutMs: ctx.config.lockTimeoutMs },
+  );
 }
 
 /**
@@ -99,20 +126,65 @@ export function runReview(ctx: PipelineContext): Promise<PipelineResult> {
  * latest attempt is pending or failed, read coverage was incomplete, or projection or task creation failed.
  */
 export function needsRetry(store: Store, snapshotId: string): boolean {
+  return retryKind(store, snapshotId) !== "none";
+}
+
+/**
+ * What a retry of an unchanged version set must redo (Codex findings 8, 13):
+ *  "evaluation": the last attempt is pending or failed, or read coverage was incomplete;
+ *  "publication": the evaluation completed but projection or review tasks did not finish
+ *   (including a crash after evaluation_completed): the completed assessment is reused, the
+ *   evaluator is not called again;
+ *  "none": the transaction completed.
+ */
+export function retryKind(store: Store, snapshotId: string): "none" | "publication" | "evaluation" {
+  if (evaluationIncomplete(store, snapshotId)) return "evaluation";
+  const txn = store.data.transactions?.[snapshotId];
+  if (txn && txn.stage !== "complete") return "publication";
+  const ev = store.events;
+  const proj = ev.filter((e) => e.snapshot_id === snapshotId && (e.event_type === "box_metadata_written" || e.event_type === "box_metadata_write_failed")).at(-1);
+  if (proj?.event_type === "box_metadata_write_failed") return "publication";
+  if (txn) return "none"; // a recorded transaction is the source of truth for its task stage
+  const lastAttempt = ev.map((e, i) => (e.snapshot_id === snapshotId && e.event_type === "evaluation_attempt" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+  if (ev.slice(Math.max(lastAttempt, 0)).some((e) => e.snapshot_id === snapshotId && e.event_type === "box_task_create_failed" && !(e.intended as { kind?: string } | undefined)?.kind)) return "publication";
+  return "none";
+}
+
+function evaluationIncomplete(store: Store, snapshotId: string): boolean {
   const ev = store.events;
   const lastAttempt = ev.map((e, i) => (e.snapshot_id === snapshotId && e.event_type === "evaluation_attempt" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
   const since = ev.slice(Math.max(lastAttempt, 0)).filter((e) => e.snapshot_id === snapshotId);
   const completed = since.filter((e) => e.event_type === "evaluation_completed").at(-1);
   if (lastAttempt < 0 || !completed || completed.evaluation_state === "error") return lastAttempt >= 0 || ev.some((e) => e.snapshot_id === snapshotId && e.event_type === "snapshot_captured");
   const fetched = ev.filter((e) => e.snapshot_id === snapshotId && e.event_type === "texts_fetched").at(-1);
-  if (fetched?.coverage && fetched.coverage.readable < fetched.coverage.total) return true;
-  const proj = ev.filter((e) => e.snapshot_id === snapshotId && (e.event_type === "box_metadata_written" || e.event_type === "box_metadata_write_failed")).at(-1);
-  if (proj?.event_type === "box_metadata_write_failed") return true;
-  return since.some((e) => e.event_type === "box_task_create_failed" && !(e.intended as { kind?: string } | undefined)?.kind);
+  return !!(fetched?.coverage && fetched.coverage.readable < fetched.coverage.total);
 }
 
 async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
-  const { box, evaluator, gate, store, profile, config } = ctx;
+  let currentSnapshot: string | null = null;
+  try {
+    return await runReviewSteps(ctx, (id) => (currentSnapshot = id));
+  } catch (err) {
+    if (!(err instanceof RunTimeoutError) && !ctx.signal?.aborted) throw err;
+    // Deadline passed: give the snapshot a terminal outcome (unless its evaluation already completed).
+    const error = { code: "RUN_TIMEOUT", message: err instanceof Error ? err.message : "review transaction deadline passed" };
+    const opts = eventOpts(ctx.config);
+    const snap = currentSnapshot as string | null;
+    const done = snap ? retryKind(ctx.store, snap) !== "evaluation" : true;
+    ctx.store.append({ phase: "live", run_id: ctx.runId, event_type: "evaluation_error", actor: APP_ACTOR, snapshot_id: snap, error, note: "the review transaction was aborted at its deadline; submit again to retry" }, opts);
+    if (snap && !done) ctx.store.append({ phase: "live", run_id: ctx.runId, event_type: "evaluation_completed", actor: APP_ACTOR, snapshot_id: snap, evaluation_id: `EVAL-${snap}`, evaluation_state: "error", error }, opts);
+    return { run_id: ctx.runId, snapshot_id: snap, outcome: "error", evaluation_state: "error", findings: [], tasks: [], events: [], gate: { ran: false, label: "" }, search_tool: { label: "", fallback: false }, box_ai_asks: [], error };
+  }
+}
+
+async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) => void): Promise<PipelineResult> {
+  const { evaluator, gate, store, profile, config } = ctx;
+  // Box calls go through an adapter scoped to the transaction's abort signal when the adapter supports it.
+  const box = (ctx.signal && (ctx.box as { withSignal?: (s: AbortSignal) => BoxAdapter }).withSignal?.(ctx.signal)) || ctx.box;
+  /** Stop at a checkpoint once the deadline passed; the operation before it has settled. */
+  const checkpoint = () => {
+    if (ctx.signal?.aborted) throw ctx.signal.reason instanceof RunTimeoutError ? ctx.signal.reason : new RunTimeoutError("review transaction deadline passed");
+  };
   const opts = eventOpts(config);
   const t0 = Date.now();
   const steps: TraceStep[] = [];
@@ -200,6 +272,33 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   }
   const snapshotId = retry ? prior!.snapshot_id : `S${store.data.snapshots.length + 1}`;
   ctx.onSnapshot?.(snapshotId, retry);
+  noteSnapshot(snapshotId);
+  checkpoint();
+  const txns = (store.data.transactions ??= {});
+  const setTxn = (stage: "captured" | "evaluated" | "published" | "complete", save = true) => {
+    txns[snapshotId] = { stage, run_id: ctx.runId, updated_at: utcNow() };
+    if (save) store.save();
+  };
+  if (retry && retryKind(store, snapshotId) === "publication") {
+    // The assessment for this snapshot is complete and may already be reviewed: reuse it, never re-run the
+    // evaluator or change a binding under the same finding ids. Only publication and tasks are resumed.
+    emit({ source: "app", kind: "publication_retry", label: `Evaluation of ${snapshotId} is complete; resuming its projection and review tasks only`, ...since(start) });
+    const snapFiles = prior!.files;
+    const q = snapFiles.flatMap((f) => {
+      const d = store.data.gate_decisions[`${f.fileId}@${f.versionId}`];
+      return d?.quarantined ? [{ fileId: f.fileId, fileName: f.fileName, versionId: f.versionId, injection: d.injection }] : [];
+    });
+    const pr = await project({ ...ctx, box }, snapshotId, emit, t0, newEvents);
+    if (pr.ok) setTxn("published");
+    const tasks = await createReviewTasks({ store, box, profile, config, snapshotId, runId: ctx.runId, quarantined: q, append });
+    if (tasks.created.length) emit({ source: "box", kind: "box_task_created", label: `Box review tasks created on resume: ${tasks.created.map((t) => t.control_id).join(", ")}`, startMs: Date.now() - t0, durationMs: 0, detail: { tasks: tasks.created } });
+    if (pr.ok && !tasks.failed.length) setTxn("complete");
+    const rows = buildRows(store, profile, snapshotId);
+    return result("complete", snapshotId, "complete", {
+      tasks: tasks.created,
+      summary: { evaluated: rows.filter((r) => r.machine_assessment !== "not_evaluated").length, not_evaluated: rows.filter((r) => r.machine_assessment === "not_evaluated").length },
+    });
+  }
   if (!retry) {
     for (const it of changed) {
       const info = store.versionInfo(it.fileId, it.currentVersionId);
@@ -261,6 +360,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
     }
   }
   const fetchMs = since(start);
+  checkpoint();
   let snapshot: Snapshot;
   if (retry) snapshot = prior!;
   else {
@@ -274,6 +374,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
     };
     store.data.snapshots.push(snapshot);
     store.data.current_snapshot_id = snapshotId; // authoritative pointer moves at capture; rows read "Re-check pending"
+    setTxn("captured", false);
     append({
       event_type: "snapshot_captured",
       actor: APP_ACTOR,
@@ -315,6 +416,8 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   // ------------------------------------------------------------------ 5. Input gate per new version; decisions persist by version
   const quarantined = new Map<string, InputGateResult | GateDecision>();
   const gateResults: InputGateResult[] = [];
+  const baseline = retry ? store.previousSnapshot(snapshotId) : prior;
+  const decisions = Object.values(store.data.gate_decisions);
   for (const p of pinned) {
     if (p.text === null) continue;
     const key = `${p.fileId}@${p.versionId}`;
@@ -324,7 +427,16 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
       if (prev.quarantined) quarantined.set(p.fileId, prev);
       continue;
     }
-    if (!changed.some((c) => c.fileId === p.fileId)) continue; // versions captured before the gate existed are not re-gated
+    // Identical text already quarantined under another version id stays quarantined, gate or no gate.
+    const sameText = decisions.find((d) => d.quarantined && d.contentHash === p.contentHash);
+    if (sameText) {
+      quarantined.set(p.fileId, { ...sameText, fileId: p.fileId, fileName: p.fileName, versionId: p.versionId });
+      continue;
+    }
+    // Gate every version that is new in this snapshot, including one that only became readable on a retry.
+    // Versions captured before the gate existed (the seed) are not re-gated.
+    const newInSnapshot = baseline?.files.find((f) => f.fileId === p.fileId)?.versionId !== p.versionId;
+    if (!newInSnapshot) continue;
     start = Date.now();
     const g = await gate.gate({ fileId: p.fileId, fileName: p.fileName, versionId: p.versionId, contentHash: p.contentHash }, p.text);
     if (!g) {
@@ -531,13 +643,24 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   let evalResult: EvaluatorResult | null = null;
   let evalError: { code: string; message: string } | null = null;
   try {
-    evalResult = await evaluator.evaluate(input, { search }, (s) => {
-      emit({ ...s, startMs: agentStart - t0 + s.startMs, detail: s.detail ?? undefined, parent_seq: agentStep.seq } as TraceStep);
-    });
+    // The abort signal is passed as an optional fourth argument; evaluators that accept it cancel the model call.
+    const evaluate = evaluator.evaluate.bind(evaluator) as (i: EvaluatorInput, t: { search: SearchSnapshotTool }, s: (st: TraceStep) => void, o?: { signal?: AbortSignal }) => Promise<EvaluatorResult>;
+    evalResult = await evaluate(
+      input,
+      { search: { search: (q, ex, sig) => search.search(q, ex, sig ?? ctx.signal) } },
+      (s) => {
+        emit({ ...s, startMs: agentStart - t0 + s.startMs, detail: s.detail ?? undefined, parent_seq: agentStep.seq } as TraceStep);
+      },
+      { signal: ctx.signal },
+    );
   } catch (err) {
     evalError = { code: (err as { code?: string })?.code ?? "EVALUATOR_FAILED", message: err instanceof Error ? err.message : String(err) };
   }
   agentStep.durationMs = Date.now() - agentStart;
+  if (ctx.signal?.aborted) {
+    ctx.onStep?.(agentStep);
+    checkpoint();
+  }
   agentStep.prompt_hash = evalResult?.prompt_hash;
   agentStep.detail = { output_tokens: evalResult?.output_tokens, structured_output: "FindingSet (zod)", evaluator: evaluator.kind, ...(evalError ? { error: evalError } : {}) };
   ctx.onStep?.(agentStep);
@@ -592,7 +715,8 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
       ...modelMeta,
     });
     emit({ source: "app", kind: "quotes_validated", label: `Model output rejected: ${validation.error.code}. Evaluation state error; no partial application.`, ...since(start), detail: validation.error });
-    await project(ctx, snapshotId, emit, t0, newEvents);
+    await project({ ...ctx, box }, snapshotId, emit, t0, newEvents);
+    setTxn("complete");
     return result("error", snapshotId, "error", { error: validation.error, summary: { evaluated: 0, not_evaluated: profile.controls.length } });
   }
   emit({
@@ -625,6 +749,9 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
     wording: WordingHit[];
   };
   const outcomes: Outcome[] = [];
+  // Re-evaluation attempt (read coverage completed later): controls that already have a completed
+  // assessment on this snapshot keep it and its finding id; only the rest take the new result (Codex finding 8).
+  const kept = new Set(attempt > 1 ? profile.controls.filter((c) => deriveControlState(store, c, snapshotId).evaluation_event?.event_type === "control_evaluated").map((c) => c.id) : []);
   for (const control of profile.controls) {
     const v = validation.findings.get(control.id)!;
     const reason = coverageReason.get(control.id) ?? v.invalid;
@@ -642,7 +769,10 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
     if (!reason) {
       const priorText = pb ? store.text(pb.versionId) : undefined;
       const newText = binding ? pinned.find((p) => p.versionId === binding.versionId)?.text ?? undefined : undefined;
-      const sectionTextChanged = pb && binding && priorText && newText ? sectionText(priorText, pb.quote) !== sectionText(newText, binding.quote) : null;
+      // Both sections must be extractable to compare; otherwise null, which the High-tier rule treats as changed.
+      const priorSec = pb && priorText ? sectionText(priorText, pb.quote) : null;
+      const newSec = binding && newText ? sectionText(newText, binding.quote) : null;
+      const sectionTextChanged = priorSec !== null && newSec !== null ? priorSec !== newSec : null;
       staleness = verificationHolds({
         prior: pb ? { ...pb, versionLabel: pb.versionLabel ?? store.versionLabel(pb.fileId, pb.versionId) } : null,
         binding: binding ? { ...binding, versionLabel: binding.versionLabel } : null,
@@ -719,6 +849,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   const machineCtx = (o: Outcome) => ({ current_disposition: "unreviewed" as const, prior_verification: o.priorVerificationBlock });
   const snapFile = (fileId?: string) => snapshot.files.find((f) => f.fileId === fileId);
   for (const o of outcomes) {
+    if (kept.has(o.control.id)) continue;
     if (o.reason) {
       const f = snapFile(o.reason.fileId);
       append({
@@ -779,7 +910,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
     });
   }
   for (const o of outcomes) {
-    if (!o.staleness || !o.binding) continue;
+    if (kept.has(o.control.id) || !o.staleness || !o.binding) continue;
     const type = stalenessEventType(o.staleness, o.classification);
     if (!type) continue;
     const common = {
@@ -820,7 +951,10 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
 
   const findingsOut: StoredFinding[] = [];
   const quotesLine = `${validation.quotes_matched} of ${validation.quotes_checked}`;
-  append({
+  const keptRows = kept.size ? buildRows(store, profile, snapshotId, { withPrior: false }) : [];
+  const completedEvent = store.append({
+    phase: "live",
+    run_id: ctx.runId,
     event_type: "evaluation_completed",
     actor: machineActor,
     snapshot_id: snapshotId,
@@ -829,17 +963,23 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
     attempts: attempt,
     coverage,
     controls_evaluated: outcomes.length,
-    outcomes: outcomes.map((o) => ({ control_id: o.control.id, machine_assessment: o.assessment, change_classification: o.classification })),
+    outcomes: outcomes.map((o) => {
+      const k = kept.has(o.control.id) ? keptRows.find((r) => r.control_id === o.control.id) : undefined;
+      return k ? { control_id: o.control.id, machine_assessment: k.machine_assessment, change_classification: k.change_classification } : { control_id: o.control.id, machine_assessment: o.assessment, change_classification: o.classification };
+    }),
+    ...(kept.size ? { kept_from_earlier_attempt: [...kept] } : {}),
     prompt_hash: promptHash,
     ...modelMeta,
     quotes_validated: quotesLine,
     box_ai_asks: asks.map((a) => ({ query: a.query, files_asked: a.files_asked.length, cited_statements: a.cited_statements, rejected_citations: a.rejected_citations.length, fallback: a.fallback })),
     input_gate: gateInfo,
-  });
+  }, opts, { save: false });
+  newEvents.push(completedEvent);
 
-  // Persist findings (finding ids KEEL-2026-04NN continue the counter).
+  // Persist findings (finding ids KEEL-2026-04NN continue the counter) in the same save as evaluation_completed.
   const rows = buildRows(store, profile, snapshotId);
   for (const o of outcomes) {
+    if (kept.has(o.control.id)) continue;
     const row = rows.find((r) => r.control_id === o.control.id)!;
     const pb = o.priorBinding;
     const pv = verifications.get(o.control.id);
@@ -877,7 +1017,8 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
     store.data.findings[f.finding_id] = f;
     findingsOut.push(f);
   }
-  store.save();
+  setTxn("evaluated", false);
+  store.save(); // one write: evaluation_completed, the findings and the transaction stage
   const counts = {
     weakened: outcomes.filter((o) => o.assessment === "evidence_weakened").length,
     moved: outcomes.filter((o) => o.classification === "moved").length,
@@ -901,7 +1042,10 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
   emit({ source: "app", kind: "ledger_events_written", label: `Ledger events written: ${evaluationEventIds.length} events, hash chain extended`, startMs: Date.now() - t0, durationMs: 0, detail: { event_ids: evaluationEventIds, chain_head: store.data.ledger.head } });
 
   // ------------------------------------------------------------------ 10. Projection, 11. review tasks
-  await project(ctx, snapshotId, emit, t0, newEvents);
+  checkpoint();
+  const published = await project({ ...ctx, box }, snapshotId, emit, t0, newEvents);
+  checkpoint();
+  if (published.ok) setTxn("published");
   start = Date.now();
   const tasks = await createReviewTasks({ store, box, profile, config, snapshotId, runId: ctx.runId, quarantined: [...quarantined.values()].map((q) => ({ fileId: q.fileId, fileName: q.fileName, versionId: q.versionId, injection: q.injection })), append });
   if (tasks.created.length || tasks.failed.length || tasks.carried.length) {
@@ -917,6 +1061,7 @@ async function runReviewLocked(ctx: PipelineContext): Promise<PipelineResult> {
       detail: { tasks: tasks.created, failed: tasks.failed, carried: tasks.carried.map((t) => ({ task_id: t.task_id, control_id: t.control_id, snapshot_id: t.snapshot_id })) },
     });
   }
+  if (published.ok && !tasks.failed.length) setTxn("complete");
   return result("complete", snapshotId, "complete", {
     findings: findingsOut,
     tasks: tasks.created,

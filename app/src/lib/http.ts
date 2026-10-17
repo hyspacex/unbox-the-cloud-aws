@@ -14,6 +14,7 @@ export function json(body: unknown, status = 200): Response {
 
 export function errorResponse(err: unknown): Response {
   if (err instanceof ServiceError) return json({ error: { code: err.code, message: err.message } }, err.status);
+  if ((err as { code?: string })?.code === "PACKAGE_BUSY") return json({ error: { code: "PACKAGE_BUSY", message: (err as Error).message } }, 503);
   const message = err instanceof Error ? err.message : String(err);
   console.error("[keel api]", err);
   return json({ error: { code: "INTERNAL", message } }, 500);

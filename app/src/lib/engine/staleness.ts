@@ -72,6 +72,16 @@ export function verificationHolds(input: StalenessInput): StalenessResult {
     };
   }
   if (materiality === "acknowledge_on_evidencing_section_change") {
+    // Fail closed (Codex finding 1): unknown or incomparable section context counts as changed.
+    if (input.sectionTextChanged === null || input.sectionTextChanged === undefined) {
+      return {
+        holds: false,
+        acknowledgment_required: true,
+        reason: "evidencing section changed",
+        note: `${changed}; cited quote unchanged; evidencing section context unavailable or not comparable; tier ${tier} requires acknowledgment`,
+        materiality,
+      };
+    }
     if (input.sectionTextChanged) {
       return {
         holds: false,

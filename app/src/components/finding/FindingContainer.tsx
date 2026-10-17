@@ -14,12 +14,15 @@ export function FindingContainer({
   onClose,
   onSelect,
   onChanged,
+  onPending,
 }: {
   id: string;
   layout: "drawer" | "page";
   onClose?: () => void;
   onSelect?: (id: string) => void;
   onChanged?: (r: ActionResponse) => void;
+  /** A return is recorded and awaiting draft approval: the package should refresh its notice. */
+  onPending?: () => void;
 }) {
   const { config } = useKeel();
   // The loaded card is stored with the id it was requested for, so a late response for another id never shows.
@@ -104,6 +107,10 @@ export function FindingContainer({
       card={shown}
       mode={config?.mode}
       project={project}
+      onRefresh={() => {
+        load();
+        onPending?.();
+      }}
       layout={layout}
       onClose={onClose}
       onResult={onResult}

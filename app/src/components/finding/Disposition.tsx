@@ -26,12 +26,15 @@ export function DispositionBlock({
   onResult,
   lastResult,
   onSeeThread,
+  onRefresh,
 }: {
   card: FindingCard;
   mode?: RunMode;
   onResult: (r: ActionResponse) => void;
   lastResult?: ActionResponse | null;
   onSeeThread?: () => void;
+  /** Reload the card (the engine recorded the return and holds it for draft approval). */
+  onRefresh?: () => void;
 }) {
   const [rta, setRta] = useState(false);
   const [verify, setVerify] = useState(false);
@@ -42,6 +45,7 @@ export function DispositionBlock({
   const returned = row.current_disposition === "returned_to_author" || row.status.kind === "returned_to_author";
   const returnedDue = lastResult?.author_task?.due_at ?? authorTaskFromThread(card.thread)?.task.due_at ?? compactSecondary(row.status.secondary)?.rest.find((p) => p.startsWith("due "))?.slice(4);
   const verifyFirst = row.status.kind === "needs_review_binding" || row.status.kind === "acknowledge";
+  const pendingDraft = !returned ? card.pending_author_draft ?? null : null;
 
   // A6: the clause reason always comes first; task or row state is a second, muted line.
   const uns = card.finding.clause_support.filter((c) => c.support === "unsupported").map((c) => clauseNoun(c.clause));
@@ -64,7 +68,19 @@ export function DispositionBlock({
     setVerify(true);
   };
 
-  const returnButton = returned ? (
+  const returnButton = pendingDraft ? (
+    <div className="rounded-lg border border-blue-line bg-blue-bg/50 px-3 py-2.5 text-[13px]">
+      <div className="font-medium text-blue-ink">Box AI draft awaiting your approval</div>
+      <p className="mt-0.5 text-[12px] text-ink-2">
+        The return is recorded{pendingDraft.reason ? <>: <q>{pendingDraft.reason}</q></> : null}. The author task is created only after you approve the
+        message.
+      </p>
+      <button className="btn btn-human btn-sm mt-2 w-full justify-between" onClick={openRta}>
+        <span>Review draft and send</span>
+        <ArrowIcon />
+      </button>
+    </div>
+  ) : returned ? (
     <div className="flex items-center gap-2 rounded-lg border border-blue-line bg-blue-bg/50 px-3 py-2 text-[13px] text-blue-ink">
       <ArrowIcon />
       <span>
@@ -181,7 +197,15 @@ export function DispositionBlock({
         </ul>
       </div>
 
-      <ReturnToAuthorModal key={`rta-${opens}`} open={rta} onClose={() => setRta(false)} card={card} onResult={onResult} />
+      <ReturnToAuthorModal
+        key={`rta-${opens}`}
+        open={rta}
+        onClose={() => setRta(false)}
+        card={card}
+        onResult={onResult}
+        onAwaiting={() => onRefresh?.()}
+        resume={pendingDraft}
+      />
       <VerifyModal key={`verify-${opens}`} open={verify} onClose={() => setVerify(false)} card={card} onResult={onResult} />
     </section>
   );
@@ -244,36 +268,80 @@ function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+type PendingDraft = NonNullable<FindingCard["pending_author_draft"]>;
+type AwaitingResponse = ActionResponse & { awaiting_draft?: { finding_id: string; reason: string; snapshot_id: string } | boolean | null; pending_author_draft?: PendingDraft | null };
+
 function ReturnToAuthorModal({
   open,
   onClose,
   card,
   onResult,
+  onAwaiting,
+  resume,
 }: {
   open: boolean;
   onClose: () => void;
   card: FindingCard;
   onResult: (r: ActionResponse) => void;
+  /** Step 1 recorded the return; the engine holds it until the draft is approved. */
+  onAwaiting?: (r: ActionResponse) => void;
+  /** A draft already awaiting approval (live: the reviewer rejected the task in Box). Opens on step 2. */
+  resume?: PendingDraft | null;
 }) {
   const rta = card.actions.return_to_author as FindingCard["actions"]["return_to_author"] & { suggested_reason?: string };
-  const [step, setStep] = useState<"reason" | "draft">("reason");
-  const [reason, setReason] = useState("");
+  const [step, setStep] = useState<"reason" | "draft">(resume ? "draft" : "reason");
+  const [reason, setReason] = useState(resume?.reason ?? "");
   const [due, setDue] = useState(toLocalInput(rta.default_due_at));
-  const [draft, setDraft] = useState<DraftAuthorMessage | null>(null);
-  const [message, setMessage] = useState("");
+  const [draft, setDraft] = useState<DraftAuthorMessage | null>(
+    resume?.draft ? { text: resume.draft, drafted_by: resume.drafted_by ?? "box_ai_text_gen" } : null,
+  );
+  const [message, setMessage] = useState(resume?.draft ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Once the return is recorded, going back would record a second one; step 1 is then read-only.
+  const [recorded, setRecorded] = useState(Boolean(resume));
 
   const unsupported = card.finding.clause_support.filter((c) => c.support === "unsupported");
 
+  /** Call 1: record the return without a message; the engine returns the Box AI draft to approve. */
   const toDraft = async () => {
     setBusy(true);
     setErr(null);
     try {
-      const d = await api.draftAuthorMessage(card.finding.finding_id, reason.trim());
-      setDraft(d);
-      setMessage(d.text);
+      const r = (await api.action({
+        finding_id: card.finding.finding_id,
+        control_id: card.finding.control_id,
+        decision_snapshot_id: card.finding.snapshot_id,
+        action: "return_to_author",
+        reason: reason.trim(),
+        due_at: fromLocalInput(due) || rta.default_due_at,
+      })) as AwaitingResponse;
+      if (r.result === "rejected") {
+        setErr(r.explanation ?? "Rejected.");
+        return;
+      }
+      if (!r.awaiting_draft && r.author_task) {
+        // Engine completed the return in one call (older behaviour): treat as final.
+        onResult(r);
+        onClose();
+        return;
+      }
+      let pd = r.pending_author_draft ?? null;
+      if (!pd?.draft) {
+        const fresh = await api.finding(card.finding.finding_id);
+        pd = fresh.pending_author_draft ?? pd;
+      }
+      if (!pd?.draft) {
+        setErr("The return is recorded, but no Box AI draft came back. Reopen the card to approve the draft.");
+        setRecorded(true);
+        onAwaiting?.(r);
+        return;
+      }
+      setDraft({ text: pd.draft, drafted_by: pd.drafted_by ?? "box_ai_text_gen" });
+      setMessage(pd.draft);
+      setRecorded(true);
       setStep("draft");
+      onAwaiting?.(r);
     } catch (e) {
       setErr(errorText(e));
     } finally {
@@ -281,6 +349,7 @@ function ReturnToAuthorModal({
     }
   };
 
+  /** Call 2: the reviewer approves the (possibly edited) draft; the author task is created, then the disposition. */
   const confirm = async () => {
     setBusy(true);
     setErr(null);
@@ -288,14 +357,14 @@ function ReturnToAuthorModal({
       const r = await api.action({
         finding_id: card.finding.finding_id,
         control_id: card.finding.control_id,
-        decision_snapshot_id: card.finding.snapshot_id,
-        action: "return_to_author",
-        reason: reason.trim(),
-        due_at: fromLocalInput(due) || rta.default_due_at,
+        decision_snapshot_id: resume?.snapshot_id ?? card.finding.snapshot_id,
+        action: "approve_author_draft",
         author_message: message,
+        due_at: fromLocalInput(due) || rta.default_due_at,
       });
       onResult(r);
-      onClose();
+      if (r.result !== "rejected") onClose();
+      else setErr(r.explanation ?? "Rejected.");
     } catch (e) {
       setErr(errorText(e));
     } finally {
@@ -312,17 +381,19 @@ function ReturnToAuthorModal({
       open={open}
       onClose={onClose}
       eyebrow={`Box task response · ${card.finding.finding_id} · ${card.finding.control_id}`}
-      title={step === "reason" ? "Return to author" : "Author task message"}
+      title={step === "reason" ? "Return to author" : "Approve the author task message"}
       width={640}
       footer={
         <div className="flex items-center justify-between gap-3">
           <span className="text-[12px] text-muted">
-            {step === "reason" ? "Step 1 of 2. Stands in for rejecting the review task in Box." : "Step 2 of 2. Recorded only after the author task exists in Box."}
+            {step === "reason"
+              ? "Step 1 of 2. Stands in for rejecting the review task in Box; Box AI then drafts the author task."
+              : "Step 2 of 2. Returned to author is recorded only after the author task exists in Box."}
           </span>
           <div className="flex gap-2">
             {step === "draft" ? (
-              <button className="btn btn-secondary" onClick={() => setStep("reason")} disabled={busy}>
-                Back
+              <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
+                Later
               </button>
             ) : (
               <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
@@ -330,12 +401,12 @@ function ReturnToAuthorModal({
               </button>
             )}
             {step === "reason" ? (
-              <button className="btn btn-human" onClick={toDraft} disabled={busy || reason.trim().length === 0}>
-                {busy ? "Drafting" : "Draft author task"}
+              <button className="btn btn-human" onClick={toDraft} disabled={busy || recorded || reason.trim().length === 0}>
+                {busy ? "Recording, Box AI drafting" : "Return and draft author task"}
               </button>
             ) : (
               <button className="btn btn-human" onClick={confirm} disabled={busy || message.trim().length === 0}>
-                {busy ? "Recording" : "Confirm and return to author"}
+                {busy ? "Sending" : "Approve and send to author"}
               </button>
             )}
           </div>

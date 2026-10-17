@@ -288,6 +288,12 @@ export class MockBoxAdapter implements BoxAdapter {
     throw new Error(`mock Box: assignment ${assignmentId} not found`);
   }
 
+  /** Reconcile an ambiguous creation: an existing task on the file with exactly this message. */
+  async findTaskByMessage(fileId: string, message: string): Promise<{ task_id: string } | null> {
+    const t = this.s.tasks.find((x) => x.fileId === fileId && x.message === message);
+    return t ? { task_id: t.task_id } : null;
+  }
+
   /** Remove a file from the package folder (Codex finding 11 probe). */
   removeFile(fileName: string) {
     this.s.files = this.s.files.filter((f) => f.fileName !== fileName);

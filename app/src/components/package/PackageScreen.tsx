@@ -684,6 +684,22 @@ export function PackageScreen() {
               </button>
             </div>
           ) : null}
+          {view.awaiting_drafts && view.awaiting_drafts.length ? (
+            <div className="mb-3 rounded-[10px] border border-blue-line bg-blue-bg/50 px-4 py-2.5 text-[13px] text-ink-2" role="status">
+              <span className="font-medium text-blue-ink">
+                {view.awaiting_drafts.length} author {view.awaiting_drafts.length === 1 ? "task" : "tasks"} awaiting the reviewer&apos;s approval of the Box AI draft
+              </span>
+              {" · "}
+              {view.awaiting_drafts.map((d, i) => (
+                <span key={d.finding_id}>
+                  {i ? ", " : ""}
+                  <button type="button" className="link mono text-[12.5px]" onClick={() => openFinding(d.finding_id, false, d.control_id)}>
+                    {d.control_id} {d.finding_id}
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className="mb-3">
             <CountLine text={countLine} className="text-[18px] leading-snug text-ink tracking-[-0.01em]" />
             {priorCount && priorCount !== countLine ? <p className="mt-0.5 text-[12.5px] struck">{priorCount}</p> : null}
@@ -805,7 +821,18 @@ export function PackageScreen() {
 
       <Drawer open={openId != null} onClose={closeFinding}>
         {openId ? (
-          <FindingContainer key="drawer-card" id={openId} layout="drawer" onClose={closeFinding} onSelect={(id) => openFinding(id, true)} onChanged={onChanged} />
+          <FindingContainer
+            key="drawer-card"
+            id={openId}
+            layout="drawer"
+            onClose={closeFinding}
+            onSelect={(id) => openFinding(id, true)}
+            onChanged={onChanged}
+            onPending={async () => {
+              const v = await loadPackage();
+              if (v) showView(v);
+            }}
+          />
         ) : null}
       </Drawer>
 

@@ -126,4 +126,12 @@ Additive only; nothing above is renamed or removed.
 
 **Store files.** Mock: `app/data/store.json`. Live: `app/data/runs/store-live.json` (gitignored), so flipping `MOCK_MODE` never overwrites the other ledger. `KEEL_STORE_PATH` overrides either. New persisted keys: `gate_decisions` (quarantine by file version), `processing` (human-response stages for resume), `approved_drafts`.
 
+**Round 4 (Codex verification).** These were added in round 4:
+- 409 `TASK_FINDING_MISMATCH`: the named finding is not the one the open task answers.
+- 503 `PACKAGE_BUSY`: the package lock was not acquired within `KEEL_LOCK_TIMEOUT_MS` (default 60000).
+- `RUN_TIMEOUT` on runs that pass `KEEL_TRANSACTION_TIMEOUT_MS` (default 240000). The abort signal is passed to Box calls and as an optional fourth `evaluate()` argument.
+- `KEEL_EXTRA_REVIEWER_LOGINS`: additional live reviewers, by login.
+- Submit scenario `"none"` (mock): evaluate the mock Box as it stands.
+- `return_to_author` without `author_message` waits for `approve_author_draft` in mock mode too.
+
 **Env vars.** `KEEL_POLL_INTERVAL_MS` (default 5000; live only; the poller starts lazily on the first `/api/package`; 0 disables). Gate threshold: `DECIDER_INJECTION_THRESHOLD` (preferred), else `KEEL_GATE_INJECTION_THRESHOLD`, default 0.5; `config.ts` is the single source and passes it to `DeciderGate`. Identities: `KEEL_REVIEWER_BOX_USER_ID` and `KEEL_AUTHOR_BOX_USER_ID`; when unset in live mode, tasks are assigned by login.

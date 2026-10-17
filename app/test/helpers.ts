@@ -79,7 +79,7 @@ export function harness(o: { gate?: "mock" | "absent"; evaluator?: Evaluator; ga
         const fid = store.data.task_mappings[t.assignment_id].finding_id;
         const st = h.row(controlId).state;
         const d = await draftAuthorMessage({ store, box, config, st, reason: message });
-        approveDraft(store, { finding_id: fid, snapshot_id: store.data.current_snapshot_id!, reason: message, text: d.text, drafted_by: d.drafted_by });
+        approveDraft(store, { finding_id: fid, snapshot_id: store.data.current_snapshot_id!, reason: message, text: d.text, drafted_by: d.drafted_by, binding: st.binding });
       }
       if (!opts.replay) box.resolveAssignment(t.assignment_id, { resolution_state, message, as: opts.as ?? box.directoryLookup(config.reviewer.box_user_id), completed_at: opts.completed_at });
       const view = (await box.listTaskAssignments(t.task_id)).find((v) => v.assignment_id === t.assignment_id)!;

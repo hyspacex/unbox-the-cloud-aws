@@ -96,6 +96,12 @@ export interface StoreData {
   processing: Record<string, ProcessingRecord>;
   /** Author-task drafts the reviewer approved, by finding id (spec 3 step 11: shown before sending). */
   approved_drafts: Record<string, ApprovedDraft>;
+  /** Findings on later snapshots that a carried-over review task also answers (task id -> finding ids). */
+  task_carries?: Record<string, string[]>;
+  /** Review-transaction completion per snapshot captured by this app (Codex finding 13). */
+  transactions?: Record<string, { stage: "captured" | "evaluated" | "published" | "complete"; run_id?: string; updated_at: string }>;
+  /** Reviewer-task creation intents, so a retry reuses a created task (Codex findings 7, 8). */
+  task_intents?: Record<string, { task_id?: string; assignment_id?: string; fileId: string; message: string; updated_at: string }>;
 }
 
 export interface GateDecision {
@@ -109,7 +115,7 @@ export interface GateDecision {
   event_id: string;
 }
 
-export type ProcessingStage = "response_ingested" | "author_task_created" | "awaiting_draft" | "disposition_recorded" | "rejected" | "acknowledged" | "recorded";
+export type ProcessingStage = "response_ingested" | "author_task_creating" | "author_task_created" | "awaiting_draft" | "disposition_recorded" | "rejected" | "acknowledged" | "recorded";
 
 export interface ProcessingRecord {
   dedup_key: string;
@@ -134,6 +140,8 @@ export interface ApprovedDraft {
   drafted_by: "box_ai_text_gen" | "template";
   approved_at: string;
   edited_before_sending: boolean;
+  /** The evidence binding the reviewer saw when approving (Codex finding 16). */
+  binding?: { fileId: string; versionId: string; quote?: string } | null;
 }
 
 export const TERMINAL_STAGES: ProcessingStage[] = ["disposition_recorded", "rejected", "acknowledged", "recorded"];
@@ -157,9 +165,9 @@ export class Store {
   }
 
   /** Append one ledger event and persist immediately (write-ahead for side effects that follow). */
-  append(input: EventInput, opts: { mrmModelId: string; folderId?: string }): LedgerEvent {
+  append(input: EventInput, opts: { mrmModelId: string; folderId?: string }, o: { save?: boolean } = {}): LedgerEvent {
     const e = ledgerAppend(this.data.ledger, input, opts);
-    this.save();
+    if (o.save !== false) this.save(); // save:false lets a caller persist an event and related state in one write
     return e;
   }
 
@@ -313,7 +321,46 @@ export class StoreLoadError extends Error {
   }
 }
 
-/** Parse and validate a persisted store: structure, mode and the full hash chain (Codex finding 12). */
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * Full structural and referential validation of a persisted store (Codex finding 12): every
+ * top-level key has its type, the current-snapshot pointer names a captured snapshot, every task
+ * mapping names a stored task, live tasks name stored findings, and the run order names stored runs.
+ * Returns the first problem, or null.
+ */
+export function storeSchemaProblem(d: unknown): string | null {
+  if (!isObj(d)) return "not an object";
+  if (d.version !== 1) return "unsupported version";
+  if (d.mode !== "mock" && d.mode !== "live") return "mode missing";
+  if (!isObj(d.ledger) || !Array.isArray(d.ledger.events) || typeof d.ledger.head !== "string" || typeof d.ledger.genesis !== "string") return "ledger malformed";
+  for (const [k, kind] of [
+    ["snapshots", "array"], ["tasks", "array"], ["dedup_keys", "array"], ["run_order", "array"],
+    ["versions", "object"], ["texts", "object"], ["task_mappings", "object"], ["runs", "object"], ["counters", "object"], ["findings", "object"], ["drafts", "object"],
+  ] as const) {
+    const v = d[k];
+    if (kind === "array" ? !Array.isArray(v) : !isObj(v)) return `${k} must be an ${kind}`;
+  }
+  for (const k of ["gate_decisions", "processing", "approved_drafts"] as const) if (d[k] !== undefined && !isObj(d[k])) return `${k} must be an object`;
+  const snaps = d.snapshots as Snapshot[];
+  if (snaps.some((s) => !isObj(s) || typeof s.snapshot_id !== "string" || !Array.isArray(s.files))) return "snapshot entry malformed";
+  const ptr = d.current_snapshot_id;
+  if (ptr === null ? snaps.length > 0 : typeof ptr !== "string" || !snaps.some((s) => s.snapshot_id === ptr)) return `current snapshot pointer ${String(ptr)} names no captured snapshot`;
+  const tasks = d.tasks as StoredTask[];
+  if (tasks.some((t) => !isObj(t) || typeof t.task_id !== "string" || typeof t.assignment_id !== "string")) return "task entry malformed";
+  for (const [aid, m] of Object.entries(d.task_mappings as Record<string, TaskMapping>)) {
+    if (!isObj(m) || m.assignment_id !== aid || !tasks.some((t) => t.task_id === m.task_id)) return `task mapping ${aid} names no stored task`;
+  }
+  const findings = d.findings as Record<string, StoredFinding>;
+  for (const t of tasks) if (t.finding_id && /^KEEL-/.test(t.finding_id) && !findings[t.finding_id]) return `task ${t.task_id} names unknown finding ${t.finding_id}`;
+  const runs = d.runs as Record<string, unknown>;
+  for (const id of d.run_order as string[]) if (!isObj(runs[id])) return `run order names unknown run ${id}`;
+  const c = d.counters as Record<string, unknown>;
+  if (typeof c.finding !== "number" || typeof c.run !== "number") return "counters malformed";
+  return null;
+}
+
+/** Parse and validate a persisted store: structure, references, mode and the full hash chain (Codex finding 12). */
 export function loadStoreFile(filePath: string, mode: RunMode): StoreData {
   let parsed: StoreData;
   try {
@@ -321,7 +368,8 @@ export function loadStoreFile(filePath: string, mode: RunMode): StoreData {
   } catch (err) {
     throw new StoreLoadError(filePath, `not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
   }
-  if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.ledger?.events) || !Array.isArray(parsed.snapshots)) throw new StoreLoadError(filePath, "unexpected structure");
+  const problem = storeSchemaProblem(parsed);
+  if (problem) throw new StoreLoadError(filePath, problem);
   if (parsed.mode !== mode) throw new StoreLoadError(filePath, `written in ${parsed.mode} mode, running in ${mode} mode`);
   const v = verifyChain(parsed.ledger.events, parsed.ledger.genesis);
   if (!v.ok || v.head !== parsed.ledger.head) throw new StoreLoadError(filePath, `hash chain does not verify${v.first_bad_event_id ? ` at ${v.first_bad_event_id}` : " to the recorded head"}`);

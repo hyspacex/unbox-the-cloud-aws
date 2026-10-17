@@ -46,6 +46,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`;
+    const code = body && typeof body === "object" ? ((body as { error?: { code?: string } }).error?.code ?? null) : null;
     if (body && typeof body === "object") {
       const b = body as { error?: unknown; message?: unknown; explanation?: unknown };
       const e = b.error;
@@ -54,6 +55,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
       else if (typeof b.explanation === "string") msg = b.explanation;
       else if (typeof b.message === "string") msg = b.message;
     } else if (typeof body === "string" && body) msg = body.slice(0, 300);
+    if (code === "PACKAGE_BUSY") msg = "Keel is busy with another operation on this package; try again in a moment.";
     throw new ApiError(res.status, msg, body);
   }
   return body as T;

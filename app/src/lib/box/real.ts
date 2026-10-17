@@ -685,6 +685,25 @@ export class RealBoxAdapter implements BoxAdapter {
     }
   }
 
+  /**
+   * Reconcile an ambiguous createTask (engine Codex finding 7): the task on `fileId` whose message is
+   * exactly `message`, or null when Box has none. Box returns all of a file's tasks in one page
+   * (GET /files/{id}/tasks has no pagination). When several match, the oldest wins, so retries
+   * converge on the first created task. A failed lookup throws: the caller must not create blindly.
+   */
+  async findTaskByMessage(fileId: string, message: string): Promise<{ task_id: string } | null> {
+    try {
+      const res = await this.client().tasks.getFileTasks(fileId, { cancellationToken: this.ct() });
+      const hits = (res.entries ?? [])
+        .filter((t) => t.id && t.message === message)
+        .sort((a, b) => (iso(a.createdAt) ?? "").localeCompare(iso(b.createdAt) ?? ""));
+      return hits.length ? { task_id: hits[0].id! } : null;
+    } catch (e) {
+      const m = mapBoxError(e);
+      throw new BoxAdapterError(m.code, `findTaskByMessage(file ${fileId}): ${m.message}`, m.status);
+    }
+  }
+
   async deleteTask(taskId: string): Promise<void> {
     await this.client().tasks.deleteTaskById(taskId, { cancellationToken: this.ct() });
   }

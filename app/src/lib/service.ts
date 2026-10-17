@@ -230,6 +230,8 @@ export function playScenario(box: MockBoxAdapter, scenario: string): void {
     case "architecture_v3":
       uploadV3();
       return;
+    case "none":
+      return; // evaluate whatever the mock Box holds now (retries, uploads made through the mock hooks)
     case "contradiction":
       box.uploadVersion("vendor-contract-summary.md", fixture.text(FIXTURE_EXTRA.vendorContradiction), {
         uploader: "Owen Pryce",
@@ -269,8 +271,8 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
   const a = await adapters();
   const active = Object.values(s.data.runs).find((r) => !r.done);
   if (active) throw new ServiceError("RUN_ACTIVE", `run ${active.run_id} is still running`, 409);
-  const scenario = req.scenario ?? (c.mockMode ? "architecture_v3" : undefined);
-  if (c.mockMode && a.mockBox) {
+  const scenario: string | undefined = req.scenario ?? (c.mockMode ? "architecture_v3" : undefined);
+  if (c.mockMode && a.mockBox && scenario !== "none") {
     if (scenario && ["architecture_v3", ...EVALUATOR_SCENARIOS].includes(scenario)) {
       const cur = s.currentSnapshot?.files.find((f) => f.fileName === "architecture.md");
       if (cur?.versionId === "1801102233") throw new ServiceError("ALREADY_SUBMITTED", "architecture.md v3 is already the current version; POST /api/reset first", 409);
@@ -357,15 +359,27 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
  */
 function resolveActionTarget(s: Store, req: ActionRequest) {
   const p = profile();
-  const finding = req.finding_id ? s.data.findings[req.finding_id] : undefined;
-  if (req.finding_id && !finding && !p.controls.some((c) => c.id === req.control_id)) throw new ServiceError("NOT_FOUND", `no finding ${req.finding_id}`, 404);
-  if (finding && req.control_id && finding.control_id !== req.control_id) {
-    throw new ServiceError("FINDING_CONTROL_MISMATCH", `finding ${finding.finding_id} belongs to ${finding.control_id}, not ${req.control_id}`, 400);
+  let finding: StoredFinding | undefined;
+  if (req.finding_id) {
+    // A named finding must exist; no fallback to the control (Codex finding 5).
+    finding = s.data.findings[req.finding_id];
+    if (!finding) throw new ServiceError("NOT_FOUND", `no finding ${req.finding_id}`, 404);
+    if (req.control_id && finding.control_id !== req.control_id) {
+      throw new ServiceError("FINDING_CONTROL_MISMATCH", `finding ${finding.finding_id} belongs to ${finding.control_id}, not ${req.control_id}`, 400);
+    }
   }
   const control = p.controls.find((x) => x.id === (finding?.control_id ?? req.control_id));
   if (!control) throw new ServiceError("NOT_FOUND", `no control ${req.control_id}`, 404);
-  const task: StoredTask | undefined = [...s.data.tasks].reverse().find((t) => t.control_id === control.id && (t.kind ?? "reviewer") === "reviewer" && t.status === "open");
-  return { control, finding, task, mapping: task ? s.data.task_mappings[task.assignment_id] : undefined };
+  const open = [...s.data.tasks].reverse().filter((t) => t.control_id === control.id && (t.kind ?? "reviewer") === "reviewer" && t.status === "open");
+  // The selected task must answer this finding: its immutable mapping, or a carry-over to it.
+  const answers = (t: StoredTask) => !finding || s.data.task_mappings[t.assignment_id]?.finding_id === finding.finding_id || (s.data.task_carries?.[t.task_id] ?? []).includes(finding.finding_id);
+  const task = open.find(answers);
+  if (finding && !task && open.length) {
+    throw new ServiceError("TASK_FINDING_MISMATCH", `the open review task for ${control.id} answers ${s.data.task_mappings[open[0].assignment_id]?.finding_id}, not ${finding.finding_id}`, 409);
+  }
+  const mapping = task ? s.data.task_mappings[task.assignment_id] : undefined;
+  if (task && (!mapping || mapping.control_id !== control.id || mapping.task_id !== task.task_id)) throw new ServiceError("MAPPING_INVALID", `task ${task.task_id} has no valid mapping`, 409);
+  return { control, finding, task, mapping };
 }
 
 function actionResponse(s: Store, controlId: string, r: IngestResult): ActionResponse & { awaiting_draft?: IngestResult["awaiting_draft"]; fallback?: string } {
@@ -407,7 +421,8 @@ export async function act(req: ActionRequest): Promise<ActionResponse> {
     if (!view) throw new ServiceError("TASK_NOT_FOUND", `assignment ${w.assignment_id} not found in Box`, 409);
     const text = (req.author_message ?? s.data.drafts[w.finding_id]?.text ?? "").trim();
     if (!text) throw new ServiceError("DRAFT_REQUIRED", "approve_author_draft needs author_message, or a draft from /api/draft-author-message", 400);
-    approveDraft(s, { finding_id: w.finding_id, snapshot_id: w.target_snapshot_id ?? s.data.current_snapshot_id!, reason: view.message, text });
+    const tgt = buildRows(s, p, w.target_snapshot_id ?? s.data.current_snapshot_id!).find((r) => r.control_id === control.id)!.state;
+    approveDraft(s, { finding_id: w.finding_id, snapshot_id: tgt.snapshot_id, reason: view.message, text, binding: tgt.binding });
     const r = await ingestTaskResponse(deps, { view, mapping: s.data.task_mappings[w.assignment_id], decision_snapshot_id: req.decision_snapshot_id, due_at: req.due_at });
     return actionResponse(s, control.id, r);
   }
@@ -425,8 +440,14 @@ export async function act(req: ActionRequest): Promise<ActionResponse> {
     message = (req.reason ?? req.message ?? "").trim();
     if (!message) throw new ServiceError("REASON_REQUIRED", "Return to author needs the reviewer's reason", 400);
     const fid = mapping.finding_id;
-    const text = req.author_message ?? (await draftAuthorMessage(fid, message)).text;
-    approveDraft(s, { finding_id: fid, snapshot_id: s.data.current_snapshot_id!, reason: message, text });
+    if (req.author_message) {
+      // The UI showed this text and the reviewer sent it: that is the approval, bound to what they saw.
+      const st = buildRows(s, p, s.data.current_snapshot_id!).find((r) => r.control_id === control.id)!.state;
+      approveDraft(s, { finding_id: fid, snapshot_id: st.snapshot_id, reason: message, text: req.author_message, binding: st.binding });
+    } else if (!s.data.drafts[fid]) {
+      // No approval without a preview (Codex finding 16): draft now; the response waits for approve_author_draft.
+      await draftAuthorMessage(fid, message);
+    }
   } else if (req.action === "verify") {
     resolution = "approved";
     message = (req.message ?? [req.reason, p.attestation_phrase].filter(Boolean).join(" ")).trim();

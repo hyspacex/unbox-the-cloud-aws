@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 export function Tabs({ base }: { base: string }) {
   const path = usePathname();
   const tabs = [
-    { href: base, label: "Checks", on: path === base || path.startsWith(`${base}/runs`) },
-    { href: `${base}/history`, label: "Run history", on: path.startsWith(`${base}/history`) },
-    { href: `${base}/packs`, label: "Rule packs", on: path.startsWith(`${base}/packs`) },
+    { href: base, label: "Overview", on: path === base },
+    { href: `${base}/decisions`, label: "Decisions", on: path.startsWith(`${base}/decisions`) },
+    { href: `${base}/checks`, label: "Checks", on: path.startsWith(`${base}/checks`) || path.includes("/rules/") },
+    { href: `${base}/packs`, label: "Certifications", on: path.startsWith(`${base}/packs`) },
+    { href: `${base}/activity`, label: "Activity", on: path.startsWith(`${base}/activity`) || (path.startsWith(`${base}/runs`) && !path.includes("/rules/")) },
   ];
   return (
     <nav className="tabs">

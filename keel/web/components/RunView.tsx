@@ -5,8 +5,8 @@ import type { Result, Run } from "@/lib/keel/data";
 import { ruleHref, triggerText } from "@/lib/keel/describe";
 
 function ChangePill({ r, run }: { r: Result; run: Run }) {
-  if (r.change === "broke") return <span className="pill solid">Broke in #{run.number}</span>;
-  if (r.change === "fixed") return <span className="pill">Fixed in #{run.number}</span>;
+  if (r.change === "broke") return <span className="pill alert">Broke in #{run.number}</span>;
+  if (r.change === "fixed") return <span className="pill ok">Fixed in #{run.number}</span>;
   if (r.change === "added") return <span className="pill soft">New rule</span>;
   if (r.status === "fail" && r.failing_since && r.failing_since !== r.run_id) return <span className="muted" style={{ fontSize: 12 }}>failing since #{r.failing_since.split("-").pop()}</span>;
   return null;
@@ -86,7 +86,7 @@ export function RunView({ folderId, run, results, live, queued, latestNumber }: 
   const broke = run.changes?.broke ?? [];
   const fixed = run.changes?.fixed ?? [];
   const historic = latestNumber && latestNumber !== run.number;
-  const dark = c.failing > 0;
+  const dark = false;
   const headline = c.failing
     ? `${c.failing} check${c.failing > 1 ? "s" : ""} failing`
     : c.unknown ? `${c.unknown} check${c.unknown > 1 ? "s" : ""} could not be evaluated` : "All checks passing";
@@ -104,8 +104,8 @@ export function RunView({ folderId, run, results, live, queued, latestNumber }: 
       {banner}
       <section className={`hero${dark ? " dark" : ""}`} data-testid="status-hero" data-failing={c.failing}>
         <div>
-          <div className="big">{c.passing}<small>/ {c.total} passing</small></div>
-          <div className="headline">{headline}</div>
+          <div className="big">{c.passing}<small>/ {c.total} checks passing{run.decisions ? ` · ${run.decisions.holding}/${run.decisions.total} decisions holding` : ""}</small></div>
+          <div className="headline">{run.summary?.title ?? headline}{run.summary?.text ? <span style={{ fontWeight: 450, color: "var(--mute)" }}> · {run.summary.text}</span> : null}</div>
           <div className="sub">
             Run #{run.number} · <Ago iso={run.finished_at} /> · {triggerText(run)}
             {run.rules?.changed ? " · rules changed" : ""}
@@ -115,8 +115,8 @@ export function RunView({ folderId, run, results, live, queued, latestNumber }: 
           </div>
         </div>
         <div className="side">
-          {broke.length > 0 && <span className={`pill ${dark ? "" : "solid"}`}>{broke.length} broke in this run</span>}
-          {fixed.length > 0 && <span className="pill">{fixed.length} fixed in this run</span>}
+          {broke.length > 0 && <span className="pill alert">{broke.length} broke in this run</span>}
+          {fixed.length > 0 && <span className="pill ok">{fixed.length} fixed in this run</span>}
           {task && <span style={{ fontSize: 13, color: dark ? "#a1a1a6" : "var(--mute)" }}>Box task sent to {task.assignee?.name ?? "assignee"}</span>}
           <span style={{ fontSize: 12, color: dark ? "#8e8e93" : "var(--mute-2)" }}>{run.snapshot.files.length} files · {((run.duration_ms ?? 0) / 1000).toFixed(1)} s · {run.judge.model_id}</span>
         </div>

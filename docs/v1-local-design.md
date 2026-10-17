@@ -1,6 +1,6 @@
-# Keel v1: local-first design
+# Keel: local-first design (v1 → v2)
 
-Status: built on the `feature/local-folder-checks-v1` branch. It runs locally, with stand-ins for Box and AWS. Box and AWS facts below were checked against their public documentation on 2026-10-17.
+Status: v1 was built on `feature/local-folder-checks-v1`. v2 is on `feature/keel-v2` and adds the Decisions pillar (see §1a). It runs locally, with stand-ins for Box and AWS. Box and AWS facts below were checked against their public documentation on 2026-10-17.
 
 ## 1. What we are building
 
@@ -36,6 +36,40 @@ Assumptions made without asking:
 - **Demo data.** The demo folder and identities are synthetic (Meridian Trust Bank, Project Lantern).
 - **Task action.** Tasks use `action: complete`, because Keel asks the author to fix something, not to approve something.
 
+## 1a. v2: decisions and compliance (after team feedback)
+
+**Team feedback.** The UI was good but showed too much. The 2-minute demo has to be clear immediately. Use green, check marks, notifications and attention, but with taste.
+
+**Team alignment.** Keel solves:
+
+- a single source of truth for decisions
+- auditing of decision drift
+- certificate compliance
+- security and privacy review
+- team productivity
+
+| Decision | Choice |
+| --- | --- |
+| Pillars | **Decisions** (single source of truth, plus drift) and **Compliance** (security and privacy rules, plus certification packs). Productivity is the outcome. |
+| Source of decision truth | Decisions are extracted automatically from the documents. There is no decisions file and no manual curation. |
+| Drift | Documents disagree about a decided value. The statements that moved away from the agreed value are the drift, attributed to the uploader of the changed file. |
+| Intended change | Once every document states the new value, the decision is **updated**. The history records the change (from → to, by whom, which run). |
+| Colour | Green for holding and passing. Apple-style red for drift and failures, used sparingly: dots, one attention panel, one notification. Everything else stays black and white. |
+| Overview | Answers "are we OK?" in about 3 seconds. Hashes, model IDs, files and coverage moved to run details. |
+| Notifications | A live notification when a run finishes, a bell with the count of items that need attention, and Box tasks for the responsible uploader. |
+| Demo | A 4-beat walkthrough under 2 minutes (all green → upload → drift notification → quotes and Box task → fix → green), plus a ~25-second certification clip. |
+
+Decision ledger items are stored as `RUN#<folder>-<n> / DECISION#<topic>`. Each item holds:
+
+- the status: holding, drifted or unstated,
+- the agreed value,
+- every statement, with a validated quote, file version and section,
+- the drift, with who caused it,
+- the history of value changes,
+- the ID of the open Box task.
+
+The ledger is carried forward from the last completed run.
+
 ## 2. Ports and adapters
 
 | Port | Local adapter | Production adapter (planned) |
@@ -47,6 +81,7 @@ Assumptions made without asking:
 | Store | `Store` (SQLite single table, `pk`/`sk`) | DynamoDB single table with the same keys |
 | Scheduler | Reconciler thread | EventBridge Scheduler → `SendMessage` |
 | Judge | `OfflineJudge` | `BedrockJudge`: a Strands agent with structured output (built, not exercised) |
+| Decision extractor | `OfflineExtractor` (topic patterns) | `BedrockExtractor`: a Strands agent with structured output (built, not exercised) |
 | Pack catalog | `packs/` on disk | S3 (immutable versioned objects), or an org-private Box folder |
 | Identity | Cookie user switcher | Box OAuth for users; a CCG service account for the runner |
 
@@ -93,7 +128,7 @@ Each line below is enforced by the local stand-in. That keeps the user experienc
 - Updates are JSON Patch with `content-type: application/json-patch+json`, and they are atomic: a failing `test` rejects the whole patch.
 - Keel's template is `keelChecks`, with these fields:
   - `status`: one of passing, failing, running or error.
-  - `passing`, `failing`, `unknown` and `runNumber`: numbers.
+  - `passing`, `failing`, `unknown`, `runNumber`, `decisionsHolding` and `decisionsDrifted`: numbers.
   - `runUrl`: a link to the run in Keel.
   - `checkedAt`: a date.
 
@@ -153,6 +188,7 @@ Each line below is enforced by the local stand-in. That keeps the user experienc
 | `FOLDER#<id>` | `META` | Name, owner, webhook ID, run counter, latest run summary, last snapshot hash |
 | `FOLDER#<id>` | `RUN#000004` | Trigger, snapshot (files, versions, uploaders, changed flags), rules hash and packs, coverage, counts, changes, tasks, projection result |
 | `FOLDER#<id>` | `TASK#<task id>` | Rules still open on a Box task, so Keel can annotate the task when they pass again |
+| `RUN#<folder>-<n>` | `DECISION#<topic>` | Decision ledger entry: status, agreed value, validated statements, drift and who caused it, history, task ID |
 | `RUN#<folder>-<n>` | `RESULT#<rule id>` | Status, reason, validated citations (file, version, section, line, quote), missing items, previous status, change, blame or fixed-by, task ID |
 | `WEBHOOK#<id>` | `META` | Maps a webhook ID to its folder |
 

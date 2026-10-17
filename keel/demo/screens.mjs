@@ -1,38 +1,51 @@
-// Captures README screenshots from the running stack (run after `npm run record`, which leaves
-// the Project Lantern folder at run #5).
+// Captures README screenshots: reseeds the folder, then shows all-clear, drift and certification states.
+//   cd keel && ./dev.sh --prod &   then   cd keel/demo && npm run screens
 import { chromium } from "playwright";
+import { execSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(HERE, "..");
 const BASE = process.env.KEEL_URL || "http://localhost:3000";
+const OUT = path.join(HERE, "screenshots");
+
+execSync("python3 -m keel_runner.seed --connect", { cwd: path.join(ROOT, "runner"), stdio: "inherit" });
+const users = Object.fromEntries((await (await fetch(`${BASE}/api/users`)).json()).map((u) => [u.name, u.id]));
+const folder = (await (await fetch(`${BASE}/api/folders`)).json())[0].folder_id;
+const F = `/folders/${folder}`;
+const upload = (who, file) => execSync(`PYTHONPATH=. python3 - <<'EOF'
+from keel_runner.boxclient import BoxClient
+b = BoxClient().acting_as("${users[who]}")
+items = {i["name"]: i for i in b.folder_items("${folder}")}
+data = open("${path.join(ROOT, "content", "lantern", file)}", "rb").read()
+name = "${path.basename(file)}"
+b.upload_version(items[name]["id"], name, data) if name in items else b.upload("${folder}", name, data)
+EOF`, { cwd: path.join(ROOT, "runner") });
+
 const b = await chromium.launch();
 const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+await ctx.addCookies([{ name: "keel_user", value: users["Maya Chen"], url: BASE }]);
 const p = await ctx.newPage();
-await p.goto(BASE + "/", { waitUntil: "networkidle" });
-const href = await p.getByTestId("folder-card").first().getAttribute("href");
-const users = async (name) => {
-  const sw = p.getByTestId("user-switcher");
-  const v = await sw.evaluate((el, n) => [...el.options].find((o) => o.text.startsWith(n)).value, name);
-  await sw.selectOption(v);
-  await p.waitForLoadState("networkidle");
+const shot = async (url, name, wait) => {
+  await p.goto(BASE + url, { waitUntil: "networkidle" });
+  if (wait) await p.locator(wait).waitFor({ timeout: 30000 });
+  await p.waitForTimeout(500);
+  await p.screenshot({ path: path.join(OUT, `${name}.png`) });
 };
-const shots = [
-  [`${href}/runs/4`, "checks-regression"],
-  [`${href}/runs/4/rules/R3`, "rule-detail"],
-  [`${href}`, "checks-with-gdpr-pack"],
-  [`${href}/history`, "run-history"],
-  [`${href}/packs`, "rule-packs"],
-  [`/box/folders/${href.split("/").pop()}`, "fake-box-folder"],
-];
-for (const [u, n] of shots) {
-  await p.goto(BASE + u, { waitUntil: "networkidle" });
-  await p.waitForTimeout(400);
-  await p.screenshot({ path: path.join(HERE, "screenshots", `${n}.png`) });
-}
-await p.goto(BASE + "/box/tasks", { waitUntil: "networkidle" });
-await users("J. Park");
-await p.waitForTimeout(400);
-await p.screenshot({ path: path.join(HERE, "screenshots", "fake-box-task.png") });
-await users("Maya Chen");
+
+await shot(F, "overview-all-clear");
+await shot(`${F}/decisions`, "decisions");
+upload("J. Park", "drift/architecture.md");
+await shot(F, "overview-drift", "[data-testid=overview-status][data-attention='1']");
+await shot(`${F}/decisions/p99_latency`, "decision-drift");
+await ctx.addCookies([{ name: "keel_user", value: users["J. Park"], url: BASE }]);
+await shot("/box/tasks", "box-task");
+await shot(`/box/folders/${folder}`, "box-folder");
+await ctx.addCookies([{ name: "keel_user", value: users["Maya Chen"], url: BASE }]);
+upload("J. Park", "fix/architecture.md");
+await p.goto(BASE + F, { waitUntil: "networkidle" });
+await p.locator("[data-testid=overview-status][data-attention='0']").waitFor({ timeout: 30000 });
+await shot(`${F}/packs`, "certifications");
+await shot(`${F}/activity`, "activity");
 await b.close();

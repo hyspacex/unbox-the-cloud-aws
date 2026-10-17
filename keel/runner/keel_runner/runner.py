@@ -15,7 +15,8 @@ from datetime import datetime, timedelta, timezone
 
 from . import config
 from .boxclient import BoxApiError, BoxClient
-from .judges import Doc, get_judge
+from .decisions import build_ledger, validate_statements
+from .judges import Doc, get_extractor, get_judge
 from .rules import Rule, RuleSet, parse_rules_file
 from .store import Store, folder_pk, run_pk, run_sk
 from .validate import validate
@@ -31,6 +32,8 @@ TEMPLATE_FIELDS = [
     {"type": "float", "key": "runNumber", "displayName": "Run number"},
     {"type": "string", "key": "runUrl", "displayName": "Run details"},
     {"type": "date", "key": "checkedAt", "displayName": "Checked at"},
+    {"type": "float", "key": "decisionsHolding", "displayName": "Decisions holding"},
+    {"type": "float", "key": "decisionsDrifted", "displayName": "Decisions drifted"},
 ]
 
 
@@ -43,10 +46,11 @@ def user_ref(u: dict | None) -> dict | None:
 
 
 class Runner:
-    def __init__(self, box: BoxClient | None = None, store: Store | None = None, judge=None):
+    def __init__(self, box: BoxClient | None = None, store: Store | None = None, judge=None, extractor=None):
         self.box = box or BoxClient()
         self.store = store or Store()
         self.judge = judge or get_judge()
+        self.extractor = extractor or get_extractor()
         self.app_url = config.get("KEEL_APP_URL", "http://localhost:3000").rstrip("/")
 
     # ------------------------------------------------------------------ entry
@@ -107,7 +111,7 @@ class Runner:
                         "event": message.get("event"), "actor": message.get("actor"), "file": message.get("file")},
             "started_at": utcnow(), "snapshot": snapshot,
             "judge": {"name": self.judge.name, "model_id": getattr(self.judge, "model_id", "")},
-            "previous_run": prev["number"] if prev else None,
+            "previous_run": prev["number"] if prev else None, "first_run": prev is None,
         }
         self.store.put(folder_pk(folder_id), run_sk(number), run)
         self._project(folder_id, meta, {"status": "running", "runNumber": number})
@@ -127,6 +131,12 @@ class Runner:
             changes = self.compare(results, prev_results, prev, ruleset)
             self.blame(results, snapshot, run["trigger"], rules_file)
             counts = {s: sum(1 for r in results if r["status"] == s) for s in ("pass", "fail", "unknown")}
+
+            prev_ledger = {d["topic"]: d for d in self.store.query(run_pk(prev["run_id"]), "DECISION#")} if prev else {}
+            known = [{"topic": t, "label": d["label"]} for t, d in prev_ledger.items()]
+            statements, rejected = validate_statements(self.extractor.extract(docs, known), {d.file_id: d for d in docs})
+            ledger = build_ledger(run, statements, prev_ledger, snapshot)
+            dcounts = {k: sum(1 for d in ledger if d["status"] == k) for k in ("holding", "drifted", "unstated")}
             run.update({
                 "rules": {"hash": ruleset.hash, "file": {"id": rules_file["id"], "version_id": rules_file["version_id"],
                                                           "version_number": rules_file["version_number"]},
@@ -135,9 +145,17 @@ class Runner:
                 "coverage": coverage,
                 "counts": {"passing": counts["pass"], "failing": counts["fail"], "unknown": counts["unknown"], "total": len(results)},
                 "changes": changes,
+                "decisions": {**dcounts, "total": len(ledger), "rejected_statements": rejected,
+                              "drifted_now": [d["topic"] for d in ledger if d["change"] == "drifted"],
+                              "resolved": [d["topic"] for d in ledger if d["change"] == "resolved"],
+                              "updated": [d["topic"] for d in ledger if d["change"] == "updated"]},
+                "packs_summary": self.pack_summary(ruleset, results),
+                "extractor": {"name": self.extractor.name, "model_id": getattr(self.extractor, "model_id", "")},
             })
-            run["tasks"] = self.notify(folder_id, meta, run, results, rules_file)
+            run["summary"] = self.summarize(run, results, ledger)
+            run["tasks"] = self.notify(folder_id, meta, run, results, rules_file, ledger)
             items = [(run_pk(run_id), f"RESULT#{r['rule_id']}", r) for r in results]
+            items += [(run_pk(run_id), f"DECISION#{d['topic']}", d) for d in ledger]
             for i in range(0, len(items), 100):
                 self.store.transact_put(items[i:i + 100])
             run["status"] = "completed"
@@ -150,9 +168,11 @@ class Runner:
         run["finished_at"] = utcnow()
         run["duration_ms"] = int((time.time() - started) * 1000)
         if run["status"] == "completed":
-            c = run["counts"]
-            projected = {"status": "failing" if c["failing"] else ("error" if c["unknown"] and not c["passing"] else "passing"),
-                         "passing": c["passing"], "failing": c["failing"], "unknown": c["unknown"]}
+            c, dc = run["counts"], run["decisions"]
+            attention = c["failing"] + dc["drifted"] + dc["unstated"]
+            projected = {"status": "failing" if attention else ("error" if c["unknown"] and not c["passing"] else "passing"),
+                         "passing": c["passing"], "failing": c["failing"], "unknown": c["unknown"],
+                         "decisionsHolding": dc["holding"], "decisionsDrifted": dc["drifted"]}
         else:
             projected = {"status": "error"}
         projected.update({"runNumber": number, "runUrl": f"{self.app_url}/folders/{folder_id}/runs/{number}", "checkedAt": run["finished_at"]})
@@ -284,14 +304,62 @@ class Runner:
             else:
                 r["fixed_by"] = ref
 
+    @staticmethod
+    def pack_summary(ruleset: RuleSet, results: list[dict]) -> list[dict]:
+        out = []
+        for p in ruleset.packs:
+            rs = [r for r in results if r.get("pack") and r["pack"]["id"] == p["id"]]
+            out.append({**p, "passing": sum(1 for r in rs if r["status"] == "pass"), "total": len(rs)})
+        return out
+
+    @staticmethod
+    def summarize(run: dict, results: list[dict], ledger: list[dict]) -> dict:
+        """One-line headline for notifications and the activity feed."""
+        trig = run["trigger"]
+        drifted = [d for d in ledger if d["change"] == "drifted"]
+        broke = [r for r in results if r.get("change") == "broke"]
+        fresh = [r for r in results if r["status"] == "fail" and r.get("change") in ("added", "first")]
+        resolved = [d for d in ledger if d["change"] == "resolved"] + [r for r in results if r.get("change") == "fixed"]
+        updated = [d for d in ledger if d["change"] == "updated"]
+        attention = sum(1 for r in results if r["status"] == "fail") + sum(1 for d in ledger if d["status"] in ("drifted", "unstated"))
+        if drifted:
+            d = drifted[0]
+            by = (d["drift"].get("by") or {})
+            return {"kind": "drift", "title": "Decision drift",
+                    "text": f"{d['label']}: {d['agreed_value']} → {d['drift']['value']}",
+                    "by": (by.get("user") or {}).get("name"), "file": (by.get("file") or {}).get("name"), "more": len(drifted) + len(broke) - 1}
+        if broke:
+            r = broke[0]
+            return {"kind": "fail", "title": "Check failing", "text": r["title"],
+                    "by": ((r.get("blame") or {}).get("user") or {}).get("name"), "more": len(broke) - 1}
+        if fresh:
+            return {"kind": "fail", "title": f"{len(fresh)} check{'s need' if len(fresh) > 1 else ' needs'} attention",
+                    "text": fresh[0]["title"], "more": len(fresh) - 1}
+        if resolved and not attention:
+            x = resolved[0]
+            text = f"{x['label']}: {x['agreed_value']}" if "topic" in x else x["title"]
+            return {"kind": "resolved", "title": "Back in agreement" if "topic" in x else "Check passing again", "text": text, "more": len(resolved) - 1}
+        if updated:
+            d = updated[0]
+            h = d["history"][-1]
+            return {"kind": "updated", "title": "Decision updated", "text": f"{d['label']}: {h['from']} → {h['to']}", "more": len(updated) - 1}
+        if attention:
+            return {"kind": "attention", "title": f"{attention} still need{'s' if attention == 1 else ''} attention", "text": "", "more": 0}
+        return {"kind": "clear", "title": "All clear", "text": "Every decision holds and every check passes.", "more": 0,
+                "by": (trig.get("actor") or {}).get("name")}
+
     # ------------------------------------------------------------------ Box writes
-    def notify(self, folder_id: str, meta: dict, run: dict, results: list[dict], rules_file: dict) -> list[dict]:
+    def notify(self, folder_id: str, meta: dict, run: dict, results: list[dict], rules_file: dict, ledger: list[dict] | None = None) -> list[dict]:
         tasks = []
         due = (datetime.now(timezone.utc) + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"{self.app_url}/folders/{folder_id}/runs/{run['number']}"
 
-        # Regressions: one task per (uploader, file) that broke something.
+        # Regressions: one task per (uploader, file) that broke something — drifted decisions and broken checks.
         groups: dict[tuple, list[dict]] = {}
+        for d in ledger or []:
+            if d["change"] == "drifted" and d["drift"] and d["drift"].get("by") and (d["drift"]["by"].get("user") or {}).get("id"):
+                by = d["drift"]["by"]
+                groups.setdefault((by["user"]["id"], by["file"]["id"]), []).append(d)
         for r in results:
             if r.get("change") == "broke" and r.get("blame") and r["blame"].get("user") and r["blame"].get("file") and not r["blame"]["file"].get("removed"):
                 key = (r["blame"]["user"]["id"], r["blame"]["file"]["id"])
@@ -300,9 +368,12 @@ class Runner:
                 groups.setdefault((r["blame"]["user"]["id"], rules_file["id"]), []).append(r)
         for (user_id, file_id), rs in groups.items():
             f = next((x for x in run["snapshot"]["files"] if x["id"] == file_id), rules_file)
-            n = len(rs)
-            head = (f"Keel · run #{run['number']} · {n} check{'s' if n > 1 else ''} broke after your upload of "
-                    f"{f['name']} (v{f['version_number']}).")
+            nd = sum(1 for r in rs if "topic" in r)
+            nc = len(rs) - nd
+            what = " and ".join(x for x in (
+                f"changed {nd} agreed decision{'s' if nd > 1 else ''}" if nd else "",
+                f"broke {nc} check{'s' if nc > 1 else ''}" if nc else "") if x)
+            head = f"Keel · Your upload of {f['name']} (v{f['version_number']}) {what}."
             tasks.append(self._task(folder_id, file_id, user_id, head, rs, url, due, run, "regression"))
 
         # Failures nobody "broke" (first run, newly added rules): one task for the folder owner.
@@ -313,24 +384,40 @@ class Runner:
             head = f"Keel · run #{run['number']} · {n} check{'s' if n > 1 else ''} failing {why}."
             tasks.append(self._task(folder_id, rules_file["id"], meta["owner"]["id"], head, fresh, url, due, run, "owner"))
 
-        # Fixed rules: annotate the open task that reported them.
+        # Fixed rules and resolved decisions: annotate the open task that reported them.
         for r in results:
             if r.get("change") != "fixed":
                 continue
             prev_task = self._task_for_rule(folder_id, r["rule_id"])
             if prev_task:
                 self._resolve_rule_on_task(folder_id, prev_task, r, run)
+        for d in ledger or []:
+            if not (d["change"] == "resolved" or (d["change"] == "updated" and d["previous_status"] == "drifted")):
+                continue
+            prev_task = self._task_for_rule(folder_id, f"decision:{d['topic']}")
+            if prev_task:
+                self._resolve_rule_on_task(folder_id, prev_task, d, run)
         return [t for t in tasks if t]
 
     def _task(self, folder_id, file_id, user_id, head, rs, url, due, run, kind) -> dict | None:
         lines = [head, ""]
         for r in rs:
+            if "topic" in r:
+                agreed_in = sorted({s["file_name"] for s in r["statements"] if s["value"] == r["agreed_value"]})
+                lines.append(f"● {r['label']}: agreed {r['agreed_value']} → your version says {r['drift']['value']}")
+                lines.append(f"    Agreed in {', '.join(agreed_in)}")
+                for st in r["drift"]["statements"][:1]:
+                    lines.append(f"    “{st['quote'][:160]}” — {st['file_name']}")
+                continue
             lines.append(f"✗ {r['rule_id']} · {r['title']} — {r['reason']}")
             for c in r["citations"][:2]:
                 lines.append(f"    “{c['quote'][:160]}” — {c['file_name']}")
-        lines += ["", f"Details: {url}"]
+        first = rs[0]
+        link = f"{self.app_url}/folders/{folder_id}/decisions/{first['topic']}" if "topic" in first else url
+        lines += ["", f"Details: {link}"]
         message = "\n".join(lines)
-        entry = {"kind": kind, "file_id": file_id, "assignee_id": user_id, "rules": [r["rule_id"] for r in rs], "message": message}
+        keys = [f"decision:{r['topic']}" if "topic" in r else r["rule_id"] for r in rs]
+        entry = {"kind": kind, "file_id": file_id, "assignee_id": user_id, "rules": keys, "message": message}
         try:
             task = self.box.create_task(file_id, message, due)
             try:
@@ -343,8 +430,8 @@ class Runner:
             for r in rs:
                 r["task_id"] = task["id"]
             self.store.put(folder_pk(folder_id), f"TASK#{task['id']}", {
-                "task_id": task["id"], "file_id": file_id, "assignee_id": user_id, "rules": entry["rules"],
-                "open_rules": entry["rules"], "run_number": run["number"], "message": message, "kind": kind})
+                "task_id": task["id"], "file_id": file_id, "assignee_id": user_id, "rules": keys,
+                "open_rules": keys, "run_number": run["number"], "message": message, "kind": kind})
         except BoxApiError as e:
             entry["error"] = str(e)
         return entry
@@ -357,8 +444,13 @@ class Runner:
 
     def _resolve_rule_on_task(self, folder_id: str, task: dict, result: dict, run: dict) -> None:
         task.pop("_version", None)
-        task["open_rules"] = [x for x in task["open_rules"] if x != result["rule_id"]]
-        note = f"✓ {result['rule_id']} passes again as of run #{run['number']}."
+        key = f"decision:{result['topic']}" if "topic" in result else result["rule_id"]
+        task["open_rules"] = [x for x in task["open_rules"] if x != key]
+        if "topic" in result:
+            verb = "now agrees on" if result.get("change") == "updated" else "agrees again"
+            note = f"✓ {result['label']} {verb} ({result['agreed_value']}) as of run #{run['number']}."
+        else:
+            note = f"✓ {result['rule_id']} passes again as of run #{run['number']}."
         if not task["open_rules"]:
             note += " All checks from this task pass now — you can mark it complete."
         task["message"] = task["message"] + "\n" + note

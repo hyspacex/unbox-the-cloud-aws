@@ -11,6 +11,7 @@ Suggestions that agents accept are stored with the case record under the bank's 
 
 Application logs are retained for 90 days. Security events in the SIEM follow the SIEM's 1-year policy.
 
-## Deletion requests
+## Data subject requests
 
 Customer deletion requests remove conversation text within 30 days through the case-management deletion workflow.
+Customer access requests are answered within 30 days through the bank's privacy portal.

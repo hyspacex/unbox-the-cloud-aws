@@ -1,6 +1,6 @@
 # Lantern — Architecture
 
-Author: J. Park · Sections 3–4 rewritten for clarity; key management restored
+Author: J. Park · Sections 3–4 rewritten for clarity
 
 ## 1. Overview
 
@@ -14,7 +14,7 @@ Backups are replicated to eu-west-1 (Ireland) and never leave the EU.
 
 ## 3. Performance and capacity
 
-The Suggestion API targets a p99 latency of 50 ms at peak load.
+The Suggestion API targets a p99 latency of 50 ms at peak load; the cache keeps typical responses well below that.
 Capacity is provisioned for 1,500 requests per second, 25% above the forecast peak, with autoscaling on queue depth.
 
 ## 4. Security

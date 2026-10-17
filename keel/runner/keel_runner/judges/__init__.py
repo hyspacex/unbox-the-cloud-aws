@@ -32,6 +32,25 @@ class Verdict:
     missing: list[str] = field(default_factory=list)
 
 
+@dataclass
+class Statement:
+    """A decided value found in one document, e.g. topic p99_latency = "50 ms"."""
+    topic: str
+    label: str
+    value: str
+    file_id: str
+    quote: str
+
+
+def get_extractor():
+    kind = config.get("KEEL_JUDGE", "offline").lower()
+    if kind == "bedrock":
+        from .bedrock import BedrockExtractor
+        return BedrockExtractor()
+    from .extract_offline import OfflineExtractor
+    return OfflineExtractor()
+
+
 def get_judge():
     kind = config.get("KEEL_JUDGE", "offline").lower()
     if kind == "bedrock":

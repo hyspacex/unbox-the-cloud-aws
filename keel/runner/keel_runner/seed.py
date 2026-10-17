@@ -20,9 +20,9 @@ from .store import SCHEMA as STORE_SCHEMA, Store
 CONTENT = config.KEEL_ROOT / "content" / "lantern"
 UPLOADERS = {
     "proposal.md": "Maya Chen", "architecture.md": "J. Park", "security-checklist.md": "Dana Okafor",
-    "kickoff-transcript.txt": "Maya Chen", "keel-rules.md": "Maya Chen",
+    "kickoff-transcript.txt": "Maya Chen", "data-retention.md": "J. Park", "keel-rules.md": "Maya Chen",
 }
-ORDER = ["proposal.md", "kickoff-transcript.txt", "architecture.md", "security-checklist.md", "keel-rules.md"]
+ORDER = ["proposal.md", "kickoff-transcript.txt", "architecture.md", "security-checklist.md", "data-retention.md", "keel-rules.md"]
 
 
 def web_base() -> str:
@@ -66,7 +66,7 @@ def seed(connect_folder: bool) -> str:
     for name, role in (("J. Park", "editor"), ("Dana Okafor", "editor"), ("Priya Natarajan", "viewer"), ("Keel", "editor")):
         maya.collaborate(folder["id"], users[name]["id"], role)
     for name in ORDER:
-        box.acting_as(users[UPLOADERS[name]]["id"]).upload(folder["id"], name, (CONTENT / "1-initial" / name).read_bytes())
+        box.acting_as(users[UPLOADERS[name]]["id"]).upload(folder["id"], name, (CONTENT / "seed" / name).read_bytes())
         time.sleep(0.05)
     print(f"Seeded Fake Box folder {folder['id']} (Project Lantern)")
     if connect_folder:
@@ -76,7 +76,7 @@ def seed(connect_folder: bool) -> str:
         for _ in range(120):
             meta = store.get(f"FOLDER#{folder['id']}", "META")
             if meta and (meta.get("latest_run") or {}).get("status") in ("completed", "error"):
-                print(f"Run #1: {meta['latest_run']['counts']}")
+                print(f"Run #1: {meta['latest_run']['status']} {meta['latest_run'].get('counts')}")
                 break
             time.sleep(0.5)
     return folder["id"]

@@ -25,7 +25,7 @@ export default async function RulePage({ params }: { params: Promise<{ id: strin
   return (
     <div style={{ marginTop: 34 }}>
       <div className="crumbs">
-        <Link href={`/folders/${id}/runs/${run.number}`}>Run #{run.number}</Link><span className="sep">/</span>
+        <Link href={`/folders/${id}/checks`}>Checks</Link><span className="sep">/</span>
         <span className="mono">{r.rule_id}</span>
       </div>
       <div className="split" style={{ marginTop: 6 }}>
@@ -34,8 +34,8 @@ export default async function RulePage({ params }: { params: Promise<{ id: strin
           <div className="statusline" data-testid="rule-status" data-status={r.status}>
             <Glyph status={r.status} size="lg" />
             <span className="word">{WORD[r.status]}</span>
-            {r.change === "broke" && <span className="pill solid">Broke in run #{run.number}</span>}
-            {r.change === "fixed" && <span className="pill">Fixed in run #{run.number}</span>}
+            {r.change === "broke" && <span className="pill alert">Broke in run #{run.number}</span>}
+            {r.change === "fixed" && <span className="pill ok">Fixed in run #{run.number}</span>}
             {r.change === "added" && <span className="pill soft">New rule</span>}
           </div>
           <p className="reason" data-testid="rule-reason">{r.reason}</p>

@@ -48,9 +48,11 @@ export default async function BoxFolder({ params }: { params: Promise<{ id: stri
             <h3>Metadata · Keel checks</h3>
             {v ? (
               <>
-                <div className="mdrow"><span>Status</span><span data-testid="md-status" style={{ textTransform: "capitalize" }}>{String(v.status)}</span></div>
+                <div className="mdrow"><span>Status</span><span data-testid="md-status" style={{ textTransform: "capitalize", color: v.status === "passing" ? "var(--ok)" : v.status === "failing" ? "var(--alert)" : undefined }}>{v.status === "passing" ? "✓ " : v.status === "failing" ? "● " : ""}{String(v.status)}</span></div>
+                <div className="mdrow"><span>Decisions holding</span><span>{v.decisionsHolding ?? "—"}</span></div>
+                <div className="mdrow"><span>Decisions drifted</span><span style={{ color: Number(v.decisionsDrifted) ? "var(--alert)" : undefined }}>{v.decisionsDrifted ?? "—"}</span></div>
                 <div className="mdrow"><span>Checks passing</span><span>{v.passing ?? "—"}</span></div>
-                <div className="mdrow"><span>Checks failing</span><span>{v.failing ?? "—"}</span></div>
+                <div className="mdrow"><span>Checks failing</span><span style={{ color: Number(v.failing) ? "var(--alert)" : undefined }}>{v.failing ?? "—"}</span></div>
                 <div className="mdrow"><span>Run</span><span>#{v.runNumber}</span></div>
                 <div className="mdrow"><span>Checked</span><span>{v.checkedAt ? <Ago iso={String(v.checkedAt)} /> : "—"}</span></div>
                 {v.runUrl && <a className="btn ghost small" style={{ marginTop: 12 }} href={String(v.runUrl)} target="_blank" rel="noreferrer">Run details ↗</a>}

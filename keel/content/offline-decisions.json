@@ -1,0 +1,23 @@
+{
+  "_comment": "Decision topics the offline extractor recognises. Each pattern captures the decided value; `format` builds the normalised value from the captures and `map` canonicalises synonyms. The Bedrock extractor finds decisions without these hints.",
+  "topics": [
+    {"topic": "p99_latency", "label": "p99 latency target",
+     "patterns": ["p99[^.\\n]{0,40}?(\\d+)\\s*ms", "(\\d+)\\s*ms\\s+p99"], "format": "{0} ms"},
+    {"topic": "data_region", "label": "Where customer data lives",
+     "patterns": ["(?:stored and processed|stored|processed|stays?)[^.\\n]{0,30}?\\bin the (EU|US|UK)\\b"], "format": "{0} only"},
+    {"topic": "key_ownership", "label": "Who manages encryption keys",
+     "patterns": ["(customer[- ]managed)", "(industry-standard encryption|platform[- ]managed|provided by the platform)"],
+     "map": {"customer-managed": "Customer-managed (KMS)", "customer managed": "Customer-managed (KMS)", "*": "Platform-managed"}},
+    {"topic": "key_rotation", "label": "Key rotation period",
+     "patterns": ["rotated every (\\d+ months)", "rotated (yearly|annually)"],
+     "map": {"yearly": "12 months", "annually": "12 months"}},
+    {"topic": "conversation_retention", "label": "Conversation retention",
+     "patterns": ["(?:conversation|transcript)[^.\\n]{0,60}retained for (\\d+ (?:days|months|years?))"]},
+    {"topic": "peak_load", "label": "Expected peak load",
+     "patterns": ["peak of ([\\d,]+) requests per second"], "format": "{0} req/s"},
+    {"topic": "recovery_objectives", "label": "Recovery objectives",
+     "patterns": ["RTO is ([\\w ]+?) and RPO is ([\\w ]+?)\\."], "format": "RTO {0} · RPO {1}"},
+    {"topic": "accountable_owner", "label": "Accountable owner",
+     "patterns": ["Accountable owner: ([A-Z][\\w.]* [A-Z]\\w+)"]}
+  ]
+}

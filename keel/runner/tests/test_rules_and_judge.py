@@ -12,20 +12,27 @@ CONTENT = config.KEEL_ROOT / "content" / "lantern"
 
 
 def docs_from(*paths: Path) -> list[Doc]:
-    return [Doc(str(i), p.name, f"v{i}", p.read_text()) for i, p in enumerate(paths)]
+    return [Doc(p.name, p.name, f"v-{p.name}", p.read_text()) for p in paths]
 
 
-def initial_docs(**overrides: Path) -> list[Doc]:
-    names = ["proposal.md", "architecture.md", "security-checklist.md", "kickoff-transcript.txt"]
-    return docs_from(*[overrides.get(n.replace("-", "_").replace(".", "_"), CONTENT / "1-initial" / n) for n in names])
+SEED = CONTENT / "seed"
+
+
+def seed_docs(**replace: str) -> list[Doc]:
+    """Seed documents, with optional text replacements per file name."""
+    docs = docs_from(*[p for p in sorted(SEED.iterdir()) if p.name != "keel-rules.md"])
+    for d in docs:
+        for old, new in replace.get(d.name.replace("-", "_").replace(".", "_"), {}).items():
+            d.text = d.text.replace(old, new)
+    return docs
 
 
 class RulesTest(unittest.TestCase):
     def test_parses_folder_rules(self):
-        rs = parse_rules_file((CONTENT / "1-initial" / "keel-rules.md").read_text())
-        self.assertEqual([r.id for r in rs.rules], [f"R{i}" for i in range(1, 9)])
-        self.assertEqual(rs.rules[2].title, "Latency targets consistent")
-        self.assertIn("p99 latency targets agree", rs.rules[2].text)
+        rs = parse_rules_file((SEED / "keel-rules.md").read_text())
+        self.assertEqual([r.id for r in rs.rules], [f"R{i}" for i in range(1, 8)])
+        self.assertEqual(rs.rules[1].title, "Encryption and key management documented")
+        self.assertIn("key rotation period", rs.rules[1].text)
 
     def test_inline_offline_hints_are_parsed_and_stripped(self):
         rs = parse_rules_file('## X1 · T\nBody\n<!-- keel:offline {"kind":"require_all","clauses":[]} -->\n')
@@ -41,7 +48,7 @@ class RulesTest(unittest.TestCase):
         self.assertEqual(next(r for r in rs.rules if r.id == "nope@9").error, "pack_not_found")
 
     def test_set_uses_add_replace_remove(self):
-        base = (CONTENT / "1-initial" / "keel-rules.md").read_text()
+        base = (SEED / "keel-rules.md").read_text()
         added = set_uses(base, "gdpr-design-review", "1.0.0")
         self.assertIn("uses: gdpr-design-review@1.0.0", added)
         self.assertLess(added.index("uses:"), added.index("## R1"))
@@ -59,39 +66,36 @@ class RulesTest(unittest.TestCase):
 
 class OfflineJudgeTest(unittest.TestCase):
     def setUp(self):
-        self.rules = parse_rules_file((CONTENT / "1-initial" / "keel-rules.md").read_text()).rules
+        self.rules = parse_rules_file((SEED / "keel-rules.md").read_text()).rules
         self.judge = OfflineJudge(delay=0)
 
     def statuses(self, docs):
         return {v.rule_id: v.status for v in self.judge.evaluate(self.rules, docs)}
 
-    def test_initial_folder_fails_checklist_and_retention(self):
-        s = self.statuses(initial_docs())
-        self.assertEqual({k for k, v in s.items() if v == "fail"}, {"R1", "R6"})
+    def test_seed_folder_passes_everything(self):
+        self.assertTrue(all(v == "pass" for v in self.statuses(seed_docs()).values()))
 
-    def test_fix_uploads_make_everything_pass(self):
-        docs = initial_docs(security_checklist_md=CONTENT / "2-fix" / "security-checklist.md") + docs_from(CONTENT / "2-fix" / "data-retention.md")
-        docs[-1].file_id = "99"
-        self.assertTrue(all(v == "pass" for v in self.statuses(docs).values()))
+    def test_open_checklist_item_and_missing_retention_fail(self):
+        docs = seed_docs(security_checklist_md={"- [x] Data retention": "- [ ] Data retention"},
+                         data_retention_md={"retained for 30 days": "kept"})
+        s = self.statuses(docs)
+        self.assertEqual({k for k, v in s.items() if v == "fail"}, {"R1", "R5"})
 
-    def test_regression_breaks_encryption_and_latency(self):
-        docs = initial_docs(architecture_md=CONTENT / "3-regression" / "architecture.md",
-                            security_checklist_md=CONTENT / "2-fix" / "security-checklist.md") + docs_from(CONTENT / "2-fix" / "data-retention.md")
-        docs[-1].file_id = "99"
-        verdicts = {v.rule_id: v for v in self.judge.evaluate(self.rules, docs)}
-        self.assertEqual({k for k, v in verdicts.items() if v.status == "fail"}, {"R2", "R3"})
-        self.assertIn("200 ms", verdicts["R3"].reason)
-        self.assertIn("50 ms", verdicts["R3"].reason)
-        self.assertEqual(verdicts["R2"].missing, ["customer-managed keys", "key rotation period"])
+    def test_key_management_loss_names_missing_clauses(self):
+        docs = seed_docs(architecture_md={
+            "Keys are customer-managed keys in AWS KMS, owned by the Lantern security team, and rotated every 12 months.": ""})
+        r2 = next(v for v in self.judge.evaluate(self.rules, docs) if v.rule_id == "R2")
+        self.assertEqual(r2.status, "fail")
+        self.assertEqual(r2.missing, ["customer-managed keys", "key rotation period"])
 
     def test_headings_are_not_evidence(self):
         pack = parse_rules_file("uses: gdpr-design-review@1.0.0\n").rules
-        docs = docs_from(CONTENT / "2-fix" / "data-retention.md")
+        docs = docs_from(SEED / "data-retention.md")
         g3 = next(v for v in self.judge.evaluate(pack, docs) if v.rule_id.endswith("G3"))
         self.assertTrue(g3.citations[0].quote.startswith("Customer deletion requests"))
 
     def test_every_offline_citation_validates(self):
-        docs = initial_docs()
+        docs = seed_docs()
         by_id = {d.file_id: d for d in docs}
         for v in self.judge.evaluate(self.rules, docs):
             status, _, _, problems = validate(v, by_id)

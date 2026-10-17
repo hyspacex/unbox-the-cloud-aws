@@ -27,9 +27,10 @@ Agents sign in through the enterprise IdP with MFA. Service-to-service calls use
 
 All traffic uses TLS 1.2 or higher. The service runs in private subnets with no public ingress.
 
-### 4.3 Encryption
+### 4.3 Key management
 
-All data is encrypted at rest using industry-standard encryption provided by the platform.
+All data is encrypted at rest with AES-256.
+Keys are customer-managed keys in AWS KMS, owned by the Lantern security team, and rotated every 12 months.
 
 ### 4.4 Logging and monitoring
 

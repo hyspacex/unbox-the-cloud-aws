@@ -4,8 +4,8 @@ import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Keel — checks for Box folders",
-  description: "Every upload to a project folder reruns its rules, like CI for documents.",
+  title: "Keel — decisions and compliance for Box",
+  description: "One source of truth for every project decision, checked on every upload to Box.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,21 +1,28 @@
-# Keel: checks for Box folders (local v1)
+# Keel: decisions and compliance for Box folders (local v2)
 
-Keel works like CI for documents. A project folder in Box contains a `keel-rules.md` file with plain-language rules. Every upload to the folder reruns those rules. Each rule passes or fails, and every result shows the quotes it is based on. When a change breaks a check, Keel creates a Box task for the person who uploaded that version.
+Keel gives a Box project folder **one source of truth for its decisions** and **checks its compliance on every upload**.
 
-This first version runs entirely on one machine. **Fake Box** stands in for Box, and SQLite-backed stand-ins replace Lambda, SQS FIFO and DynamoDB. Each stand-in behaves no more permissively than the real service, so later we can swap them for real adapters without changing how the product behaves. See [`../docs/v1-local-design.md`](../docs/v1-local-design.md) for details.
+- **Decisions.** Keel reads every document in the folder: proposals, architecture docs, checklists and meeting transcripts. It extracts what the team has decided, for example "p99 latency 50 ms", "data stays in the EU" or "keys are customer-managed, rotated every 12 months". Nobody maintains a list by hand. When a new upload contradicts an agreed decision, that is **decision drift**: Keel quotes both sides and names who changed it.
+- **Compliance.**
+  - **Security & privacy.** Plain-language rules in `keel-rules.md` are checked on every upload.
+  - **Certifications.** Standards such as GDPR, NIST CSF, OWASP ASVS and an internal ARB checklist install as versioned rule packs.
+- **Productivity.** Nobody rereads the folder. Only the person whose upload caused a problem gets a Box task. The audit trail records who changed what, and what it did.
 
-![Checks after a regression](demo/screenshots/checks-regression.png)
+Green means a decision holds or a check passes. Red means a person is needed. Everything else is black and white.
+
+![Overview after a drift](demo/screenshots/overview-drift.png)
 
 ## Demo videos
 
 | Video | What it shows |
 | --- | --- |
-| [`keel-walkthrough.mp4`](demo/videos/keel-walkthrough.mp4) | The full walkthrough (~2 min) |
-| [`01-connect-first-run.mp4`](demo/videos/01-connect-first-run.mp4) | Connect a Box folder. Run #1 reads every file and finds 6 of 8 checks passing, with reasons and a Box task for the owner. |
-| [`02-uploads-rerun-checks.mp4`](demo/videos/02-uploads-rerun-checks.mp4) | J. Park uploads a file and Dana edits the checklist in Box. Each upload reruns the checks. The folder ends at 8 of 8, and the Box metadata reads **Passing**. |
-| [`03-regression-blame-notify.mp4`](demo/videos/03-regression-blame-notify.mp4) | A "for clarity" rewrite of the architecture doc breaks two checks: a latency conflict with the meeting transcript, and lost key-management statements. Both are traced to J. Park's upload, and he gets one Box task. |
-| [`04-rule-packs.mp4`](demo/videos/04-rule-packs.mp4) | Installing the GDPR design-review pack adds `uses:` to `keel-rules.md`, which triggers a run. Five new checks appear, two of them failing. |
-| [`05-run-history.mp4`](demo/videos/05-run-history.mp4) | Run history: every upload, what it broke or fixed, and when the rules changed. |
+| [`keel-demo.mp4`](demo/videos/keel-demo.mp4) (~55 s) | **All green** → J. Park uploads a rewrite in Box → **decision drift** notification: p99 latency agreed 50 ms, now 200 ms → both sides quoted, plus the Box task he received → he fixes it → **all clear**. |
+| [`keel-certifications.mp4`](demo/videos/keel-certifications.mp4) (~25 s) | Install the GDPR pack → 4 of 5 (no DPIA) → Privacy uploads the DPIA summary → **GDPR ready**. |
+
+| | |
+| --- | --- |
+| ![All clear](demo/screenshots/overview-all-clear.png) | ![Decision drift](demo/screenshots/decision-drift.png) |
+| ![Decisions](demo/screenshots/decisions.png) | ![Box task](demo/screenshots/box-task.png) |
 
 ## Run it
 
@@ -23,22 +30,17 @@ Requirements: Node 20+ and Python 3.11+. The local stack uses only the Python st
 
 ```bash
 cd keel
-./dev.sh --seed            # starts both servers, then seeds the "Project Lantern" folder in Fake Box
+./dev.sh --seed-connected   # starts everything and seeds "Project Lantern" connected, so it starts all green
 # Keel      http://localhost:3000
 # Fake Box  http://localhost:3000/box
 ```
 
-- `./dev.sh --seed-connected` also connects the folder to Keel, so run #1 happens right away.
-- `./dev.sh --prod` builds the app and runs `next start`. It is smoother for demos.
+Try it:
 
-Try the flow by hand:
-
-1. In Keel (`/`), click **Connect** on *Project Lantern*. Run #1 shows 6 of 8 checks passing.
-2. In Fake Box, switch to **J. Park**. Upload `content/lantern/2-fix/data-retention.md`. Keel reruns and shows 7 of 8.
-3. Switch to **Dana Okafor**. Edit `security-checklist.md` in Fake Box and tick the open item. Keel shows 8 of 8.
-4. Switch to **J. Park**. Upload `content/lantern/3-regression/architecture.md`. R2 and R3 break, and J. Park gets a Box task.
-5. In Keel, open **Rule packs** and install *GDPR design review*. Five more checks appear.
-6. Upload `content/lantern/4-repair/architecture.md` to fix R2 and R3.
+1. In Fake Box (`/box`), switch to **J. Park** and upload `content/lantern/drift/architecture.md`. Keel's overview turns red and shows a **Decision drift** notification. J. Park gets a Box task.
+2. Upload `content/lantern/fix/architecture.md`. Keel shows **Back in agreement** and the folder is all clear again.
+3. In Keel, open **Certifications** and install *GDPR design review*. The pack scores 4 of 5. Upload `content/lantern/certify/dpia.md` to make it 5 of 5.
+4. To see an intended change recorded instead of flagged, update the p99 target to 200 ms in *all* documents. Once every document agrees, the Decisions page records "changed 50 ms → 200 ms".
 
 ## How it works
 
@@ -80,13 +82,17 @@ Each run follows these steps:
 4. **Judge.** Give every rule a pass/fail verdict with a reason and citations.
 5. **Validate.** Every quoted passage must appear in the exact file version it cites. If it doesn't, the rule shows **Couldn't evaluate**. It never shows a pass.
 6. **Compare** with the previous run: which rules broke, which were fixed, and which are new.
-7. **Blame.** A newly failing rule is attributed to the uploader of the changed file it cites.
-8. **Notify.** Create one Box task per person who broke something, attached to the file they changed. Failures nobody caused (a first run or new rules) go to the folder owner. When a reported rule passes again, the existing task's message is updated.
-9. **Project.** Write the status and pass/fail counts to the folder's `keelChecks` metadata in Box.
+7. **Decisions.** Extract decided values from every document and validate their quotes. Compare them with the decision ledger carried forward from the last run, and classify each decision:
+   - **Holding:** every document agrees.
+   - **Drifted:** documents disagree. The statements that moved away from the agreed value are the drift.
+   - **Updated:** every document now agrees on a new value, and the change is recorded in the decision's history.
+8. **Blame.** A newly failing rule or a new drift is attributed to the uploader of the changed file.
+9. **Notify.** Create one Box task per person whose upload caused a problem, attached to the file they changed. Failures nobody caused (new rules or packs) go to the folder owner. When things are back in agreement, the task's message is updated. Keel also shows a live notification, and a bell with the count of items that need attention.
+10. **Project.** Write the status and the decision and check counts to the folder's `keelChecks` metadata in Box.
 
 ### Local stand-ins and what they replace
 
-| Production | Local v1 | Code |
+| Production | Local build | Code |
 | --- | --- | --- |
 | Box REST API (`api.box.com/2.0`, `upload.box.com`) | Fake Box HTTP API under `/fakebox/api/2.0` and `/fakebox/upload/2.0` | `web/lib/fakebox/core.ts`, `web/app/fakebox/**` |
 | Box web app | Fake Box UI at `/box` (folders, versions, edit, tasks, metadata, webhook log) | `web/app/box/**` |
@@ -97,7 +103,7 @@ Each run follows these steps:
 | DynamoDB single table | SQLite `items(pk, sk)`: key lookups and prefix queries only, 400 KB items, 100-item transactions | `runner/keel_runner/store.py` |
 | API Gateway + Lambda | Local HTTP API on `:8787` | `runner/keel_runner/api.py`, `local.py` |
 | EventBridge Scheduler | Reconciler thread that queues a check every `KEEL_RECONCILE_SECONDS` | `local.py` |
-| Amazon Bedrock (Strands agent) | `KEEL_JUDGE=offline` (regex hints) or `KEEL_JUDGE=bedrock` | `runner/keel_runner/judges/` |
+| Amazon Bedrock (Strands agents: judge + decision extractor) | `KEEL_JUDGE=offline` (regex hints) or `KEEL_JUDGE=bedrock` | `runner/keel_runner/judges/`, `decisions.py` |
 | Box sign-in | "Signed in as" user switcher (cookie) | `web/lib/session.ts` |
 
 ## Rules and rule packs
@@ -122,8 +128,12 @@ p99 latency targets agree across every document and meeting transcript in the fo
   - An *ISO/IEC 27001* card that is deliberately locked. The ISO text is copyrighted, so the organisation would have to supply its own licensed text.
 - A passing pack means the documents state what the standard asks for, consistently. It is **not a certification**.
 
-## Judges
+## Judges and decision extraction
 
+- **Decision extraction.**
+  - **Offline:** uses the topic patterns in `content/offline-decisions.json`, covering 8 topics such as latency, data region, key ownership and rotation, retention, peak load, recovery objectives and owner.
+  - **Bedrock:** extracts any decision with a Strands agent that returns structured output.
+  - **Quote checks:** every extracted statement's quote is checked against the exact file version, and fabricated quotes are dropped.
 - **`offline` (default).** Deterministic and needs no network access. It is a stand-in for UX iteration and tests.
   - It reads per-rule hints: inline `<!-- keel:offline {...} -->` comments in pack files, and `content/offline-hints.json` keyed by rule title for folder rules.
   - Supported checks: `require_all` (each clause must be found somewhere), `consistency` (all extracted values must agree) and `checklist_complete`.
@@ -145,8 +155,8 @@ cd keel/web && npx eslint . && npx next build
 ```bash
 cd keel && ./dev.sh --prod &                 # stack must be running
 cd demo && npm install && npx playwright install chromium
-npm run record     # reseeds the folder, records, cuts chapters (needs ffmpeg for MP4)
-npm run screens    # README screenshots
+npm run record     # reseeds, records keel-demo + keel-certifications (needs ffmpeg for MP4)
+npm run screens    # reseeds, captures README screenshots
 ```
 
 ## Layout
@@ -155,20 +165,20 @@ npm run screens    # README screenshots
 keel/
   dev.sh                 start everything
   .env.example           shared configuration (web + runner)
-  content/lantern/       demo documents: 1-initial, 2-fix, 3-regression, 4-repair
-  content/offline-hints.json
+  content/lantern/       demo documents: seed (all green), drift, fix, certify
+  content/offline-hints.json, offline-decisions.json
   packs/                 rule pack catalog (<id>/<version>.md)
-  runner/keel_runner/    Python: webhook, queue, store, runner, judges, api, local server, seed
+  runner/keel_runner/    Python: webhook, queue, store, runner, decisions, judges, api, local server, seed
   runner/tests/          unit tests
   web/                   Next.js: Keel UI, Fake Box API + UI
   demo/                  Playwright recording + screenshots + videos
 ```
 
-## Known limits of v1
+## Known limits
 
 - **Files.** Only text files (`.md`, `.txt`, `.csv`, `.json`, `.yaml`, `.vtt`) are read. Other types are listed as "unsupported" in the run's coverage. In production, Box's `extracted_text` representation would cover PDF and DOCX.
 - **No real authentication.**
   - The acting user is a dev switcher.
   - The runner uses one Fake Box service token with `As-User` for pack installs.
 - **Webhook addresses.** Fake Box delivers webhooks over plain HTTP to localhost. Real Box requires a public HTTPS endpoint on port 443.
-- **Bedrock judge not exercised.** The Bedrock path has not been run end to end. The demo uses the offline judge, which only understands rules that have hints.
+- **Bedrock not exercised.** The Bedrock judge and the Bedrock decision extractor have not been run end to end. The demo uses the offline judge and extractor, which only understand rules and decision topics that have hints.

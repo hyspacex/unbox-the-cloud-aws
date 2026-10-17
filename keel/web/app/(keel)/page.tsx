@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Ago } from "@/components/Ago";
 import { ConnectFolder } from "./ConnectFolder";
-import { listFolders } from "@/lib/keel/data";
+import { attention, latestCompleted, listFolders } from "@/lib/keel/data";
 import { runnerApi } from "@/lib/keel/runner";
 
 export const dynamic = "force-dynamic";
@@ -19,22 +19,22 @@ export default async function Home() {
   return (
     <main className="page">
       <div className="eyebrow">Folders</div>
-      <h1 className="display">Every upload, checked.</h1>
-      <p className="lede">Keel reruns a folder&apos;s rules whenever a document is added or changed, and tells the person whose change broke a check.</p>
+      <h1 className="display">One source of truth for every decision.</h1>
+      <p className="lede">Keel reads every upload to a Box project folder, keeps the team’s decisions in agreement, checks security, privacy and certification rules, and tells the right person the moment something drifts.</p>
 
       {folders.length > 0 && (
         <div className="folders">
           {folders.map((f) => {
-            const c = f.latest_run?.counts;
-            const failing = c?.failing ?? 0;
+            const run = latestCompleted(f.folder_id);
+            const n = attention(run);
             return (
               <Link key={f.folder_id} href={`/folders/${f.folder_id}`} className="foldercard" data-testid="folder-card">
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <span className="fn">{f.name}</span>
-                  {c && <span className={`pill ${failing ? "solid" : ""}`}>{failing ? `${failing} failing` : "All passing"}</span>}
+                  {run && <span className={`pill ${n ? "alert" : "ok"}`}>{n ? `${n} need${n === 1 ? "s" : ""} attention` : "All clear"}</span>}
                 </div>
-                <div style={{ fontSize: 44, fontWeight: 650, letterSpacing: "-0.04em", color: "var(--ink)" }}>
-                  {c ? <>{c.passing}<span style={{ color: "var(--mute-2)", fontSize: 22, fontWeight: 500 }}> / {c.total} passing</span></> : "—"}
+                <div style={{ fontSize: 15, color: "var(--mute)" }}>
+                  {run ? `${run.decisions?.holding ?? 0} of ${run.decisions?.total ?? 0} decisions holding · ${run.counts?.passing}/${run.counts?.total} checks passing` : "Reading the folder…"}
                 </div>
                 <div className="muted" style={{ fontSize: 13 }}>
                   Run #{f.latest_run?.number ?? 0} · <Ago iso={f.latest_run?.finished_at} /> · Box folder <span className="mono">{f.folder_id}</span>

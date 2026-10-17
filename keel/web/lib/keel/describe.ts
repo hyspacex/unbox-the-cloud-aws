@@ -30,3 +30,16 @@ export function ruleHref(folderId: string, run: number, ruleId: string) {
 export function fileHref(fileId: string, versionId?: string, line?: number | null) {
   return `/box/files/${fileId}${versionId ? `?version=${versionId}` : ""}${line ? `#L${line}` : ""}`;
 }
+
+// Where a notification about this run should take you.
+export function summaryHref(folderId: string, run: Run): string {
+  const k = run.summary?.kind;
+  const topic = (k === "drift" ? run.decisions?.drifted_now[0] : k === "resolved" ? run.decisions?.resolved[0] : k === "updated" ? run.decisions?.updated[0] : undefined);
+  if (topic) return `/folders/${folderId}/decisions/${topic}`;
+  if (k === "fail" && run.changes?.broke[0]) return ruleHref(folderId, run.number, run.changes.broke[0]);
+  return `/folders/${folderId}`;
+}
+
+export function decisionHref(folderId: string, topic: string) {
+  return `/folders/${folderId}/decisions/${topic}`;
+}

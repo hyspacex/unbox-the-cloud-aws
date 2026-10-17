@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getFolder, listRuns, queuedCount } from "@/lib/keel/data";
+import { getFolder, latestCompleted, listRuns, queuedCount } from "@/lib/keel/data";
+import { summaryHref } from "@/lib/keel/describe";
 import { peekInstance } from "@/lib/fakebox/core";
 import { db } from "@/lib/fakebox/db";
 
@@ -25,6 +26,14 @@ export async function GET(req: NextRequest) {
       d.prepare("SELECT MAX(created_at) m FROM tasks").get(),
     );
     if (folder) parts.push(peekInstance("folders", folder, "enterprise", "keelChecks")?.version);
+  }
+  if (folder && scope !== "box") {
+    const done = latestCompleted(folder);
+    const run = listRuns(folder, 1)[0];
+    return Response.json({
+      fp: JSON.stringify(parts), running: run?.status === "running" || queuedCount(folder) > 0,
+      latest: done?.number ?? 0, summary: done?.summary ?? null, href: done ? summaryHref(folder, done) : "",
+    });
   }
   return Response.json(parts);
 }

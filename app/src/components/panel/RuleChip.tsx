@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { animate, useReducedMotion } from "motion/react";
 import type { DashboardTile, RuleSource } from "@/lib/types";
 import { C } from "./parts";
 
@@ -61,7 +63,18 @@ const TILE_TONE: Record<DashboardTile["tone"], { fg: string; bg: string }> = {
  * Three tiles from PackageView.dashboard (design v4.1 decision 4). Value and label are the engine's. With onSelect,
  * each tile is a toggle that filters the panel list; a tile at 0 is not selectable.
  */
-export function Tiles({ tiles, selected = null, onSelect }: { tiles: DashboardTile[]; selected?: DashboardTile["key"] | null; onSelect?: (key: DashboardTile["key"] | null) => void }) {
+export function Tiles({
+  tiles,
+  selected = null,
+  onSelect,
+  size = "compact",
+}: {
+  tiles: DashboardTile[];
+  selected?: DashboardTile["key"] | null;
+  onSelect?: (key: DashboardTile["key"] | null) => void;
+  size?: "compact" | "hero";
+}) {
+  const big = size === "hero";
   if (!tiles.length) return null;
   return (
     <ul className="grid gap-2" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }} aria-label="Overview">
@@ -71,10 +84,10 @@ export function Tiles({ tiles, selected = null, onSelect }: { tiles: DashboardTi
         const dim = selected !== null && !on;
         const body = (
           <>
-            <div className="text-[26px] font-bold leading-none tabular-nums" style={{ color: tone.fg }}>
-              {t.value}
+            <div className={`${big ? "text-[36px]" : "text-[26px]"} font-bold leading-none tabular-nums`} style={{ color: tone.fg, transition: "color 300ms" }}>
+              <Count value={t.value} />
             </div>
-            <div className="mt-1 text-[12px] font-bold" style={{ color: tone.fg }}>
+            <div className={`mt-1 ${big ? "text-[13px]" : "text-[12px]"} font-bold`} style={{ color: tone.fg, transition: "color 300ms" }}>
               {t.label}
             </div>
           </>
@@ -88,13 +101,13 @@ export function Tiles({ tiles, selected = null, onSelect }: { tiles: DashboardTi
                 disabled={t.value === 0 && !on}
                 onClick={() => onSelect(on ? null : t.key)}
                 title={on ? "Show all" : `Show only ${t.label}`}
-                className="w-full rounded-[6px] px-3 py-2.5 text-center transition-[opacity,box-shadow] enabled:hover:brightness-[0.97] disabled:cursor-default"
-                style={{ background: tone.bg, opacity: dim ? 0.45 : 1, boxShadow: on ? `inset 0 0 0 1.5px ${tone.fg}` : undefined }}
+                className={`w-full rounded-[6px] ${big ? "px-4 py-4" : "px-3 py-2.5"} text-center transition-[opacity,box-shadow] enabled:hover:brightness-[0.97] disabled:cursor-default`}
+                style={{ transition: "background-color 300ms, opacity 200ms, box-shadow 200ms", background: tone.bg, opacity: dim ? 0.45 : 1, boxShadow: on ? `inset 0 0 0 1.5px ${tone.fg}` : undefined }}
               >
                 {body}
               </button>
             ) : (
-              <div className="rounded-[6px] px-3 py-2.5 text-center" style={{ background: tone.bg }}>
+              <div className={`rounded-[6px] ${big ? "px-4 py-4" : "px-3 py-2.5"} text-center`} style={{ background: tone.bg, transition: "background-color 300ms" }}>
                 {body}
               </div>
             )}
@@ -103,4 +116,22 @@ export function Tiles({ tiles, selected = null, onSelect }: { tiles: DashboardTi
       })}
     </ul>
   );
+}
+
+/** A tile count that ticks from its previous value to the new one (the value itself is the engine's). */
+function Count({ value }: { value: number }) {
+  const reduce = useReducedMotion();
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  useEffect(() => {
+    if (reduce || from.current === value) {
+      from.current = value;
+      setShown(value);
+      return;
+    }
+    const c = animate(from.current, value, { duration: 0.5, ease: "easeOut", onUpdate: (v) => setShown(Math.round(v)) });
+    from.current = value;
+    return () => c.stop();
+  }, [value, reduce]);
+  return <>{shown}</>;
 }

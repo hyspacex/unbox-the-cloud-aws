@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import type { ControlRow, DashboardTile, FindingCard, PackageView, TimelinePoint } from "@/lib/types";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import type { ControlRow, DashboardTile, FindingCard, PackageStandards, PackageView, TimelinePoint } from "@/lib/types";
 import { api, peekFinding } from "@/lib/client";
 import { orderByAttention, orderById } from "@/lib/ui/order";
 import { useKeelState } from "@/components/KeelStateProvider";
@@ -58,8 +58,12 @@ function useReceipts(pkg: PackageView | null, skip: boolean): Receipts {
   return fresh;
 }
 
-export function Level1() {
-  const { pkg, pkgError, run, replay, endReplay, pushView } = useKeelState();
+/**
+ * The package overview. In the panel it is level 1; on the folder page (variant "page") it is the project's welcome
+ * screen, with the standards header on top, and a row click opens the control in the side panel.
+ */
+export function Level1({ variant = "panel" }: { variant?: "panel" | "page" }) {
+  const { pkg, pkgError, run, replay, endReplay, pushView, openPanel } = useKeelState();
   const running = Boolean(run?.running);
   const locked = running || Boolean(replay);
   const receipts = useReceipts(pkg, Boolean(replay) || running);
@@ -124,14 +128,18 @@ export function Level1() {
   // A re-check or replay shows every row; the tiles are not selectable then.
   const view = locked || asOf ? null : activeFilter;
   const shown = (key: DashboardTile["key"]) => view === null || view === key;
-  const showHolds = view === "hold" || (holdsOpen ?? onlyHolds);
+  const showHolds = view === "hold" || (holdsOpen ?? (onlyHolds || variant === "page"));
   const holdTile = tiles.find((t) => t.key === "hold");
   // "5 hold": the engine's hold tile, value and label, as the fold title; holds_line when there are no tiles.
   // Baseline (lane E): holds_line is absent and the hold list shows expanded with no fold title. After a run the
   // fold title is the engine's hold tile ("5 hold"), or holds_line when there are no tiles.
   const holdText = !pkg.holds_line ? null : holdTile ? `${holdTile.value} ${holdTile.label.toLowerCase()}` : pkg.holds_line;
 
-  const open = (r: ControlRow) => !locked && pushView({ kind: "control", controlId: r.control_id });
+  const open = (r: ControlRow) => {
+    if (locked) return;
+    if (variant === "page") openPanel({ kind: "control", controlId: r.control_id });
+    else pushView({ kind: "control", controlId: r.control_id });
+  };
 
   // ArrowUp / ArrowDown move between rows (roving, like the menu); Enter opens.
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -143,106 +151,218 @@ export function Level1() {
     items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
   };
 
+  const page = variant === "page";
+
+  const replayBanner = replay ? (
+    <div className="mb-3 flex items-center justify-between gap-2 rounded-[4px] border px-3 py-2 text-[12.5px]" style={{ borderColor: C.border, background: C.greyBg, color: C.text }}>
+      <span>
+        <span className="font-bold">Replay</span> of {replay.runId}. Nothing is re-evaluated.
+      </span>
+      <button type="button" className="font-bold hover:underline" style={{ color: C.boxBlue }} onClick={endReplay}>
+        End replay
+      </button>
+    </div>
+  ) : null;
+
+  const changed = (
+    <div hidden={Boolean(asOf)}>
+      <div className={`${page ? "text-[14px]" : "text-[13.5px]"} font-bold`} style={{ color: C.text }}>
+        {line1}
+      </div>
+      {running && pkg.header_line ? (
+        <div className="text-[12.5px]" style={{ color: C.secondary }}>
+          {pkg.header_line}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const tilesEl = tiles.length ? <Tiles tiles={tiles} selected={view} onSelect={locked || asOf ? undefined : setFilter} size={page ? "hero" : "compact"} /> : null;
+  const timelineEl = pkg.timeline?.length ? (
+    <Timeline
+      points={pkg.timeline}
+      label="Package history, one point per snapshot"
+      selected={asOf?.snapshot_id ?? null}
+      onSelect={locked ? undefined : setAsOfId}
+      size={page ? "hero" : "compact"}
+    />
+  ) : null;
+
+  const lists = (
+    <div className={page ? "grid gap-x-6 min-[900px]:grid-cols-2" : ""}>
+      <div>
+        {groups.pending.length && view === null ? (
+          <Section label="Re-check pending">
+            {groups.pending.map((r) => (
+              <Row key={r.control_id} row={r} locked onOpen={open} />
+            ))}
+          </Section>
+        ) : null}
+        {groups.decide.length && shown("need_you") ? (
+          <Section label="Need you">
+            {groups.decide.map((r) => (
+              <Row key={r.control_id} row={r} locked={locked} onOpen={open} awaiting={awaiting.has(r.control_id)} />
+            ))}
+          </Section>
+        ) : null}
+        {groups.ack.length && shown("need_you") ? (
+          <Section label="Acknowledge">
+            {groups.ack.map((r) => (
+              <Row key={r.control_id} row={r} locked={locked} onOpen={open} hollow />
+            ))}
+          </Section>
+        ) : null}
+      </div>
+      <div>
+        {groups.recorded.length && shown("recorded") ? (
+          <Section label="Recorded">
+            {groups.recorded.map((r) => (
+              <Row key={r.control_id} row={r} locked={locked} onOpen={open} receipt={receipts[r.control_id]?.receipt} recorded />
+            ))}
+          </Section>
+        ) : null}
+
+        {groups.holds.length && shown("hold") ? (
+          <section className="mt-1" aria-label="Verifications that hold">
+            {holdText ? (
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-[4px] px-1 py-1.5 text-left text-[13px] font-bold hover:bg-[#F4F6FA]"
+                style={{ color: C.text }}
+                aria-expanded={showHolds}
+                onClick={() => setHoldsOpen(!showHolds)}
+              >
+                <span>{holdText}</span>
+                <Chevron dir={showHolds ? "up" : "down"} size={13} />
+              </button>
+            ) : null}
+            <AnimatePresence initial={false}>
+              {showHolds || !holdText ? (
+                <motion.ul
+                  key="holds"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: DUR.inline, ease: EASE_OUT }}
+                  style={{ overflow: "hidden", borderColor: C.border }}
+                  className="mt-1 rounded-[4px] border"
+                >
+                  {groups.holds.map((r) => (
+                    <Row key={r.control_id} row={r} locked={locked} onOpen={open} />
+                  ))}
+                </motion.ul>
+              ) : null}
+            </AnimatePresence>
+          </section>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  // Now and a past point cross-fade; the body slides a little in the direction of travel on the timeline.
+  const body = (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={asOf?.snapshot_id ?? "now"}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.2, ease: EASE_OUT }}
+      >
+        {asOf ? <AsOf point={asOf} onBack={() => setAsOfId(null)} showCard={!page} /> : lists}
+      </motion.div>
+    </AnimatePresence>
+  );
+
+  if (page) {
+    const card = asOf ? asOf.as_of!.status_card : pkg.status_card;
+    return (
+      <div onKeyDown={onKeyDown} data-testid="welcome">
+        {replayBanner}
+        <ProjectTitle header={pkg.header} />
+        {pkg.standards ? <StandardsHero standards={pkg.standards} /> : null}
+        <div className="mt-5 grid items-start gap-5 min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <div className="space-y-2 pt-1">
+            <StatusCard card={card} />
+            {changed}
+          </div>
+          {tilesEl}
+        </div>
+        <div className="mt-5 rounded-[8px] border px-6 pb-4 pt-6" style={{ borderColor: C.border }}>
+          {timelineEl}
+        </div>
+        <div className="mt-6">{body}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-5 pt-3 pb-6" onKeyDown={onKeyDown}>
-      {replay ? (
-        <div className="mb-3 flex items-center justify-between gap-2 rounded-[4px] border px-3 py-2 text-[12.5px]" style={{ borderColor: C.border, background: C.greyBg, color: C.text }}>
-          <span>
-            <span className="font-bold">Replay</span> of {replay.runId}. Nothing is re-evaluated.
-          </span>
-          <button type="button" className="font-bold hover:underline" style={{ color: C.boxBlue }} onClick={endReplay}>
-            End replay
-          </button>
-        </div>
-      ) : null}
+      {replayBanner}
       <header className="mb-4 space-y-3">
-        {tiles.length ? <Tiles tiles={tiles} selected={view} onSelect={locked || asOf ? undefined : setFilter} /> : null}
-        <div hidden={Boolean(asOf)}>
-          <div className="text-[13.5px] font-bold" style={{ color: C.text }}>
-            {line1}
-          </div>
-          {running && pkg.header_line ? (
-            <div className="text-[12.5px]" style={{ color: C.secondary }}>
-              {pkg.header_line}
-            </div>
-          ) : null}
-        </div>
-        {pkg.timeline?.length ? (
-          <Timeline points={pkg.timeline} label="Package history, one point per snapshot" selected={asOf?.snapshot_id ?? null} onSelect={locked ? undefined : setAsOfId} />
-        ) : null}
+        {tilesEl}
+        {changed}
+        {timelineEl}
       </header>
-
-      {asOf ? <AsOf point={asOf} onBack={() => setAsOfId(null)} /> : <>
-
-      {groups.pending.length && view === null ? (
-        <Section label="Re-check pending">
-          {groups.pending.map((r) => (
-            <Row key={r.control_id} row={r} locked onOpen={open} />
-          ))}
-        </Section>
-      ) : null}
-      {groups.decide.length && shown("need_you") ? (
-        <Section label="Need you">
-          {groups.decide.map((r) => (
-            <Row key={r.control_id} row={r} locked={locked} onOpen={open} awaiting={awaiting.has(r.control_id)} />
-          ))}
-        </Section>
-      ) : null}
-      {groups.ack.length && shown("need_you") ? (
-        <Section label="Acknowledge">
-          {groups.ack.map((r) => (
-            <Row key={r.control_id} row={r} locked={locked} onOpen={open} hollow />
-          ))}
-        </Section>
-      ) : null}
-      {groups.recorded.length && shown("recorded") ? (
-        <Section label="Recorded">
-          {groups.recorded.map((r) => (
-            <Row key={r.control_id} row={r} locked={locked} onOpen={open} receipt={receipts[r.control_id]?.receipt} recorded />
-          ))}
-        </Section>
-      ) : null}
-
-      {groups.holds.length && shown("hold") ? (
-        <section className="mt-1" aria-label="Verifications that hold">
-          {holdText ? (
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded-[4px] px-1 py-1.5 text-left text-[13px] font-bold hover:bg-[#F4F6FA]"
-              style={{ color: C.text }}
-              aria-expanded={showHolds}
-              onClick={() => setHoldsOpen(!showHolds)}
-            >
-              <span>{holdText}</span>
-              <Chevron dir={showHolds ? "up" : "down"} size={13} />
-            </button>
-          ) : null}
-          <AnimatePresence initial={false}>
-            {showHolds || !holdText ? (
-              <motion.ul
-                key="holds"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: DUR.inline, ease: EASE_OUT }}
-                style={{ overflow: "hidden", borderColor: C.border }}
-                className="mt-1 rounded-[4px] border"
-              >
-                {groups.holds.map((r) => (
-                  <Row key={r.control_id} row={r} locked={locked} onOpen={open} />
-                ))}
-              </motion.ul>
-            ) : null}
-          </AnimatePresence>
-        </section>
-      ) : null}
-      </>}
+      {body}
     </div>
   );
 }
 
+/** The welcome screen's title: the project and its application facts, from the folder header. */
+function ProjectTitle({ header: h }: { header: PackageView["header"] }) {
+  const facts = [h.application_id, h.application_tier, h.regulatory_scope].filter(Boolean);
+  if (!h.project) return null;
+  return (
+    <motion.div className="mb-5" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: EASE_OUT }}>
+      <h2 className="text-[22px] font-bold leading-tight" style={{ color: C.text }}>
+        {h.project}
+      </h2>
+      {facts.length ? (
+        <p className="mt-1 text-[13px]" style={{ color: C.secondary }}>
+          {facts.join(" · ")}
+        </p>
+      ) : null}
+    </motion.div>
+  );
+}
+
+/** The welcome screen's "Checked against" header: framework badges with control counts, the mapping caveat, the profile. */
+function StandardsHero({ standards: s }: { standards: PackageStandards }) {
+  const reduce = useReducedMotion();
+  return (
+    <section aria-label="Checked against" data-testid="standards">
+      <SectionLabel>Checked against</SectionLabel>
+      <ul className="mt-1 flex flex-wrap gap-2">
+        {s.frameworks.map((f, i) => (
+          <motion.li
+            key={f.key}
+            initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.05 * i, ease: EASE_OUT }}
+            className="flex min-w-[132px] flex-col rounded-[8px] border px-3.5 py-2.5"
+            style={{ borderColor: "#D6E6FB", background: "linear-gradient(180deg,#F5F9FF,#FFFFFF)" }}
+            title={`${f.label}: ${f.controls} controls, ${f.clauses} mapped clauses`}
+          >
+            <span className="text-[15px] font-bold leading-tight" style={{ color: C.boxBlue }}>
+              {f.label}
+            </span>
+            <span className="mt-0.5 text-[12px]" style={{ color: C.secondary }}>
+              {f.controls} controls · {f.clauses} clauses
+            </span>
+          </motion.li>
+        ))}
+      </ul>
+      <p className="mt-2 text-[12.5px]" style={{ color: C.secondary }}>
+        <span style={{ color: C.text }}>{s.profile_line}</span> · {s.bank_line}
+        {s.mapping_note ? <span className="block text-[12px] italic">{s.mapping_note}</span> : null}
+      </p>
+    </section>
+  );
+}
+
 /** A past timeline point: the status card and each control's status as they stood then. Read-only. */
-function AsOf({ point, onBack }: { point: TimelinePoint; onBack: () => void }) {
+function AsOf({ point, onBack, showCard = true }: { point: TimelinePoint; onBack: () => void; showCard?: boolean }) {
   const s = point.as_of!;
   return (
     <section aria-label={`Status on ${prose(point.at)}`} data-testid="as-of">
@@ -252,7 +372,7 @@ function AsOf({ point, onBack }: { point: TimelinePoint; onBack: () => void }) {
           Back to now
         </button>
       </div>
-      <StatusCard card={s.status_card} />
+      {showCard ? <StatusCard card={s.status_card} /> : null}
       <ul className="overflow-hidden rounded-[4px] border" style={{ borderColor: C.border }}>
         {s.controls.map((c) => (
           <li key={c.control_id} className="flex items-start gap-2.5 border-b px-3 py-2 last:border-b-0" style={{ borderColor: C.border }} title={c.control_id}>

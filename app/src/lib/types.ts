@@ -136,6 +136,20 @@ export interface RuleSource {
   framework_map_status?: string;
 }
 
+/** Added (UI v4.2): the welcome screen's "Checked against" header, computed from the control profile. */
+export interface PackageStandards {
+  /** One per framework the profile maps to, in a fixed order: "ISO 27001:2022", 8 controls, 14 clauses. */
+  frameworks: { key: string; label: string; controls: number; clauses: number }[];
+  /** "Mapping illustrative; not reviewed by a compliance owner", when the profile carries the caveat. */
+  mapping_note?: string;
+  /** "Meridian Trust Bank ARB design review, US · profile 2026.3" */
+  profile_line: string;
+  /** The bank standards the controls cite: ["IS-STD-003", "IS-STD-009", ...] */
+  bank_standards: string[];
+  /** "8 bank standards" */
+  bank_line: string;
+}
+
 /** Added (UI v4.1): one point of a history strip (package or control). */
 export interface TimelinePoint {
   snapshot_id: string;
@@ -786,6 +800,8 @@ export interface PackageView {
   timeline?: TimelinePoint[];
   /** Added (UI v4.2): the folder page's status card. */
   status_card?: StatusCard;
+  /** Added (UI v4.2): the welcome screen's standards header. */
+  standards?: PackageStandards;
 }
 
 export interface FindingCard {

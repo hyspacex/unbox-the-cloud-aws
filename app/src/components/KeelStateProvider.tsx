@@ -174,7 +174,7 @@ function uploadErrorText(e: unknown): string {
     const code = e.body && typeof e.body === "object" ? (e.body as { error?: { code?: string } }).error?.code : undefined;
     if (code === "PACKAGE_BUSY" || code === "RUN_ACTIVE" || (e.status === 409 && !code)) return BUSY_TEXT;
     // The mock fixture's version was already uploaded: say what to do in the UI's terms, not the route's.
-    if (code === "ALREADY_SUBMITTED") return "This version is already uploaded. Reset the demo from the Keel menu to upload it again.";
+    if (code === "ALREADY_SUBMITTED") return "This version is already uploaded. Reset the demo from the ⋯ menu in Control review to upload it again.";
     return e.message;
   }
   return msg(e);

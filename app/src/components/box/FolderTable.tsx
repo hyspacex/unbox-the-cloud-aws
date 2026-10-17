@@ -9,7 +9,7 @@ import { DetailsPane } from "./DetailsPane";
 import { BoxDropdown, UploadMenu } from "./UploadMenu";
 import { UploadChooser } from "./UploadChooser";
 import { boxDate, boxSize } from "./format";
-import { StatusCard } from "./StatusCard";
+import { Welcome } from "./Welcome";
 import { Toast } from "./Toast";
 import { FileTypeIcon, IconChevronRight, IconInfo, IconMore, IconNewVersion } from "./icons";
 
@@ -20,7 +20,7 @@ const COLS = "box-grid";
 
 /** The Box folder list: breadcrumb, toolbar, and the file table driven by GET /api/package `files`. */
 export function FolderTable() {
-  const { pkg, pkgError, busy, isMock, uploadVersion, upload, uploadError, uploadWarning, dismissUploadError, replay, openPanel } = useKeelState();
+  const { pkg, pkgError, busy, isMock, uploadVersion, upload, uploadError, uploadWarning, dismissUploadError, replay, openPanel, panel } = useKeelState();
   /** The chooser is open for this target file (null closed), with the control that opened it for focus return. */
   const [chooser, setChooser] = useState<{ target: string; opener: string } | null>(null);
   const [details, setDetails] = useState(false);
@@ -62,7 +62,8 @@ export function FolderTable() {
         <Toast text={uploadError ?? uploadWarning} tone={uploadError ? "error" : "warning"} onClose={dismissUploadError} />
 
         <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-24">
-          <StatusCard card={pkg?.status_card} onOpen={() => openPanel({ kind: "level1" })} />
+          <Welcome />
+          {!panel.open ? <h2 className="mb-1 text-[16px] font-bold text-[#222222]">Files</h2> : null}
           <div className="box-table" role="table" aria-label="Files">
           <div role="row" className={`grid ${COLS} h-10 items-center border-b border-[#E8E8E8] text-[13px] font-bold text-[#767676]`}>
             <span role="columnheader" className="pl-14">
@@ -88,6 +89,7 @@ export function FolderTable() {
                 // Mock: only architecture.md has a prepared new version. Live: every file can take one.
                 canUploadVersion={!busy && (!isMock || f.file_name === "architecture.md")}
                 onUploadVersion={() => setChooser({ target: f.file_name, opener: `[data-testid="row-menu-${f.file_name}"]` })}
+                onOpenFile={() => openPanel()}
               />
             ))
           ) : pkgError ? (
@@ -161,11 +163,14 @@ function FileRow({
   upload,
   canUploadVersion,
   onUploadVersion,
+  onOpenFile,
 }: {
   file: PackageFile;
   upload: UploadState;
   canUploadVersion: boolean;
   onUploadVersion: () => void;
+  /** Opening a file folds the welcome screen into the side panel. */
+  onOpenFile: () => void;
 }) {
   const reduce = useReducedMotion();
   const tone = f.open_decisions > 0 ? "amber" : f.recorded_decisions > 0 ? "blue" : null;
@@ -184,6 +189,7 @@ function FileRow({
           href={`/files/${encodeURIComponent(f.file_id)}?v=${encodeURIComponent(f.version_id)}`}
           className="flex min-w-0 text-[14px] font-bold text-[#222222] hover:text-[#0061D5] hover:underline"
           data-testid={`file-link-${f.file_name}`}
+          onClick={onOpenFile}
         >
           <FileName name={f.file_name} />
         </Link>

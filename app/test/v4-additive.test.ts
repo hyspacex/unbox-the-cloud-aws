@@ -992,3 +992,22 @@ describe("timeline as_of (status on a past snapshot)", () => {
     for (const p of tl) for (const t of [p.as_of!.status_card.headline, p.as_of!.status_card.detail, ...p.as_of!.controls.map((c) => c.word)]) clean(t);
   });
 });
+
+describe("standards (welcome screen header)", () => {
+  it("frameworks in display order with control counts, the caveat verbatim, the profile and its bank standards", () => {
+    svc.reset();
+    const s = svc.getPackageView().standards!;
+    expect(s.frameworks.map((f) => [f.label, f.controls])).toEqual([
+      ["ISO 27001:2022", 8],
+      ["NIST CSF 2.0", 8],
+      ["PCI DSS 4.0.1", 7],
+      ["FFIEC IS", 8],
+      ["GLBA/OCC", 8],
+    ]);
+    expect(s.mapping_note).toBe("Mapping illustrative; not reviewed by a compliance owner");
+    expect(s.profile_line).toBe("Meridian Trust Bank ARB design review, US · profile 2026.3");
+    expect(s.bank_standards).toHaveLength(8);
+    expect(s.bank_line).toBe("8 bank standards");
+    for (const t of [s.mapping_note!, s.profile_line, s.bank_line]) clean(t);
+  });
+});

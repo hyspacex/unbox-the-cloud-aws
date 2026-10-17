@@ -2,7 +2,7 @@
  * UI v4.1: the rule-source chip and short rule name of a control, from the control profile.
  * No state import, so buildRows can attach them to every row.
  */
-import type { Control, RuleOrigin, RuleSource } from "../types";
+import type { Control, ControlProfile, PackageStandards, RuleOrigin, RuleSource } from "../types";
 import { capWords } from "./display";
 
 // ------------------------------------------------------------------------------------------------
@@ -15,11 +15,12 @@ export const ORIGIN_LABEL: Record<RuleOrigin, string> = {
   learned_from_reviews: "Learned from reviews",
 };
 
+/** Display order is the welcome screen's: international frameworks first, then US banking. */
 const FRAMEWORK_LABEL: Record<string, string> = {
-  pci_dss_4_0_1: "PCI DSS 4.0.1",
-  nist_csf_2_0: "NIST CSF 2.0",
-  ffiec_is_booklet: "FFIEC IS",
   iso_27001_2022_annex_a: "ISO 27001:2022",
+  nist_csf_2_0: "NIST CSF 2.0",
+  pci_dss_4_0_1: "PCI DSS 4.0.1",
+  ffiec_is_booklet: "FFIEC IS",
   glba_occ: "GLBA/OCC",
 };
 
@@ -48,6 +49,27 @@ export function ruleSource(control: Control, profileVersion: string): RuleSource
     profile_version: profileVersion,
     ...(map.length ? { framework_map: map } : {}),
     ...(typeof fm.status === "string" ? { framework_map_status: fm.status } : {}),
+  };
+}
+
+/** The frameworks the profile's controls map to, with control and clause counts, and the bank standards they cite. */
+export function packageStandards(profile: ControlProfile): PackageStandards {
+  const maps = profile.controls.map((c) => (c.framework_map ?? {}) as Record<string, unknown>);
+  const keys = [...Object.keys(FRAMEWORK_LABEL), ...new Set(maps.flatMap((m) => Object.keys(m)).filter((k) => k !== "status" && !(k in FRAMEWORK_LABEL)))];
+  const frameworks = keys
+    .map((key) => {
+      const lists = maps.map((m) => (Array.isArray(m[key]) ? (m[key] as string[]) : []));
+      return { key, label: FRAMEWORK_LABEL[key] ?? key, controls: lists.filter((l) => l.length).length, clauses: new Set(lists.flat()).size };
+    })
+    .filter((f) => f.controls > 0);
+  const status = maps.map((m) => m.status).find((s): s is string => typeof s === "string");
+  const bank = [...new Set(profile.controls.map((c) => parseStandard(c.standard).id))].sort();
+  return {
+    frameworks,
+    ...(status ? { mapping_note: `Mapping ${status}` } : {}),
+    profile_line: `${profile.name} · profile ${profile.profile_version}`,
+    bank_standards: bank,
+    bank_line: `${bank.length} bank ${bank.length === 1 ? "standard" : "standards"}`,
   };
 }
 

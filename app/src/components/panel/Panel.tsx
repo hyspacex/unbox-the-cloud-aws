@@ -6,6 +6,7 @@
  * first, then the panel; focus is trapped while open and returns to the owl on close.
  */
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { useKeelState, type PanelView } from "@/components/KeelStateProvider";
 import { useFocusTrap } from "@/lib/ui/useFocusTrap";
@@ -66,6 +67,15 @@ export function Panel() {
     setMenuOpen(false);
     closePanel();
     setTimeout(() => owlRef?.current?.focus(), 40);
+  };
+
+  // Expand: the panel unfolds back into the project's welcome screen on the folder page.
+  const router = useRouter();
+  const pathname = usePathname();
+  const expand = () => {
+    setMenuOpen(false);
+    closePanel();
+    if (pathname !== "/") router.push("/");
   };
 
   useFocusTrap(ref, panel.open);
@@ -172,6 +182,19 @@ export function Panel() {
               </>
             )}
             <span className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={expand}
+                aria-label="Expand to the project overview"
+                title="Expand to the project overview"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[4px] hover:bg-[#F4F6FA]"
+                style={{ color: C.secondary }}
+                data-testid="panel-expand"
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden>
+                  <path d="M9.5 2.5h4v4M13.5 2.5L9 7M6.5 13.5h-4v-4M2.5 13.5L7 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
               <button
                 type="button"
                 data-panel-menu-button

@@ -37,6 +37,7 @@ import { withPackageLock } from "./engine/lock";
 import { withBubble } from "./engine/bubble";
 import { findQuote, locateInText } from "./engine/normalize";
 import { dashboardTiles, packageTimeline } from "./engine/history";
+import { packageStandards } from "./engine/rule-source";
 import { changedFiles, hasRecordedDecision, headerLine, holdsLine, decisionFlags, decisionSummary, decisionSummaryFromRows, needsDecision, needsDecisionOnRow, openDecisionsFromRows, packageFiles, packageFilesFromRows, recordedOnRow, statusCard, type FolderItemInfo } from "./engine/summary";
 
 export class ServiceError extends Error {
@@ -161,6 +162,7 @@ export function getPackageView(): PackageView {
     dashboard: { tiles: dashboardTiles(s, rows) },
     timeline: packageTimeline(s, p),
     status_card: statusCard(publicRows, snap.snapshot_id, evalState),
+    standards: packageStandards(p),
   };
 }
 

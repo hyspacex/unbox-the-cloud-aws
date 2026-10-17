@@ -1,4 +1,6 @@
-# Keel
+<p align="center"><img src="docs/assets/keel-owl.svg" width="112" alt="Keel owl"></p>
+
+<h1 align="center">Keel</h1>
 
 **Know what changed, and who reviewed that exact evidence.**
 Files have versions. Compliance evidence should too.
@@ -6,6 +8,14 @@ Files have versions. Compliance evidence should too.
 Keel adds version-bound control-evidence history and re-review rules to a Box review workflow. When a design package in Box changes, an agent on Amazon Bedrock re-assesses each control against a pinned snapshot of the package. Code validates every quote and records every evaluation. A named reviewer records the disposition against that exact evidence. The machine never says "satisfied" and never turns anything green.
 
 Built for the Box + AWS Agentic Enterprise AI Hackathon, October 16 to 17, 2026.
+
+![Keel on the Box folder page after a new architecture version: the frameworks checked against, the package timeline, and the Need you / Recorded / Hold board](docs/assets/keel-welcome.png)
+
+*The main experience, in mock mode: the project welcome screen on the Box folder page right after `architecture.md` v3 was uploaded. Three controls need the reviewer, five verifications hold.*
+
+![The side panel on the encryption control: the sentence a reviewer agreed to in v2, the replacement in v3, and the computed verdict](docs/assets/keel-control.png)
+
+*One control in the side panel: what Priya verified in v2, what v3 says instead, and the only actions the engine enables.*
 
 ## The problem in one picture
 
@@ -160,24 +170,15 @@ Set `MOCK_MODE=false` in `app/.env.local` (copy from `app/.env.example`, never c
 | `app/` | Next.js app: engine, ledger, store, Box adapter, Strands agent, API routes and UI |
 | `app/src/components/box/`, `owl/`, `panel/` | The experience layer: Box page replica and file preview, the owl, the Keel panel |
 | `demo-data/lantern/` | Synthetic fixture: five files, eight controls, snapshots S1 to S4, hash-chained seed ledger, expected findings |
-| `demo/keel.html` | Standalone explainer page |
-| `demo/intro/` | Intro page for the talk (`keel-intro.html`, rendered by `render.py`) |
-| `demo/index.html` | Earlier EpistemicBox prototype (idea #2), kept for history |
-| `desktop-client/` | Desktop HUD prototype for Windows and macOS (Electron, or Python Tkinter). See below |
+| `demo/intro/` | 30-second opener for the talk (`keel-intro.html`, rendered to video by `render.py`) |
+| `docs/assets/` | The Keel owl icon and README screenshots |
+| `archive/` | Earlier directions and prototypes, kept for history only. See [`archive/README.md`](archive/README.md) |
 | `presentation/README.md` | Two-minute talk track |
-| `docs/research/` | Design history: spec v3.4 in `30-design-v3.md`, with the Codex and persona review rounds for each version |
+| `docs/research/` | Research briefs, spec v3.4 in `30-design-v3.md` with its review rounds, and the UI v4 and v4.1 designs |
 | `docs/CONTRACTS.md` | Frozen shapes, adapter interface and API routes |
 | `docs/INTEGRATION.md` | Mock-to-live runbook |
 | `docs/architecture.md` | Component and sequence diagrams, trust boundaries, ledger envelope |
 | `docs/demo.md` | Presenter runbook and judge questions |
-
-### Desktop client prototype
-
-`desktop-client/` holds a separate desktop HUD for Windows and macOS (details and screenshots in [`desktop-client/README.md`](desktop-client/README.md)). It is a frameless, draggable two-tile widget. One tile counts verifications that hold and the other counts items that need review. It accepts files and folders dropped onto it for upload to the Box package folder, subscribes to a folder topic to show teammate file-drop notifications, has a small config sheet, and opens the web UI on click. It runs as Electron (`main.js`, `preload.js`, `widget.html`) or as a zero-install Python Tkinter widget (`keel_desktop_client.py`).
-
-It is a prototype outside the Next.js app. It does not call the engine's API, and its tile labels ("COMPLIANT", "UNMET") do not follow the app's wording rules. Do not demo it as the product surface.
-
-![Desktop client HUD](desktop-client/screenshots/hud-main.png)
 
 ## Built on Saturday vs proposed
 

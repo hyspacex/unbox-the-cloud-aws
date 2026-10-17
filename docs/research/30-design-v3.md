@@ -119,9 +119,8 @@ Event list per control with expandable records. Export: "Observed revisions, eva
 ### Live trace
 Application events and agent events, each tagged by source, with real UTC timestamps. The mode label is persistent. A replay shows the original run id.
 
-### In Box and on the Desktop (`desktop-client/`)
+### In Box
 The folder's metadata sidebar shows snapshot id and the eight status fields. The reviewer's task and, after her response, the author's task appear in Box tasks. No comments are posted.
-Alongside Box and the web console, a cross-platform **Windows & macOS Desktop Client** ([`desktop-client/`](../../desktop-client/README.md)) provides a frameless, draggable two-box rectangle (`Left Green: Compliant / Verified holds`, `Right Yellow: Not Yet Compliant / Needs review`), accepts file/folder drag-and-drop into the Box package folder, subscribes to the folder compliance topic (`topic://keel/lantern/318840021`) to surface teammate file-drop notifications, includes a minimalist configuration sheet, and opens the detailed Web Interface on click.
 
 ## 7. The three-minute demo
 

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 64 64" role="img" aria-label="Keel owl">
+  <ellipse cx="14.5" cy="42" rx="4.5" ry="11" fill="#172036"/>
+  <ellipse cx="49.5" cy="42" rx="4.5" ry="11" fill="#172036"/>
+  <path d="M14 27C14 15.5 22 10 32 10s18 5.5 18 17v16.5C50 53.5 42 59 32 59s-18-5.5-18-15.5V27Z" fill="#1F2A44"/>
+  <ellipse cx="32" cy="48.5" rx="9.5" ry="8" fill="#2A3A5F"/>
+  <path d="M27.5 46.5l2 1.6 2-1.6M32.5 46.5l2 1.6 2-1.6M30 50.5l2 1.6 2-1.6" stroke="#FFF4D6" stroke-opacity=".45" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M27 58.5h3.5M33.5 58.5H37" stroke="#E9A23B" stroke-width="2" stroke-linecap="round"/>
+  <path d="M32 24.5c-2-2.6-5-4-8-4a10.5 10.5 0 1 0 8 17.4 10.5 10.5 0 1 0 8-17.4c-3 0-6 1.4-8 4Z" fill="#FFF4D6"/>
+  <circle cx="24.5" cy="31" r="6.2" fill="#FFFFFF" stroke="#E9DDBA" stroke-width=".8"/>
+  <circle cx="24.5" cy="31" r="3" fill="#1F2A44"/>
+  <circle cx="25.5" cy="29.9" r=".9" fill="#FFFFFF"/>
+  <circle cx="39.5" cy="31" r="6.2" fill="#FFFFFF" stroke="#E9DDBA" stroke-width=".8"/>
+  <circle cx="39.5" cy="31" r="3" fill="#1F2A44"/>
+  <circle cx="40.5" cy="29.9" r=".9" fill="#FFFFFF"/>
+  <path d="M29.6 36.2h4.8L32 40.6Z" fill="#E9A23B"/>
+  <path d="M19 18.5c0-7.5 5.8-11 13-11s13 3.5 13 11Z" fill="#0061D5"/>
+  <rect x="17" y="16.4" width="30" height="4.2" rx="2.1" fill="#004CA8"/>
+  <path d="M21 20.4c3.6 2.4 7.3 3.2 11 3.2s7.4-.8 11-3.2Z" fill="#004CA8"/>
+  <circle cx="32" cy="12.6" r="1.8" fill="#FFF4D6"/>
+</svg>

@@ -1,6 +1,6 @@
 /**
  * Quote normalization and location (spec 3 steps 4 and 7). Exactly the rules of gen.py `norm`
- * and keel.html `norm`: strip backticks, curly quotes to straight, hyphen variants to "-",
+ * and archive/demo/keel.html `norm`: strip backticks, curly quotes to straight, hyphen variants to "-",
  * collapse whitespace, lowercase. Disclosed on the card as NORMALIZATION.
  */
 

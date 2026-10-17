@@ -1,0 +1,437 @@
+@import "tailwindcss";
+
+/*
+ * Keel design tokens. Colour is part of the argument:
+ *   amber  = the machine is asking a human to look (needs review, acknowledge)
+ *   blue   = a human recorded this (dispositions, identity)
+ *   grey   = every machine assessment
+ *   green  = only a human Verified on the current snapshot
+ *   teal-grey = "Verified, holds" (a prior human verification still holds; not green)
+ *   red    = not evaluated / errors
+ */
+:root {
+  --paper: #f5f3ee;
+  --paper-2: #efece5;
+  --panel: #fbfbfa;
+  --panel-cool: #f7f8f9;
+  --line: #e2dfd7;
+  --line-strong: #cfcbc1;
+  --ink: #17191c;
+  --ink-2: #3a3e44;
+  --muted: #61656d;
+  --faint: #8b8f96;
+
+  --amber-ink: #7d4f00;
+  --amber-bg: #fcf1d8;
+  --amber-line: #e6c578;
+  --amber-dot: #c98a12;
+
+  --blue-ink: #1b3784;
+  --blue-bg: #eaeefa;
+  --blue-line: #b9c6ec;
+  --blue-dot: #1f3f99;
+
+  --grey-ink: #474b52;
+  --grey-bg: #eeede9;
+  --grey-line: #d5d3cc;
+  --grey-dot: #8a8d93;
+
+  --green-ink: #0f6634;
+  --green-bg: #e1f3e6;
+  --green-line: #94cfa8;
+  --green-dot: #178a47;
+
+  --teal-ink: #3b5d62;
+  --teal-bg: #e9efef;
+  --teal-line: #c3d3d4;
+  --teal-dot: #6f9196;
+
+  --red-ink: #9b2c25;
+  --red-bg: #fbe9e6;
+  --red-line: #e8b1aa;
+  --red-dot: #c2453b;
+
+  /* Trace sources */
+  --src-box: #0d7a8a;
+  --src-boxai: #6f4bc0;
+  --src-agent: #7a6f8e;
+  --src-decider: #5f6b7a;
+  --src-app: #9a9ea5;
+  --src-human: #1f3f99;
+
+  --shadow-drawer: -24px 0 60px -20px rgb(23 25 28 / 0.22), -1px 0 0 rgb(23 25 28 / 0.06);
+  --shadow-modal: 0 30px 80px -24px rgb(23 25 28 / 0.35), 0 0 0 1px rgb(23 25 28 / 0.06);
+  --shadow-card: 0 1px 0 rgb(23 25 28 / 0.03), 0 1px 3px rgb(23 25 28 / 0.04);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-panel: var(--panel);
+  --color-panel-cool: var(--panel-cool);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-amber-ink: var(--amber-ink);
+  --color-amber-bg: var(--amber-bg);
+  --color-amber-line: var(--amber-line);
+  --color-blue-ink: var(--blue-ink);
+  --color-blue-bg: var(--blue-bg);
+  --color-blue-line: var(--blue-line);
+  --color-grey-ink: var(--grey-ink);
+  --color-grey-bg: var(--grey-bg);
+  --color-grey-line: var(--grey-line);
+  --color-green-ink: var(--green-ink);
+  --color-green-bg: var(--green-bg);
+  --color-green-line: var(--green-line);
+  --color-teal-ink: var(--teal-ink);
+  --color-teal-bg: var(--teal-bg);
+  --color-teal-line: var(--teal-line);
+  --color-red-ink: var(--red-ink);
+  --color-red-bg: var(--red-bg);
+  --color-red-line: var(--red-line);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #d9e1f7;
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue-dot);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Dialog containers take focus programmatically to trap it; they draw no ring themselves. */
+[role="dialog"]:focus,
+[role="dialog"]:focus-visible {
+  outline: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Primitives                                                          */
+/* ------------------------------------------------------------------ */
+
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "zero", "ss01";
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.hairline {
+  border-color: var(--line);
+}
+
+.link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 160ms ease-out;
+}
+.link:hover {
+  text-decoration-color: var(--ink);
+}
+
+/* Status chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  max-width: 100%;
+  padding: 3px 10px 3px 9px;
+  border-radius: 13px;
+  border: 1px solid;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+.chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex: none;
+}
+.tone-amber { color: var(--amber-ink); background: var(--amber-bg); border-color: var(--amber-line); }
+.tone-amber .chip-dot { background: var(--amber-dot); }
+.tone-blue { color: var(--blue-ink); background: var(--blue-bg); border-color: var(--blue-line); }
+.tone-blue .chip-dot { background: var(--blue-dot); }
+.tone-grey { color: var(--grey-ink); background: var(--grey-bg); border-color: var(--grey-line); }
+.tone-grey .chip-dot { background: var(--grey-dot); }
+.tone-green { color: var(--green-ink); background: var(--green-bg); border-color: var(--green-line); }
+.tone-green .chip-dot { background: var(--green-dot); }
+.tone-teal { color: var(--teal-ink); background: var(--teal-bg); border-color: var(--teal-line); }
+.tone-teal .chip-dot { background: var(--teal-dot); }
+.tone-red { color: var(--red-ink); background: var(--red-bg); border-color: var(--red-line); }
+.tone-red .chip-dot { background: var(--red-dot); }
+
+/* Small square tag for tiers and severities */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line-strong);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--panel);
+  white-space: nowrap;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: background-color 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out, opacity 160ms ease-out, transform 120ms ease-out;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:active:not(:disabled) { transform: translateY(0.5px); }
+.btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.btn-primary { background: var(--ink); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #2c2f34; }
+.btn-human { background: var(--blue-dot); color: #fff; }
+.btn-human:hover:not(:disabled) { background: #1a3684; }
+.btn-human:disabled { background: transparent; color: var(--faint); border-color: var(--line-strong); opacity: 1; }
+.btn-secondary { background: var(--panel); color: var(--ink); border-color: var(--line-strong); }
+.btn-secondary:hover:not(:disabled) { border-color: var(--ink-2); }
+.btn-ghost { background: transparent; color: var(--ink-2); }
+.btn-ghost:hover:not(:disabled) { background: var(--paper-2); }
+.btn-sm { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 7px; }
+
+/* Word diff: never red/green fills */
+.diff-del {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--ink-2);
+  color: var(--muted);
+}
+.diff-ins {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--ink);
+  color: var(--ink);
+  font-weight: 500;
+}
+.quote-mark {
+  background: linear-gradient(transparent 58%, #f3e3b3 58%);
+  padding: 0 1px;
+}
+
+/* Struck prior label during a pending re-check */
+.struck {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  color: var(--faint);
+}
+
+/* Disclosure caret */
+.caret {
+  transition: transform 200ms ease-out;
+}
+[data-open="true"] > .caret,
+.caret[data-open="true"] {
+  transform: rotate(90deg);
+}
+
+/* Pending pulse for the trace head */
+@keyframes keel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.pulse { animation: keel-pulse 1.2s ease-in-out infinite; }
+
+@keyframes keel-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--paper-2) 0px, #f8f7f3 80px, var(--paper-2) 160px);
+  background-size: 400px 100%;
+  animation: keel-shimmer 1.4s linear infinite;
+}
+
+/* Scrollbars inside panels */
+.scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* UI v4: the Box replica (Lato, Box blue, 14 px body)                 */
+/* ------------------------------------------------------------------ */
+.box-root {
+  font-family: var(--font-lato), "Lato", "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: normal;
+  letter-spacing: 0;
+}
+.box-root :focus-visible {
+  outline: 2px solid #0061d5;
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+.box-icon-btn {
+  display: inline-flex;
+  height: 40px;
+  width: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: #4e4e4e;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.box-icon-btn:hover {
+  background: #f4f6fa;
+  color: #222222;
+}
+.box-btn {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.box-btn-primary {
+  background: #0061d5;
+  color: #ffffff;
+}
+.box-btn-primary:hover {
+  background: #0053b8;
+}
+.box-btn-primary:disabled {
+  background: #9cc2ef;
+  cursor: not-allowed;
+}
+.box-btn-secondary {
+  background: #ffffff;
+  color: #222222;
+  border: 1px solid #d3d3d3;
+}
+.box-btn-secondary:hover {
+  background: #f4f6fa;
+  border-color: #bcbcbc;
+}
+.box-btn-secondary:disabled {
+  color: #a7a7a7;
+  cursor: not-allowed;
+}
+.box-menu {
+  min-width: 220px;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  background: #ffffff;
+  padding: 6px 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.box-menu-item {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  font-size: 14px;
+  color: #222222;
+  text-align: left;
+}
+.box-menu-item:hover,
+.box-menu-item:focus-visible {
+  background: #f4f6fa;
+  outline: none;
+}
+.box-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 0%, #f7f7f7 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: box-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+@keyframes box-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .box-skeleton { animation: none; }
+}
+
+/* Box file table: Name keeps 260 px; as the page narrows (panel open) Actions, then Size, then Updated drop. */
+.box-table { container-type: inline-size; }
+.box-bar { container-type: inline-size; }
+.box-grid { display: grid; grid-template-columns: minmax(260px, 1fr) 200px 96px 96px 100px; }
+.box-grid .col-progress { grid-column: 2 / -1; }
+@container (max-width: 751px) {
+  .box-grid { grid-template-columns: minmax(260px, 1fr) 200px 96px 96px; }
+  .box-grid .col-actions { display: none; }
+}
+@container (max-width: 651px) {
+  /* Updated narrows to 112 px (the uploader truncates, full text in the tooltip). */
+  .box-grid { grid-template-columns: minmax(260px, 1fr) 112px 96px; }
+  .box-grid .col-size { display: none; }
+}
+@container (max-width: 467px) {
+  .box-grid { grid-template-columns: minmax(260px, 1fr) 96px; }
+  .box-grid .col-updated { display: none; }
+}
+/* Breadcrumb: the parent crumbs give way before the folder name does. */
+@container (max-width: 640px) {
+  .box-bar .box-crumb { display: none; }
+}

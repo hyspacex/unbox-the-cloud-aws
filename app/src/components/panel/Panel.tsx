@@ -1,0 +1,249 @@
+"use client";
+
+/**
+ * The Keel side panel (design 50-ui-v4 section 2.4). PANEL_WIDTH (540 px), full height, fixed right, over the Box page (no dim,
+ * no reflow). Level 1 lists what needs the reviewer; level 2 is one control or one menu screen. Esc closes level 2
+ * first, then the panel; focus is trapped while open and returns to the owl on close.
+ */
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
+import { useKeelState, type PanelView } from "@/components/KeelStateProvider";
+import { useFocusTrap } from "@/lib/ui/useFocusTrap";
+import { OwlMark } from "@/components/owl";
+import { PANEL_WIDTH } from "@/components/box/BoxPush";
+import { Level1 } from "./Level1";
+import { Level2 } from "./Level2";
+import { MENU_TITLES, MenuScreenView } from "./MenuScreens";
+import { PanelMenu } from "./PanelMenu";
+import { C, Chevron, DUR, EASE_OUT } from "./parts";
+
+/** Exiting content is inert while it animates out, so neither Tab nor a click can reach it (codex #20). */
+function PresentOnly({ children }: { children: React.ReactNode }) {
+  const present = useIsPresent();
+  return (
+    <div inert={!present} aria-hidden={!present || undefined}>
+      {children}
+    </div>
+  );
+}
+
+const viewKey = (v: PanelView) => (v.kind === "level1" ? "level1" : v.kind === "control" ? `control:${v.controlId}` : `menu:${v.screen}`);
+
+/** Scoped overrides so the reused full-page screens fit the panel width. Viewport breakpoints do not apply inside the panel. */
+const PANEL_CSS = `
+.kp-root .kp-one-col section { grid-template-columns: minmax(0,1fr) !important; }
+.kp-root .kp-compact > div { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+.kp-root .kp-compact .eyebrow { display: none; }
+.kp-root .kp-compact h1 { font-size: 16px !important; line-height: 1.3 !important; }
+.kp-root .kp-compact h2 { font-size: 14px !important; }
+.kp-root .kp-compact p, .kp-root .kp-compact li, .kp-root .kp-compact dd, .kp-root .kp-compact dt { font-size: 12.5px !important; }
+.kp-root .kp-compact [class*="md:grid-cols-"] { grid-template-columns: minmax(0,1fr) !important; }
+.kp-root .kp-compact li[id^="rule-"] { grid-template-columns: 24px minmax(0,1fr) !important; padding: 8px 10px !important; column-gap: 8px !important; }
+.kp-root .kp-compact li[id^="rule-"] > span:last-child { grid-column-start: 2 !important; }
+.kp-root .kp-compact .mt-10 { margin-top: 20px !important; }
+.kp-root .kp-compact .mt-6 { margin-top: 12px !important; }
+.kp-root .kp-compact .chip { font-size: 11.5px !important; }
+.kp-root .kp-export .panel { border-radius: 4px; }
+.kp-root button[data-row]:focus-visible { outline-offset: -2px; border-radius: 3px; }
+`;
+
+export function Panel() {
+  const { panel, closePanel, back, owlRef } = useKeelState();
+  const ref = useRef<HTMLElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const view = panel.view;
+  const depth = panel.history.length;
+  const key = viewKey(view);
+  // Slide direction and menu reset follow the view; adjusted during render (no effect, no ref read).
+  const [nav, setNav] = useState({ key, depth, dir: 1 });
+  if (nav.key !== key || nav.depth !== depth) {
+    setNav({ key, depth, dir: depth >= nav.depth ? 1 : -1 });
+    if (menuOpen) setMenuOpen(false);
+  }
+  const dir = nav.dir;
+
+  const close = () => {
+    setMenuOpen(false);
+    closePanel();
+    setTimeout(() => owlRef?.current?.focus(), 40);
+  };
+
+  // Expand: the panel unfolds back into the project's welcome screen on the folder page.
+  const router = useRouter();
+  const pathname = usePathname();
+  const expand = () => {
+    setMenuOpen(false);
+    closePanel();
+    if (pathname !== "/") router.push("/");
+  };
+
+  useFocusTrap(ref, panel.open);
+
+  // Esc: menu first, then level 2 (back), then the panel.
+  useEffect(() => {
+    if (!panel.open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      if (menuOpen) {
+        setMenuOpen(false);
+        ref.current?.querySelector<HTMLElement>("[data-panel-menu-button]")?.focus();
+      } else if (view.kind !== "level1") back();
+      else close();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  // Focus guard (codex #20): if the focused element inside the panel is removed (a level swaps out), focus
+  // would fall to <body> and Tab would leave the trap. Pull it back to Back or the first row. Clicking the Box
+  // page on purpose moves focus to a real element, so this does not fire then.
+  const openRef = useRef(panel.open);
+  useEffect(() => {
+    openRef.current = panel.open;
+  }, [panel.open]);
+  useEffect(() => {
+    if (!panel.open) return;
+    const root = ref.current;
+    if (!root) return;
+    const onOut = (e: FocusEvent) => {
+      const lost = e.target as HTMLElement | null;
+      setTimeout(() => {
+        const a = document.activeElement;
+        // Only while the panel stays open: on close the owl takes focus and the exiting panel must not steal it.
+        if (openRef.current && lost && !lost.isConnected && (!a || a === document.body)) {
+          const r = ref.current;
+          (r?.querySelector<HTMLElement>('button[aria-label="Back"]') ?? r?.querySelector<HTMLElement>("button[data-row]") ?? r?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true });
+        }
+      }, 0);
+    };
+    root.addEventListener("focusout", onOut);
+    return () => root.removeEventListener("focusout", onOut);
+  }, [panel.open]);
+
+  // Each level opens at the top. After the 240 ms slide, focus Back on level 2; on return to level 1, focus the
+  // row that was open (judge B2).
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const prevKey = useRef(key);
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+    const from = prevKey.current;
+    prevKey.current = key;
+    if (from === key) return;
+    const t = setTimeout(() => {
+      const root = ref.current;
+      if (!root) return;
+      if (key !== "level1") {
+        root.querySelector<HTMLElement>('button[aria-label="Back"]')?.focus({ preventScroll: true });
+      } else if (from.startsWith("control:")) {
+        const id = from.slice("control:".length);
+        const row = root.querySelector<HTMLElement>(`button[data-row="${CSS.escape(id)}"]`);
+        (row ?? root.querySelector<HTMLElement>("button[data-row]"))?.focus({ preventScroll: true });
+      } else {
+        root.querySelector<HTMLElement>("button[data-row]")?.focus({ preventScroll: true });
+      }
+    }, DUR.level * 1000 + 20);
+    return () => clearTimeout(t);
+  }, [key]);
+
+  const title = view.kind === "control" ? view.controlId : view.kind === "menu" ? MENU_TITLES[view.screen] : "Control review";
+
+  return (
+    <AnimatePresence>
+      {panel.open ? (
+        <motion.aside
+          key="keel-panel"
+          ref={ref}
+          role="dialog"
+          aria-modal="false"
+          aria-label="Control review"
+          initial={{ x: PANEL_WIDTH }}
+          animate={{ x: 0 }}
+          exit={{ x: PANEL_WIDTH }}
+          transition={{ duration: DUR.panel, ease: EASE_OUT }}
+          className="kp-root box-root fixed right-0 top-0 z-50 flex h-full max-w-full flex-col border-l bg-white font-[inherit]"
+          style={{ width: PANEL_WIDTH, borderColor: C.border, boxShadow: "-8px 0 24px rgba(0,0,0,.06)", color: C.text }}
+          data-view={key}
+        >
+          <style>{PANEL_CSS}</style>
+          <header className="relative flex h-14 flex-none items-center gap-2 border-b px-3" style={{ borderColor: C.border }}>
+            {view.kind === "level1" ? (
+              <span className="flex items-center gap-2 pl-1">
+                <OwlMark />
+                <span className="text-[15px] font-bold">Control review</span>
+              </span>
+            ) : (
+              <>
+                <button type="button" onClick={back} aria-label="Back" className="inline-flex h-8 w-8 items-center justify-center rounded-[4px] hover:bg-[#F4F6FA]" style={{ color: C.text }}>
+                  <Chevron dir="left" size={16} />
+                </button>
+                <span className={`min-w-0 truncate text-[15px] font-bold ${view.kind === "control" ? "mono !text-[14px]" : ""}`}>{title}</span>
+              </>
+            )}
+            <span className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={expand}
+                aria-label="Expand to the project overview"
+                title="Expand to the project overview"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[4px] hover:bg-[#F4F6FA]"
+                style={{ color: C.secondary }}
+                data-testid="panel-expand"
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden>
+                  <path d="M9.5 2.5h4v4M13.5 2.5L9 7M6.5 13.5h-4v-4M2.5 13.5L7 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                data-panel-menu-button
+                aria-label="Control review menu"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((o) => !o)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[4px] hover:bg-[#F4F6FA]"
+                style={{ color: C.secondary, background: menuOpen ? C.hover : undefined }}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+                  <circle cx="3.5" cy="8" r="1.4" fill="currentColor" />
+                  <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+                  <circle cx="12.5" cy="8" r="1.4" fill="currentColor" />
+                </svg>
+              </button>
+              <button type="button" onClick={close} aria-label="Close Keel" className="inline-flex h-8 w-8 items-center justify-center rounded-[4px] hover:bg-[#F4F6FA]" style={{ color: C.secondary }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                  <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              </button>
+            </span>
+            <AnimatePresence>{menuOpen ? <PanelMenu key="menu" onClose={() => setMenuOpen(false)} /> : null}</AnimatePresence>
+          </header>
+          <div ref={bodyRef} className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <AnimatePresence initial={false} mode="popLayout" custom={dir}>
+              <motion.div
+                key={key}
+                custom={dir}
+                variants={{
+                  enter: (d: number) => ({ x: 40 * d, opacity: 0 }),
+                  center: { x: 0, opacity: 1 },
+                  exit: (d: number) => ({ x: -40 * d, opacity: 0 }),
+                }}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: DUR.level, ease: EASE_OUT }}
+              >
+                <PresentOnly>
+                  {view.kind === "level1" ? <Level1 /> : view.kind === "control" ? <Level2 controlId={view.controlId} /> : <MenuScreenView screen={view.screen} />}
+                </PresentOnly>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </motion.aside>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+export default Panel;

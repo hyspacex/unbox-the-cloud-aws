@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Keel · 30 second opener</title>
+<!--
+  30 second demo opener. Self-contained, synthetic fixture text from demo-data/lantern.
+  Open in a browser to play (space pauses, R restarts, ?t=12 jumps). render.py drives window.seek(t)
+  frame by frame to produce keel-intro.mp4, so every frame is a pure function of t.
+-->
+<style>
+  :root {
+    --navy: #1f2a44; --navy-deep: #111a2e; --navy-dark: #172036; --cream: #fff4d6; --box: #0061d5;
+    --paper: #f5f3ee; --panel: #fbfbfa; --line: #e2dfd7; --ink: #17191c; --ink-2: #3a3e44; --muted: #61656d;
+    --green-ink: #0f6634; --green-bg: #e1f3e6; --green-line: #94cfa8; --green-dot: #178a47;
+    --amber-ink: #7d4f00; --amber-bg: #fcf1d8; --amber-line: #e6c578; --amber-dot: #c98a12;
+    --red-ink: #9b2c25; --red-bg: #fbe9e6; --red-line: #e8b1aa; --red-dot: #c2453b;
+    --blue-ink: #1b3784; --blue-bg: #eaeefa; --blue-line: #b9c6ec;
+    --sans: -apple-system, "SF Pro Display", "Helvetica Neue", Inter, Arial, sans-serif;
+    --mono: "SF Mono", Menlo, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+  body { display: grid; place-items: center; font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; transform-origin: center; background: var(--paper); }
+  .layer { position: absolute; inset: 0; }
+  .abs { position: absolute; }
+
+  /* dark backdrop */
+  #dark { background: radial-gradient(1400px 900px at 50% 40%, #24314f 0%, var(--navy-deep) 70%); }
+  #beam { left: 50%; top: 50%; width: 2600px; height: 2600px; margin: -1300px 0 0 -1300px;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(255,244,214,.10) 8deg, transparent 20deg, transparent 360deg); }
+  .headline { left: 0; right: 0; text-align: center; color: #fff; font-weight: 650; letter-spacing: -0.02em; }
+  #h1 { top: 400px; font-size: 92px; }
+  #h2 { top: 530px; font-size: 92px; color: var(--cream); }
+
+  /* light scene */
+  #light { background: var(--paper); }
+  #caption { left: 120px; top: 70px; right: 120px; }
+  #capKicker { font: 600 24px var(--mono); color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+  #capText { margin-top: 10px; font-size: 54px; font-weight: 650; letter-spacing: -0.02em; color: var(--ink); }
+
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 1px 0 rgb(23 25 28 / .03), 0 20px 50px -30px rgb(23 25 28 / .25); }
+  #folder { left: 120px; top: 260px; width: 700px; height: 700px; padding: 34px 36px; }
+  .boxbar { display: flex; align-items: center; gap: 14px; font-size: 22px; color: var(--muted); }
+  .boxlogo { font: 800 30px var(--sans); color: var(--box); letter-spacing: -0.03em; }
+  .ftitle { margin-top: 18px; font-size: 32px; font-weight: 650; color: var(--ink); }
+  .fsub { margin-top: 6px; font-size: 20px; color: var(--muted); }
+  .frow { position: relative; display: flex; align-items: center; gap: 18px; height: 88px; border-top: 1px solid var(--line); font-size: 24px; color: var(--ink-2); }
+  .frows { margin-top: 26px; }
+  .ficon { width: 38px; height: 46px; border-radius: 6px; background: var(--blue-bg); border: 1.5px solid var(--blue-line); flex: none; position: relative; }
+  .ficon::after { content: ""; position: absolute; left: 8px; right: 8px; top: 14px; height: 3px; background: var(--blue-line); box-shadow: 0 8px 0 var(--blue-line), 0 16px 0 var(--blue-line); }
+  .fname { flex: 1; font-weight: 550; }
+  .fver { font: 500 20px var(--mono); color: var(--muted); padding: 4px 10px; border-radius: 8px; background: var(--paper); }
+  #newrow { position: absolute; left: 36px; right: 36px; background: #fffbea; border-radius: 10px; padding: 0 16px; margin: 0 -16px; }
+  #newrow .fver { background: var(--amber-bg); color: var(--amber-ink); font-weight: 700; }
+  #vcomment { position: absolute; left: 92px; top: 66px; font-size: 18px; color: var(--amber-ink); white-space: nowrap; }
+  #uploadbar { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--box); border-radius: 2px; }
+
+  #checklist { left: 880px; top: 260px; width: 920px; height: 700px; padding: 30px 36px; }
+  .clhead { display: flex; justify-content: space-between; align-items: baseline; font-size: 22px; color: var(--muted); }
+  .clhead b { font-size: 30px; color: var(--ink); font-weight: 650; }
+  .crow { display: flex; align-items: center; gap: 18px; height: 72px; border-top: 1px solid var(--line); }
+  .crows { margin-top: 18px; }
+  .cid { font: 600 20px var(--mono); color: var(--muted); width: 140px; flex: none; }
+  .ctitle { flex: 1; font-size: 22px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chipwrap { position: relative; width: 330px; height: 42px; flex: none; }
+  .chip { position: absolute; right: 0; top: 0; height: 42px; display: inline-flex; align-items: center; gap: 10px; padding: 0 16px; border-radius: 21px; border: 1.5px solid; font-size: 19px; font-weight: 600; white-space: nowrap; }
+  .chip i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .g { color: var(--green-ink); background: var(--green-bg); border-color: var(--green-line); } .g i { background: var(--green-dot); }
+  .a { color: var(--amber-ink); background: var(--amber-bg); border-color: var(--amber-line); } .a i { background: var(--amber-dot); }
+  .r { color: var(--red-ink); background: var(--red-bg); border-color: var(--red-line); } .r i { background: var(--red-dot); }
+  .b { color: var(--blue-ink); background: var(--blue-bg); border-color: var(--blue-line); } .b i { background: var(--blue-ink); }
+  .qmark { position: absolute; right: -44px; top: 4px; font: 800 30px var(--sans); color: var(--amber-dot); }
+
+  #countline { left: 120px; top: 990px; width: 1680px; font: 500 22px var(--mono); color: var(--ink-2); text-align: right; }
+
+  /* diff scene */
+  #diff { left: 120px; top: 250px; width: 1260px; padding: 40px 48px; }
+  .dhead { display: flex; align-items: center; gap: 16px; }
+  .did { font: 700 24px var(--mono); color: var(--ink); }
+  .dtitle { font-size: 28px; font-weight: 650; color: var(--ink); flex: 1; }
+  .tier { font: 700 18px var(--mono); padding: 6px 12px; border-radius: 8px; background: var(--red-bg); color: var(--red-ink); border: 1.5px solid var(--red-line); }
+  .qlabel { margin-top: 30px; font: 600 19px var(--mono); color: var(--muted); letter-spacing: .03em; }
+  .quote { margin-top: 10px; padding: 20px 24px; border-radius: 12px; font-size: 27px; line-height: 1.45; color: var(--ink-2); border-left: 5px solid; }
+  .qold { background: #fbf5f4; border-color: var(--red-line); }
+  .qnew { background: #f6f7fb; border-color: var(--blue-line); }
+  .strike { background: linear-gradient(var(--red-dot), var(--red-dot)) no-repeat 0 58% / 0% 3px; }
+  .gone { color: var(--red-ink); }
+  .hl { background: var(--amber-bg); box-shadow: 0 0 0 4px var(--amber-bg); border-radius: 4px; color: var(--amber-ink); }
+  .dfoot { margin-top: 28px; display: flex; align-items: center; gap: 28px; }
+  .meter { display: flex; gap: 8px; }
+  .meter span { width: 46px; height: 14px; border-radius: 7px; background: var(--line); }
+  .meter span.on { background: var(--amber-dot); }
+  .mtext { font-size: 23px; color: var(--ink-2); font-weight: 600; }
+  .valid { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; font: 600 19px var(--mono); color: var(--blue-ink); background: var(--blue-bg); border: 1.5px solid var(--blue-line); padding: 8px 14px; border-radius: 10px; }
+
+  #pipeline { left: 120px; top: 905px; width: 1260px; display: flex; justify-content: space-between; }
+  .step { display: flex; align-items: center; gap: 12px; font-size: 22px; color: var(--ink-2); font-weight: 600; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 20px; }
+  .step em { font: 600 15px var(--mono); font-style: normal; color: var(--muted); display: block; white-space: nowrap; }
+  .sdot { width: 12px; height: 12px; border-radius: 50%; }
+  .arrow { align-self: center; color: var(--muted); font-size: 26px; }
+
+  /* human decision */
+  #task { left: 120px; top: 300px; width: 700px; padding: 34px 36px; }
+  .thead { display: flex; align-items: center; gap: 12px; font: 600 20px var(--mono); color: var(--muted); }
+  .tname { margin-top: 18px; font-size: 30px; font-weight: 650; color: var(--ink); }
+  .tmsg { margin-top: 18px; font-size: 23px; line-height: 1.45; color: var(--ink-2); font-style: italic; border-left: 4px solid var(--line); padding-left: 18px; }
+  .tby { margin-top: 22px; display: flex; align-items: center; gap: 14px; font-size: 22px; color: var(--ink-2); }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--blue-ink); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 19px; }
+  .receipt { margin-top: 24px; display: inline-flex; align-items: center; gap: 10px; font: 600 19px var(--mono); padding: 10px 16px; border-radius: 10px; }
+  #ledger { left: 120px; top: 760px; width: 700px; display: flex; gap: 10px; align-items: center; }
+  .blk { flex: 1 1 0; min-width: 0; height: 64px; border-radius: 10px; background: #fff; border: 1px solid var(--line); font: 600 15px var(--mono); color: var(--muted); display: grid; place-items: center; text-align: center; line-height: 1.3; }
+  .blk b { color: var(--ink-2); font-weight: 700; }
+  .chain { color: var(--line); font-weight: 800; }
+  #ledgerLabel { left: 120px; top: 840px; width: 700px; font: 500 19px var(--mono); color: var(--muted); }
+
+  /* owl */
+  #owl { width: 300px; height: 300px; }
+  #endOwl { left: 50%; top: 230px; width: 260px; height: 260px; margin-left: -130px; }
+  #wordmark { top: 500px; font-size: 150px; font-weight: 750; letter-spacing: -0.04em; color: #fff; }
+  #tagline { top: 690px; font-size: 44px; font-weight: 500; color: var(--cream); letter-spacing: -0.01em; }
+  #stack { top: 850px; font: 500 24px var(--mono); color: rgba(255,255,255,.62); letter-spacing: .04em; }
+  #stack span { color: #fff; }
+  #bubble { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px 22px; font-size: 24px; font-weight: 600; color: var(--ink); white-space: nowrap; box-shadow: 0 16px 40px -20px rgb(23 25 28 / .35); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- light scene -->
+  <div class="layer" id="light">
+    <div class="abs" id="caption"><div id="capKicker"></div><div id="capText"></div></div>
+
+    <div class="abs card" id="folder">
+      <div class="boxbar"><span class="boxlogo">box</span><span>All Files › Meridian Trust Bank ›</span></div>
+      <div class="ftitle">Project Lantern · ARB package</div>
+      <div class="fsub">APM-20417 · Tier 1 · NPI (GLBA)</div>
+      <div class="frows" id="frows"></div>
+      <div id="newrow" class="frow">
+        <span class="ficon"></span><span class="fname">architecture.md</span><span class="fver">v3</span>
+        <span id="vcomment">“Section 4 rewrite for clarity” · J. Park (Eng)</span>
+        <span id="uploadbar"></span>
+      </div>
+    </div>
+
+    <div class="abs card" id="checklist">
+      <div class="clhead"><b>Security architecture checklist</b><span id="snap">snapshot S2</span></div>
+      <div class="crows" id="crows"></div>
+    </div>
+    <div class="abs" id="countline"></div>
+
+    <div class="abs card" id="diff">
+      <div class="dhead"><span class="did">SEC-ARCH-07</span><span class="dtitle">Encryption at rest and key management</span><span class="tier">CRITICAL</span></div>
+      <div class="qlabel">BEFORE · architecture.md v2 §4.3 · verified by P. Natarajan</div>
+      <div class="quote qold" id="qold">All customer data at rest is encrypted using <span class="strike gone" id="st1">AWS KMS customer-managed keys, rotated annually</span>. <span class="strike gone" id="st2">Each data store has its own AES-256 key</span>.</div>
+      <div class="qlabel" id="qnewLabel">NOW · architecture.md v3 §4.3</div>
+      <div class="quote qnew" id="qnew">All customer data is protected with <span class="hl">industry-standard encryption</span>, with keys managed through AWS's native key management capabilities.</div>
+      <div class="dfoot" id="dfoot">
+        <div class="meter" id="meter"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="mtext">1 of 5 required clauses supported</div>
+        <div class="valid">✓ quote matches pinned v3 text</div>
+      </div>
+    </div>
+
+    <div class="abs" id="pipeline">
+      <div class="step"><span class="sdot" style="background:#0d7a8a"></span><span>Box snapshot<em>pin every version</em></span></div>
+      <div class="arrow">→</div>
+      <div class="step"><span class="sdot" style="background:#7a6f8e"></span><span>Bedrock agent<em>Strands · re-assess</em></span></div>
+      <div class="arrow">→</div>
+      <div class="step"><span class="sdot" style="background:#6f4bc0"></span><span>Box AI<em>cross-file search</em></span></div>
+      <div class="arrow">→</div>
+      <div class="step"><span class="sdot" style="background:#5f6b7a"></span><span>Code<em>check quotes · ledger</em></span></div>
+    </div>
+
+    <div class="abs card" id="task">
+      <div class="thead"><span style="color:var(--box);font-weight:800">box</span> TASK · SEC-ARCH-07</div>
+      <div class="tname">Review: key-management evidence missing</div>
+      <div class="tmsg">“Encrypted is stated; the key model and rotation are not. IS-STD-014 §5.1 requires the KMS CMK statement restored.”</div>
+      <div class="tby"><span class="avatar">DO</span><span><b>Dana Okafor</b> · Security architecture reviewer</span></div>
+      <div class="receipt b" id="receipt">✓ Returned to author · task sent to J. Park</div>
+    </div>
+    <div class="abs" id="ledger"></div>
+    <div class="abs" id="ledgerLabel">append-only ledger · hash-chained · every evaluation recorded</div>
+
+    <div class="abs" id="owlWrap"><div id="bubble" class="abs"></div><svg id="owl" viewBox="0 0 64 64" style="overflow:visible"></svg></div>
+  </div>
+
+  <!-- dark scene (opening and close) -->
+  <div class="layer" id="dark">
+    <div class="abs" id="beam"></div>
+    <div class="abs headline" id="h1">Files have versions.</div>
+    <div class="abs headline" id="h2">Compliance evidence should too.</div>
+    <svg class="abs" id="endOwl" viewBox="0 0 64 64" style="overflow:visible"></svg>
+    <div class="abs headline" id="wordmark">Keel</div>
+    <div class="abs headline" id="tagline">Know what changed, and who reviewed that exact evidence.</div>
+    <div class="abs headline" id="stack"><span>Box</span> · <span>Amazon Bedrock</span> · <span>Strands Agents</span> · <span>Box AI</span></div>
+  </div>
+</div>
+
+<script>
+const DURATION = 30;
+const $ = (id) => document.getElementById(id);
+
+// ---------- fixture (demo-data/lantern) ----------
+const FILES = [
+  ["architecture.md", "v2"],
+  ["data-flow-and-classification.md", "v1"],
+  ["runbook.md", "v2"],
+  ["vendor-contract-summary.md", "v1"],
+  ["approved-services-and-exceptions.md", "v1"],
+];
+// [id, title, verifier, S4 chip class, S4 label]
+const CONTROLS = [
+  ["SEC-ARCH-01", "Approved services only", "M. Hale", "g", "Verified holds"],
+  ["SEC-ARCH-02", "Data classification per data store", "M. Hale", "g", "Verified holds"],
+  ["SEC-ARCH-04", "Authentication and MFA via enterprise IdP", "M. Hale", "g", "Verified holds"],
+  ["SEC-ARCH-05", "Least privilege, PAM, break-glass named", "D. Okafor", "a", "Acknowledge · section changed"],
+  ["SEC-ARCH-07", "Encryption at rest and key management", "P. Natarajan", "r", "Needs review · Critical"],
+  ["SEC-ARCH-17", "Security events to enterprise SIEM", "D. Okafor", "g", "Verified holds"],
+  ["SEC-ARCH-20", "Third parties named with TPRM id", "M. Hale", "g", "Verified holds"],
+  ["SEC-ARCH-22", "Recovery targets and rollback path", "D. Okafor", "a", "Needs review · binding changed"],
+];
+
+$("frows").innerHTML = FILES.map(([n, v], i) =>
+  `<div class="frow" id="f${i}"><span class="ficon"></span><span class="fname">${n}</span><span class="fver">${v}</span></div>`).join("");
+$("crows").innerHTML = CONTROLS.map(([id, title, who, cls, label], i) =>
+  `<div class="crow" id="c${i}"><span class="cid">${id}</span><span class="ctitle">${title}</span>
+    <span class="chipwrap"><span class="chip g" id="cv${i}"><i></i>Verified · ${who}</span>
+    <span class="chip ${cls}" id="cn${i}"><i></i>${label}</span><span class="qmark" id="q${i}">?</span></span></div>`).join("");
+$("ledger").innerHTML = ["S1 · Oct 3", "S2 · Oct 7", "S3 · Oct 12", "S4 · today", "Decision · D. Okafor"]
+  .map((s, i) => `${i ? '<span class="chain">—</span>' : ""}<div class="blk" id="l${i}"><span><b>${s.split(" · ")[0]}</b>${s.includes("·") ? "<br>" + s.split(" · ")[1] : ""}</span></div>`).join("");
+
+// ---------- owl (same drawing as app/src/components/owl/Owl.tsx) ----------
+function owlSVG(prefix) {
+  const eye = (cx, i) => `
+    <circle cx="${cx}" cy="31" r="6.2" fill="#fff" stroke="#E9DDBA" stroke-width=".8"/>
+    <g id="${prefix}p${i}"><circle cx="${cx}" cy="31" r="3" fill="#1F2A44"/><circle cx="${cx + 1}" cy="29.9" r=".9" fill="#fff"/></g>
+    <ellipse id="${prefix}l${i}" cx="${cx}" cy="31" rx="6.9" ry="6.9" fill="#1F2A44" style="transform-box:fill-box;transform-origin:50% 0%;transform:scaleY(0)"/>`;
+  return `<g id="${prefix}head">
+    <ellipse cx="14.5" cy="42" rx="4.5" ry="11" fill="#172036"/><ellipse cx="49.5" cy="42" rx="4.5" ry="11" fill="#172036"/>
+    <path d="M14 27C14 15.5 22 10 32 10s18 5.5 18 17v16.5C50 53.5 42 59 32 59s-18-5.5-18-15.5V27Z" fill="#1F2A44"/>
+    <ellipse cx="32" cy="48.5" rx="9.5" ry="8" fill="#2A3A5F"/>
+    <path d="M27.5 46.5l2 1.6 2-1.6M32.5 46.5l2 1.6 2-1.6M30 50.5l2 1.6 2-1.6" stroke="#FFF4D6" stroke-opacity=".45" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M27 58.5h3.5M33.5 58.5H37" stroke="#E9A23B" stroke-width="2" stroke-linecap="round"/>
+    <path d="M32 24.5c-2-2.6-5-4-8-4a10.5 10.5 0 1 0 8 17.4 10.5 10.5 0 1 0 8-17.4c-3 0-6 1.4-8 4Z" fill="#FFF4D6"/>
+    ${eye(24.5, 0)}${eye(39.5, 1)}
+    <path d="M29.6 36.2h4.8L32 40.6Z" fill="#E9A23B"/>
+    <g id="${prefix}cap" style="transform-box:fill-box;transform-origin:0% 100%">
+      <path d="M19 18.5c0-7.5 5.8-11 13-11s13 3.5 13 11Z" fill="#0061D5"/>
+      <rect x="17" y="16.4" width="30" height="4.2" rx="2.1" fill="#004CA8"/>
+      <path d="M21 20.4c3.6 2.4 7.3 3.2 11 3.2s7.4-.8 11-3.2Z" fill="#004CA8"/>
+      <circle cx="32" cy="12.6" r="1.8" fill="#FFF4D6"/>
+    </g></g>`;
+}
+$("owl").innerHTML = owlSVG("o");
+$("endOwl").innerHTML = owlSVG("e");
+
+// ---------- timing helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const outCubic = (x) => 1 - Math.pow(1 - x, 3);
+const inOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const outBack = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+/** eased progress of t across [a, a + d] */
+const p = (t, a, d, e = outCubic) => e(clamp((t - a) / d));
+/** fade in over [a, a+din], hold, fade out over [b, b+dout] */
+const win = (t, a, b, din = 0.5, dout = 0.5) => p(t, a, din) * (1 - p(t, b, dout));
+const lerp = (a, b, k) => a + (b - a) * k;
+
+function set(el, o, x = 0, y = 0, s = 1, extra = "") {
+  el.style.opacity = o;
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s})${extra}`;
+  el.style.visibility = o <= 0.001 ? "hidden" : "visible";
+}
+
+function owlPose(prefix, t, { sweep = false, blink = true, attention = -1 } = {}) {
+  const px = sweep ? 2.4 * Math.sin(t * Math.PI * 2 / 1.6) : 0;
+  const blinkPhase = (t % 3.2) / 3.2;
+  const lid = blink && blinkPhase > 0.96 ? Math.sin(((blinkPhase - 0.96) / 0.04) * Math.PI) : 0;
+  const att = attention >= 0 ? Math.sin(clamp((t - attention) / 0.4) * Math.PI) : 0;
+  for (const i of [0, 1]) {
+    $(prefix + "p" + i).setAttribute("transform", `translate(${px} 0)`);
+    $(prefix + "l" + i).style.transform = `scaleY(${lid})`;
+  }
+  $(prefix + "cap").style.transform = `rotate(${-16 * att}deg)`;
+}
+
+// ---------- captions ----------
+const CAPTIONS = [
+  // [start, end, kicker, text]
+  [4.6, 9.6, "Oct 7 · ARB-2026-0338 approved", "Eight controls, each verified by a named reviewer."],
+  [9.9, 13.6, "Today · one file changes", "The checkmarks still look green. Do they still hold?"],
+  [13.9, 20.0, "Keel re-assesses against the pinned snapshot", "The key-management commitment is gone."],
+  [20.3, 25.6, "A person decides, through a Box task", "The machine never turns anything green."],
+];
+
+// ---------- the frame function ----------
+function seek(t) {
+  t = clamp(t, 0, DURATION);
+
+  // Dark layer: opening 0–4.6, close 25.6–30
+  const darkO = 1 - p(t, 4.2, 0.6, inOut) + p(t, 25.4, 0.7, inOut);
+  set($("dark"), clamp(darkO));
+  $("beam").style.transform = `rotate(${t * 22}deg)`;
+  $("beam").style.opacity = 0.6 + 0.4 * Math.sin(t * 1.3);
+  set($("h1"), win(t, 0.3, 3.9, 0.8, 0.4), 0, lerp(30, 0, p(t, 0.3, 0.8)));
+  set($("h2"), win(t, 1.6, 3.9, 0.8, 0.4), 0, lerp(30, 0, p(t, 1.6, 0.8)));
+
+  const endA = p(t, 25.9, 0.7, outBack);
+  set($("endOwl"), p(t, 25.9, 0.5), 0, lerp(60, 0, endA), lerp(0.6, 1, endA));
+  owlPose("e", t, { attention: 27.0 });
+  set($("wordmark"), p(t, 26.3, 0.6), 0, lerp(24, 0, p(t, 26.3, 0.6)));
+  set($("tagline"), p(t, 26.9, 0.7), 0, lerp(20, 0, p(t, 26.9, 0.7)));
+  set($("stack"), p(t, 27.6, 0.7), 0, 0);
+
+  // Captions
+  let k = "", txt = "", co = 0, cy = 0;
+  for (const [a, b, kk, tt] of CAPTIONS) {
+    if (t >= a - 0.01 && t < b + 0.4) { k = kk; txt = tt; co = win(t, a, b, 0.45, 0.35); cy = lerp(16, 0, p(t, a, 0.45)); }
+  }
+  $("capKicker").textContent = k; $("capText").textContent = txt;
+  set($("caption"), co, 0, cy);
+
+  // Folder + checklist: 4.6–13.9 and again 20.3–25.6 (checklist only, shifted right)
+  const boardIn = p(t, 4.7, 0.7);
+  const boardOut = p(t, 13.6, 0.5);
+  const folderO = boardIn * (1 - boardOut);
+  set($("folder"), folderO, lerp(-40, 0, boardIn), 0);
+  FILES.forEach((_, i) => set($("f" + i), p(t, 5.0 + i * 0.12, 0.4), 0, lerp(12, 0, p(t, 5.0 + i * 0.12, 0.4))));
+
+  const backIn = p(t, 20.4, 0.6);
+  const backOut = p(t, 25.4, 0.4);
+  const clO = Math.max(boardIn * (1 - boardOut), backIn * (1 - backOut));
+  const clX = t < 17 ? lerp(40, 0, boardIn) : 0;
+  set($("checklist"), clO, clX, 0);
+  $("snap").textContent = t < 11 ? "snapshot S2" : "snapshot S4";
+
+  CONTROLS.forEach((c, i) => {
+    set($("c" + i), t < 17 ? p(t, 5.2 + i * 0.1, 0.4) : 1, 0, 0);
+    // verified chips pop in 5.9–7.3, then in the back half the S4 chips replace those that changed
+    const pop = p(t, 5.9 + i * 0.17, 0.45, outBack);
+    const flip = c[3] === "g" ? 0 : p(t, 21.2 + (i === 4 ? 0 : i === 3 ? 0.5 : 0.8), 0.5);
+    const holdsFlip = c[3] === "g" ? p(t, 21.0 + i * 0.05, 0.4) : 0;
+    set($("cv" + i), clamp(pop) * (1 - flip) * (1 - holdsFlip), 0, lerp(-6, 0, flip) * 0, lerp(0.7, 1, pop));
+    set($("cn" + i), t > 20 ? Math.max(flip, holdsFlip) : 0, 0, lerp(8, 0, Math.max(flip, holdsFlip)));
+    // "?" doubt marks during 11.8–13.6
+    set($("q" + i), win(t, 11.8 + i * 0.06, 13.4, 0.3, 0.3), 0, 0, 1);
+  });
+  set($("countline"), win(t, 22.4, 25.3, 0.6, 0.4), 0, lerp(10, 0, p(t, 22.4, 0.6)));
+  $("countline").textContent = "8 controls on S4 · 5 Verified holds · 1 Acknowledge (High) · 1 Needs review (Low) · 1 Needs review (Critical)";
+
+  // Upload v3: 10.0–11.6. The v2 row slides out, v3 slides in.
+  const up = p(t, 10.2, 0.7);
+  const f0 = $("f0");
+  f0.style.opacity = (1 - up) * p(t, 5.0, 0.4);
+  f0.style.transform = `translateX(${lerp(0, 60, up)}px)`;
+  const nr = $("newrow");
+  nr.style.top = `${f0.offsetTop}px`;
+  set(nr, p(t, 10.4, 0.5) * (1 - boardOut), lerp(-60, 0, p(t, 10.4, 0.6)), 0);
+  $("uploadbar").style.width = `${100 * p(t, 10.4, 1.1, inOut)}%`;
+  $("uploadbar").style.opacity = 1 - p(t, 11.6, 0.3);
+  $("vcomment").style.opacity = p(t, 11.0, 0.5);
+
+  // Diff scene: 14.0–20.2
+  const dIn = p(t, 14.1, 0.6);
+  const dOut = p(t, 19.9, 0.4);
+  set($("diff"), dIn * (1 - dOut), 0, lerp(30, 0, dIn));
+  const s1 = p(t, 15.2, 0.6, inOut), s2 = p(t, 15.8, 0.6, inOut);
+  $("st1").style.backgroundSize = `${s1 * 100}% 3px`;
+  $("st2").style.backgroundSize = `${s2 * 100}% 3px`;
+  set($("qnewLabel"), p(t, 16.4, 0.4), 0, 0);
+  set($("qnew"), p(t, 16.4, 0.5), 0, lerp(14, 0, p(t, 16.4, 0.5)));
+  set($("dfoot"), p(t, 17.4, 0.5), 0, 0);
+  [...$("meter").children].forEach((m, i) => m.classList.toggle("on", i === 0 && t > 17.6));
+  const pipe = $("pipeline").children;
+  for (let i = 0; i < pipe.length; i++) {
+    const o = p(t, 14.4 + i * 0.25, 0.4) * (1 - dOut);
+    set(pipe[i], o, 0, lerp(14, 0, p(t, 14.4 + i * 0.25, 0.4)));
+  }
+
+  // Human decision: 20.3–25.6
+  const tIn = p(t, 20.6, 0.6);
+  set($("task"), tIn * (1 - backOut), lerp(-40, 0, tIn), 0);
+  set($("receipt"), p(t, 23.3, 0.4, outBack), 0, 0, lerp(0.85, 1, p(t, 23.3, 0.4, outBack)));
+  [...$("ledger").querySelectorAll(".blk")].forEach((b, i) => {
+    const o = p(t, 23.6 + i * 0.18, 0.35);
+    set(b, o * (1 - backOut), 0, lerp(10, 0, o));
+    b.style.borderColor = i === 4 && t > 24.3 ? "var(--blue-line)" : "";
+  });
+  [...$("ledger").querySelectorAll(".chain")].forEach((c, i) => (c.style.opacity = p(t, 23.7 + i * 0.18, 0.3) * (1 - backOut)));
+  set($("ledgerLabel"), p(t, 24.4, 0.4) * (1 - backOut), 0, 0);
+
+  // Working owl: enters at 13.8, sweeps while the agent works, lands on the result
+  const ow = $("owlWrap");
+  const owlIn = p(t, 13.8, 0.6, outBack);
+  const owlOut = p(t, 20.0, 0.4);
+  ow.style.left = "1500px"; ow.style.top = "520px";
+  set(ow, clamp(owlIn) * (1 - owlOut), 0, lerp(120, 0, owlIn), lerp(0.6, 1, owlIn));
+  owlPose("o", t, { sweep: t > 14 && t < 17.3, attention: 17.4 });
+  const bub = $("bubble");
+  bub.textContent = t < 17.3 ? "Re-checking eight controls on S4…" : "Encryption evidence weakened.";
+  bub.style.right = "-60px"; bub.style.top = "-90px";
+  set(bub, win(t, 14.5, 19.7, 0.4, 0.3), 0, 0);
+}
+
+// ---------- playback ----------
+window.seek = seek;
+window.DURATION = DURATION;
+function fit() {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+  $("stage").style.transform = `scale(${s})`;
+}
+addEventListener("resize", fit); fit();
+
+const params = new URLSearchParams(location.search);
+if (params.has("render")) {
+  $("stage").style.transform = "none";
+  seek(0);
+} else {
+  let start = performance.now() - 1000 * Number(params.get("t") || 0), paused = false, pausedAt = 0;
+  addEventListener("keydown", (e) => {
+    if (e.code === "Space") { paused = !paused; if (paused) pausedAt = performance.now(); else start += performance.now() - pausedAt; }
+    if (e.key === "r" || e.key === "R") start = performance.now();
+  });
+  (function loop(now) {
+    if (!paused) { const t = (now - start) / 1000; seek(t); if (t > DURATION + 1.5 && !params.has("once")) start = now; }
+    requestAnimationFrame(loop);
+  })(performance.now());
+}
+</script>
+</body>
+</html>

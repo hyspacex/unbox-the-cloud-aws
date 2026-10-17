@@ -605,10 +605,28 @@ def make_findings(S, results, fids, prior, snap, before, after, actions):
                     "mrm_model_id": MRM_MODEL_ID, "normalization": NORMALIZATION, "box_deep_link": f"https://app.box.com/folder/{FOLDER_ID}?keel_finding={fids[cid]}",
                     "suggested_action": actions[cid]})
     return out
+def count_line(S, snap, disp):
+    """Top line per design v3.2 section 4: counts of current displayed outcomes, not dispositions."""
+    order = ["Verified holds", "Verified", "Needs review (Low)", "Needs review (Medium)", "Needs review (High)", "Needs review (Critical)", "Returned to author", "Pending review", "Not evaluated"]
+    n = {}
+    for cid, (code, _) in disp.items():
+        if code == "VERIFIED_HOLDS": k = "Verified holds"
+        elif code == "VERIFIED": k = "Verified"
+        elif code == "NEEDS_REVIEW_BINDING": k = "Needs review (Low)"
+        elif code.startswith("NEEDS_REVIEW") or code == "ACKNOWLEDGE": k = f"Needs review ({S.ctl[cid]['tier']})"
+        elif code == "RETURNED_TO_AUTHOR": k = "Returned to author"
+        elif code == "NOT_EVALUATED": k = "Not evaluated"
+        else: k = "Pending review"
+        n[k] = n.get(k, 0) + 1
+    return f"{len(disp)} controls on snapshot {snap}: " + ", ".join(f"{n[k]} {k}" for k in order if k in n)
 ACTIONS = {c: "None. The prior verification holds." for c in CIDS}
 ACTIONS["SEC-ARCH-07"] = "Return to author: restore the AWS KMS customer-managed key, annual rotation, custodian and AES-256 statements in §4.3 (IS-STD-014 §5.1). Verify stays unavailable until every required clause has a supporting quote."
 ACTIONS["SEC-ARCH-22"] = "Acknowledge the new binding (Low): confirm runbook.md v2 §3 as the evidence of record."
 findings = make_findings(FS, r4, FIND, prior_snapshot_quotes, "S4", display_before, display_after, ACTIONS)
+EXP_BEFORE = {**{c: "Verified, holds" for c in CIDS}, "SEC-ARCH-07": "Needs review: key-management evidence missing", "SEC-ARCH-22": "Needs review: evidence binding changed"}
+EXP_AFTER = {**{c: "Verified, holds" for c in CIDS}, "SEC-ARCH-07": "Returned to author, open", "SEC-ARCH-22": "Verified"}
+for fd in findings:
+    assert fd["expected_display"] == EXP_BEFORE[fd["control_id"]] and fd["expected_display_after_human_action"] == EXP_AFTER[fd["control_id"]], fd["control_id"]
 q_checked = []
 for fd in findings:
     for x in fd["evidence"]:
@@ -627,12 +645,14 @@ ledger = {"folderId": FOLDER_ID, "folderName": "Project Lantern - ARB package", 
           "chain": {"algorithm": "sha256(previous chain_hash + canonical JSON of event without chain_hash)", "genesis": "0" * 64, "head": L.events[-1]["chain_hash"]},
           "population": L.population(), "phases": {"seed": "Before the demo: S1 to S3, the ARB decision and the verifications.", "live_v3": "Produced on stage by the v3 upload (S4) and the reviewer's responses."},
           "events": L.events}
-expected = {**PROJECT, "snapshot_id": "S4", "prior_snapshot_id": "S3", "manifest_hash": FS.snapshots["S4"]["manifest_hash"], "control_profile_version": PROFILE_VERSION,
+CL_BEFORE, CL_AFTER = count_line(FS, "S4", display_before), count_line(FS, "S4", display_after)
+assert CL_BEFORE == "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)", CL_BEFORE
+assert CL_AFTER == "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author", CL_AFTER
+expected = {**PROJECT, "expected_count_line_before": CL_BEFORE, "expected_count_line_after": CL_AFTER, "snapshot_id": "S4", "prior_snapshot_id": "S3", "manifest_hash": FS.snapshots["S4"]["manifest_hash"], "control_profile_version": PROFILE_VERSION,
   "trigger": {"fileId": F["arch"][0], "fileName": F["arch"][1], "fromVersionId": FULL["arch-v2"]["versionId"], "toVersionId": FULL["arch-v3"]["versionId"], "uploadedBy": "svc-confluence-export", **V3_META},
   "summary": {"controls_evaluated": 8, "evidence_found": 7, "evidence_weakened": 1, "evidence_absent": 0, "evidence_contradicted": 0, "not_evaluated": 0,
               "change_classification": {"unchanged": 6, "weakened": 1, "moved": 1}, "verification_holds": 6, "binding_changed": 1,
-              "top_line_before_human_action": "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical).",
-              "top_line_after_human_action": "6 Verified holds, 1 Verified, 1 Returned to author.",
+              "top_line_before_human_action": CL_BEFORE, "top_line_after_human_action": CL_AFTER,
               "displayed_counts_before": counts(display_before), "displayed_counts_after": counts(display_after)},
   "prior_quote_diff_hints": hints, "removed_from_v2": [Q["07"], Q["07aes"], Q["22"]],
   "box_tasks": {"A_review_SEC_ARCH_07": TASK_A["task_id"], "B_author_remediation": TASK_B["task_id"], "C_review_SEC_ARCH_22": TASK_C["task_id"]},
@@ -769,7 +789,10 @@ lledger = {"folderId": FOLDER_ID, "folderName": "Project Lantern - ARB package (
            "append_only": True, "live_timestamp_placeholder": "LIVE",
            "chain": {"algorithm": ledger["chain"]["algorithm"], "genesis": "0" * 64, "head": LS.L.events[-1]["chain_hash"], "note": "Events with ts LIVE are re-chained by the app when the real timestamp is known."},
            "population": LS.L.population(), "events": LS.L.events}
-lexpected = {**PROJECT, "snapshot_id": "S4", "prior_snapshot_id": "S2", "control_profile_version": profile_live["profile_version"], "trigger": expected["trigger"],
+LCL_BEFORE, LCL_AFTER = count_line(LS, "S4", ldisp_before), count_line(LS, "S4", ldisp_after)
+assert LCL_BEFORE == "3 controls on snapshot S4: 1 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)", LCL_BEFORE
+assert LCL_AFTER == "3 controls on snapshot S4: 1 Verified holds, 1 Needs review (Low), 1 Returned to author", LCL_AFTER
+lexpected = {**PROJECT, "expected_count_line_before": LCL_BEFORE, "expected_count_line_after": LCL_AFTER, "snapshot_id": "S4", "prior_snapshot_id": "S2", "control_profile_version": profile_live["profile_version"], "trigger": expected["trigger"],
              "summary": {"controls_evaluated": 3, "evidence_found": 2, "evidence_weakened": 1, "change_classification": {"weakened": 1, "moved": 1, "unchanged": 1},
                          "displayed_counts_before": counts(ldisp_before), "displayed_counts_after": counts(ldisp_after)},
              "prior_quote_diff_hints": lhints, "box_tasks": {"A_review_SEC_ARCH_07": LTASK_A["task_id"], "B_author_remediation": LTASK_B["task_id"]},

@@ -9,6 +9,8 @@
     "date": "2026-10-07",
     "chair": "R. Alvarez"
   },
+  "expected_count_line_before": "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)",
+  "expected_count_line_after": "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author",
   "snapshot_id": "S4",
   "prior_snapshot_id": "S3",
   "manifest_hash": "sha256:e150c919c0259fdde5a9efdac245504c11dc2e4707765ecb3375aa452fe4e2bd",
@@ -37,8 +39,8 @@
     },
     "verification_holds": 6,
     "binding_changed": 1,
-    "top_line_before_human_action": "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical).",
-    "top_line_after_human_action": "6 Verified holds, 1 Verified, 1 Returned to author.",
+    "top_line_before_human_action": "8 controls on snapshot S4: 6 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)",
+    "top_line_after_human_action": "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author",
     "displayed_counts_before": {
       "Verified, holds": 6,
       "Needs review: key-management evidence missing": 1,

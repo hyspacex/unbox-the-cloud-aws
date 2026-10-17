@@ -9,6 +9,8 @@
     "date": "2026-10-07",
     "chair": "R. Alvarez"
   },
+  "expected_count_line_before": "3 controls on snapshot S4: 1 Verified holds, 1 Needs review (Low), 1 Needs review (Critical)",
+  "expected_count_line_after": "3 controls on snapshot S4: 1 Verified holds, 1 Needs review (Low), 1 Returned to author",
   "snapshot_id": "S4",
   "prior_snapshot_id": "S2",
   "control_profile_version": "2026.3-live",

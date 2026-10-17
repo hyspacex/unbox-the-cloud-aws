@@ -7,6 +7,7 @@
  */
 import type { ControlRow, FindingCard } from "@/lib/types";
 import { ApiError } from "@/lib/client";
+import { useKeelState, type KeelState } from "@/components/KeelStateProvider";
 
 export const C = {
   boxBlue: "#0061D5",
@@ -177,3 +178,13 @@ export const btnSmall =
   "inline-flex h-7 items-center justify-center gap-1 rounded-[4px] border px-2.5 text-[12.5px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 border-[#C9C9C9] bg-white text-[#222222] hover:bg-[#F4F6FA]";
 export const fieldClass =
   "w-full rounded-[4px] border border-[#C9C9C9] bg-white px-2.5 py-2 text-[13.5px] leading-[1.45] text-[#222222] placeholder:text-[#9A9A9A] focus:border-[#0061D5] focus:outline-none";
+
+/**
+ * The provider's action wrapper (lane A, codex #9): it owns `busy` from before the POST until the refresh ends.
+ * Until it exists the call runs directly.
+ */
+type Runner = <T>(fn: () => Promise<T>) => Promise<T>;
+export function useActionRunner(): Runner {
+  const s = useKeelState() as KeelState & { runAction?: Runner };
+  return s.runAction ?? ((fn) => fn());
+}

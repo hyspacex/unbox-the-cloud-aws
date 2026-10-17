@@ -5,7 +5,7 @@ import type { ActionResponse, FindingCard } from "@/lib/types";
 import { api } from "@/lib/client";
 import { attestationPresent } from "@/lib/engine/wording";
 import { ErrorLine, InlineExpand } from "./Inline";
-import { C, CheckIcon, btnPrimary, btnSmall, errorText, fieldClass, shortSection } from "./parts";
+import { C, CheckIcon, btnPrimary, btnSmall, errorText, fieldClass, shortSection, useActionRunner } from "./parts";
 
 /**
  * Inline Verify (design 2.4). The attestation field starts empty; the checklist shows the four preconditions a
@@ -13,6 +13,7 @@ import { C, CheckIcon, btnPrimary, btnSmall, errorText, fieldClass, shortSection
  */
 export function InlineVerify({ card, disabled, onFinal }: { card: FindingCard; disabled?: boolean; onFinal: (r: ActionResponse) => Promise<void> }) {
   const phrase = card.actions.verify.attestation_phrase;
+  const runAction = useActionRunner();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -31,13 +32,13 @@ export function InlineVerify({ card, disabled, onFinal }: { card: FindingCard; d
     setBusy(true);
     setErr(null);
     try {
-      const r = await api.action({
+      const r = await runAction(() => api.action({
         finding_id: card.finding.finding_id,
         control_id: card.finding.control_id,
         decision_snapshot_id: card.finding.snapshot_id,
         action: "verify",
         message,
-      });
+      }));
       if (r.result === "rejected") {
         setErr(r.explanation ?? "Rejected. Nothing was recorded as a disposition.");
         return;

@@ -6,7 +6,7 @@
  * first, then the panel; focus is trapped while open and returns to the owl on close.
  */
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { useKeelState, type PanelView } from "@/components/KeelStateProvider";
 import { useFocusTrap } from "@/lib/ui/useFocusTrap";
 import { OwlMark } from "@/components/owl";
@@ -15,6 +15,16 @@ import { Level2 } from "./Level2";
 import { MENU_TITLES, MenuScreenView } from "./MenuScreens";
 import { PanelMenu } from "./PanelMenu";
 import { C, Chevron, DUR, EASE_OUT } from "./parts";
+
+/** Exiting content is inert while it animates out, so neither Tab nor a click can reach it (codex #20). */
+function PresentOnly({ children }: { children: React.ReactNode }) {
+  const present = useIsPresent();
+  return (
+    <div inert={!present} aria-hidden={!present || undefined}>
+      {children}
+    </div>
+  );
+}
 
 const viewKey = (v: PanelView) => (v.kind === "level1" ? "level1" : v.kind === "control" ? `control:${v.controlId}` : `menu:${v.screen}`);
 
@@ -74,6 +84,27 @@ export function Panel() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   });
+
+  // Focus guard (codex #20): if the focused element inside the panel is removed (a level swaps out), focus
+  // would fall to <body> and Tab would leave the trap. Pull it back to Back or the first row. Clicking the Box
+  // page on purpose moves focus to a real element, so this does not fire then.
+  useEffect(() => {
+    if (!panel.open) return;
+    const root = ref.current;
+    if (!root) return;
+    const onOut = (e: FocusEvent) => {
+      const lost = e.target as HTMLElement | null;
+      setTimeout(() => {
+        const a = document.activeElement;
+        if (lost && !lost.isConnected && (!a || a === document.body)) {
+          const r = ref.current;
+          (r?.querySelector<HTMLElement>('button[aria-label="Back"]') ?? r?.querySelector<HTMLElement>("button[data-row]") ?? r?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true });
+        }
+      }, 0);
+    };
+    root.addEventListener("focusout", onOut);
+    return () => root.removeEventListener("focusout", onOut);
+  }, [panel.open]);
 
   // Each level opens at the top. After the 240 ms slide, focus Back on level 2; on return to level 1, focus the
   // row that was open (judge B2).
@@ -174,7 +205,9 @@ export function Panel() {
                 exit="exit"
                 transition={{ duration: DUR.level, ease: EASE_OUT }}
               >
-                {view.kind === "level1" ? <Level1 /> : view.kind === "control" ? <Level2 controlId={view.controlId} /> : <MenuScreenView screen={view.screen} />}
+                <PresentOnly>
+                  {view.kind === "level1" ? <Level1 /> : view.kind === "control" ? <Level2 controlId={view.controlId} /> : <MenuScreenView screen={view.screen} />}
+                </PresentOnly>
               </motion.div>
             </AnimatePresence>
           </div>

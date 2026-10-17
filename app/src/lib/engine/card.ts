@@ -137,6 +137,7 @@ export function verdictLine(
   searchSteps: TraceStep[],
   newLocation: { fileName: string; versionLabel?: string; section?: string } | null,
   filesAsked: (step: TraceStep) => number | undefined,
+  coverage?: SearchCoverage,
 ): string {
   const st = row.state;
   const kind = row.status.kind;
@@ -154,7 +155,13 @@ export function verdictLine(
     const cited = searchSteps.reduce((a, s) => a + (Number((s.result as { cited_statements?: number } | undefined)?.cited_statements) || 0), 0);
     const files = Math.max(0, ...searchSteps.map((s) => filesAsked(s) ?? 0));
     const fallback = searchSteps.length > 0 && searchSteps.every((s) => s.tool === "string_search" || (s.args as { mode?: string } | undefined)?.mode === "string_search");
-    const first = `${u} of ${plural(n, "clause")} unsupported ${searchSteps.length ? "in every file of this snapshot" : `on ${st.snapshot_id}`}.`;
+    // Codex 22: "every file" only when every pinned file was read and the search covered all but the primary file.
+    const complete = !!coverage && coverage.complete;
+    const first = !searchSteps.length
+      ? `${u} of ${plural(n, "clause")} unsupported on ${st.snapshot_id}.`
+      : complete
+        ? `${u} of ${plural(n, "clause")} unsupported in every file of this snapshot.`
+        : `${u} of ${plural(n, "clause")} unsupported in the files checked: ${listJoin(coverage?.checked ?? [])}.${coverage?.not_read.length ? ` ${listJoin(coverage.not_read)} ${coverage.not_read.length === 1 ? "was" : "were"} not read.` : " Not every file was searched."}`;
     const second = !searchSteps.length
       ? ""
       : fallback
@@ -168,6 +175,41 @@ export function verdictLine(
   } else if (st.change_classification === "unchanged" && (st.prior_verification || finding.prior_evidence.length)) out = "The verified sentence is unchanged.";
   else out = n ? `All ${plural(n, "clause")} have a validated quote on ${st.snapshot_id}.` : `Evidence found on ${st.snapshot_id}.`;
   return bannedWords(out).length ? "See the clauses below." : out;
+}
+
+/** Which pinned files the evaluator read and the control's search asked (Codex 22). */
+export interface SearchCoverage {
+  complete: boolean;
+  checked: string[];
+  not_read: string[];
+}
+
+export function searchCoverage(store: Store, snapshotId: string, asked: string[][]): SearchCoverage {
+  const snap = store.snapshot(snapshotId);
+  const names = snap?.files.map((f) => f.fileName) ?? [];
+  const attempt = [...store.events].reverse().find((e) => e.event_type === "evaluation_attempt" && e.snapshot_id === snapshotId);
+  const withheld = ((attempt?.files_withheld as { fileName: string }[] | undefined) ?? []).map((w) => w.fileName);
+  const given = (attempt?.files_given as string[] | undefined) ?? names.filter((n) => !withheld.includes(n));
+  const searched = new Set(asked.flat());
+  const unsearched = given.filter((n) => !searched.has(n)); // the primary file is read directly, not searched
+  const complete = !!attempt && withheld.length === 0 && given.length === names.length && unsearched.length <= 1;
+  return { complete, checked: given, not_read: names.filter((n) => !given.includes(n)) };
+}
+
+/**
+ * Why the "now" side of the quote pair shows no sentence (Codex 15). Proven absence only for evidence_absent;
+ * otherwise the text was not checked (unreadable, quarantined, pending) or the binding has no quote.
+ */
+export function quotePairNote(row: RowWithState): string {
+  const st = row.state;
+  if (row.status.kind === "pending_recheck" || st.evaluation_state === "pending") return "The re-check is still running; no current sentence yet.";
+  if (row.status.kind === "not_evaluated") {
+    if (st.not_evaluated_reason?.code === "input_gate") return "The current file was withheld by the input gate, so no sentence was checked.";
+    if (/unreadable/.test(row.status.label)) return "The current file could not be read, so no sentence was checked.";
+    return "This control was not evaluated on this snapshot, so no sentence was checked.";
+  }
+  if (st.machine_assessment === "evidence_absent") return "No sentence in the current snapshot supports this control.";
+  return "No current sentence is bound to this control.";
 }
 
 export function buildFindingCard(store: Store, profile: ControlProfile, config: KeelConfig, finding: Finding & { run_id?: string }): FindingCard {
@@ -264,11 +306,16 @@ export function buildFindingCard(store: Store, profile: ControlProfile, config: 
     return ask?.files_asked.length ?? (Number(/over (\d+) files?/.exec(s.label)?.[1]) || undefined);
   };
   const newLocation = moved && newFile && binding ? { fileName: newFile.fileName, versionLabel: newFile.versionLabel ?? newInfo?.label, section: binding.section } : null;
-  const verdict_line = verdictLine(row, finding, searchSteps, newLocation, filesAsked);
+  const askedLists = searchSteps.map((s) => {
+    const q = (s.args as { query?: string } | undefined)?.query;
+    return (q ? run?.box_ai_asks?.find((a) => a.query === q)?.files_asked : undefined) ?? [];
+  });
+  const verdict_line = verdictLine(row, finding, searchSteps, newLocation, filesAsked, searchCoverage(store, finding.snapshot_id, askedLists));
   const receipt = currentId === st.snapshot_id ? receiptFor(store, row) : null;
   return {
     verdict_line,
     receipt,
+    ...(newQuote ? {} : { quote_pair_note: quotePairNote(row) }),
     opened_at: opened?.ts,
     binding_sections,
     // A moved binding kept its support in another file: listing the old sentence would read as lost support.

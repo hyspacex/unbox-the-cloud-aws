@@ -19,11 +19,11 @@ exact labels on screen.
    **Reset demo** under "Back to snapshot S3?". Reset appears in mock mode only.
 5. Rehearse once: run the whole script below, then Reset again. The rehearsal run stays listed under **Replay a
    run** as the fallback, and the store is back at S3.
-6. Window 1440 pixels wide, zoom 100 percent. At 1440 the open panel pushes the Box page left, and the owl moves
-   to the left of the panel.
-7. Projector at 1024x768: test once at that size. Below 1100 pixels the panel overlays the page instead of pushing
-   it, and the owl hides while the panel is open. The **Approve and send** button may need a short scroll inside
-   the panel. Press **✕** (Close Keel) before clicking **ⓘ** on the Box page.
+6. Window 1440 pixels wide, zoom 100 percent. At 1180 pixels and wider the open panel pushes the Box page left,
+   and the owl sits at the panel's left edge with its bubble beside it.
+7. Projector at 1024x768: test once at that size. Below 1180 pixels the panel overlays the page instead of
+   pushing it, and the owl and its bubble hide while the panel is open. At 768 tall **Approve and send** is
+   visible without scrolling. Press **✕** (Close Keel) before clicking **ⓘ** on the Box page.
 8. Close the panel. The owl is idle with no badge and no dot on any file row.
 9. Check the mode line at the bottom of the **⋯** menu. It reads **Mode · Mock**, **Mode · Live** or **Mode ·
    Replay**. Say which one out loud at 0:00. Never present mock output as live.
@@ -36,10 +36,20 @@ The owl never composes its own text. Every line comes from the API: `bubble` on 
 | Beat | Owl bubble | Badge |
 | --- | --- | --- |
 | Baseline, after Reset | none (the panel header reads "snapshot S3 · 8 verifications hold") | none |
-| During the run, one line at a time | "New version seen: architecture.md v3.", "Pinning 5 files at their current versions…", "Reading 5 files by version…", "Decider checked the text. Clean.", "Comparing with what was verified…", "Re-checking 8 controls on Bedrock…", "Asking Box AI across 4 files…", "23 of 23 quotes matched.", "Applying the status rules…", "Writing the record…", "Writing Box metadata…", "Creating 3 Box tasks…" | hidden |
+| During the run, one line at a time, in this order | "New version seen: architecture.md v3.", "Pinning 5 files at their current versions…", "Reading 5 files by version…", "Decider checked the text. Clean.", "Comparing with what was verified…", "Re-checking 8 controls on Bedrock…", "Asking Box AI across 4 files…", "23 of 23 quotes matched.", "Applying the status rules…", "Writing the record…", "Writing Box metadata…", "Creating 3 Box tasks…" | hidden |
 | After the run | "1 Critical needs your decision. 2 more to look at." | 3 |
 | After the return on SEC-ARCH-07 and the verify on SEC-ARCH-22 | "1 High needs your decision." | 1 |
 | After the acknowledgment on SEC-ARCH-05 | "All 8 recorded on S4." | none |
+
+**Some run lines pass quickly.** Each line stays up for at least 650 ms, and the early steps arrive in a burst, so
+"Pinning 5 files…", "Reading 5 files…" and "Comparing with what was verified…" go by fast. Every line is shown.
+"Re-checking 8 controls on Bedrock…" and "Asking Box AI across 4 files…" stay longest, because the agent step
+takes most of the run. Read those two aloud.
+
+**Where the bubble appears while the panel is open.** At 1440 the panel pushes the page, so the owl stays visible
+at the panel's left edge. "1 High needs your decision." and "All 8 recorded on S4." appear beside the owl there,
+as the decisions land. At 1024 the panel overlays the page and the owl hides. Those two lines then do not show
+until you close the panel, and the summary fades four seconds after it appears.
 
 The baseline summary in the API is "8 verifications hold." The summary bubble fades after four seconds and the
 badge stays. The agent's substeps add short lines such as "Reading requirements and evidence…" and "Fetching what
@@ -56,22 +66,31 @@ on click, so the room watches the checks tick. The machine does not attest for t
 
 | Time | Narration | On screen | Click |
 | --- | --- | --- | --- |
-| 0:00 | "This is Box. The review board approved this folder on October 7. Eight controls, five documents, each verified by a named reviewer against these exact versions. Keel is the owl." | Box folder, five files with a Version column, owl idle | Nothing. |
+| 0:00 | "This is Box. The review board approved this folder on October 7, and the verifications were recorded the next day. Eight controls, five documents, each verified by a named reviewer against these exact versions. Keel is the owl." | Box folder, five files with a Version column, owl idle | Nothing. |
 | 0:20 | "The project uploads a rewritten architecture document." | Upload menu, chooser with "architecture.md (v3 draft)", row reads "Uploading new version…", then "Upload complete", then v3 | **Upload ▾** → **Upload new version** → select **architecture.md (v3 draft)** → **Upload**. |
 | 0:35 | "Keel pins all five files, Decider clears the text, the agent re-checks all eight controls on Bedrock and asks Box AI whether the other four files say anything about customer-managed keys." | Owl working, pupils sweep, bubble replaces itself step by step | Nothing. Read the bubble aloud if the room is quiet. |
 | 0:50 | "Three need me. Five hold, so nobody clicks anything for those." | Bubble "1 Critical needs your decision. 2 more to look at.", badge 3, amber dots | Click the owl. Level 1 opens: NEEDS YOUR DECISION, ACKNOWLEDGE, "5 verifications hold". |
 | 1:00 | "The reviewed text named customer-managed keys. The rewrite says all data is protected with industry-standard encryption. Encryption is still stated; the key-management commitment is gone. Box AI searched the other four files: nothing." | Level 2: WAS and NOW quotes, the verdict line "4 of 5 clauses unsupported in every file of this snapshot. Box AI found 0 citations across the other 4 files.", Verify off with its reason | Row **SEC-ARCH-07**. |
 | 1:15 | Reviewer, first person: "The machine told me where to look. It did not tell me what to decide. I'm returning this with the sentence that disappeared and the requirement it has to meet. Verify is off for me too, because nothing in this package supports the key model." | Empty reason field, suggested reason inserted, "Box AI drafted this task for J. Park" tagged "Drafted by Box AI", then the receipt "Returned to author by Dana Okafor" | **Return to author** → **Use suggested reason (drafted by Keel)** → **Return and draft author task** → read the draft → **Approve and send**. |
 | 1:45 | "Recovery targets moved to the runbook. Same sentence, different file. That is a changed binding, not lost support. Thirty seconds, Low." | Level 2 for SEC-ARCH-22, NOW reads "Current binding · runbook.md v2 §3", the checklist ticks as the phrase is inserted, then the green receipt "Verified by Dana Okafor" | **‹** (Back) → row **SEC-ARCH-22** → **Verify** → **Insert attestation phrase** → **Confirm verify**. |
-| 2:00 | "One more is a glance. The sentence is unchanged, but the section around it was rewritten, and this control is High tier." | Level 2 for SEC-ARCH-05, verdict line "The section around the verified sentence was rewritten. The sentence is unchanged.", optional note, then "Acknowledged by Dana Okafor"; bubble "All 8 recorded on S4." | **‹** (Back) → row **SEC-ARCH-05** → **Acknowledge** → **Acknowledge** in the inline card to confirm. Leave the note empty. |
-| 2:10 | "Every decision is recorded against the exact versions, under my name, with a hash chain. Box holds the files, the metadata and the tasks." | Receipt expanded into events with short chain hashes and "Chain verified N/N"; Box details pane with Folder details and the Keel review metadata fields | **Show the record**. Then **ⓘ** (Details) on the Box page. |
+| 2:00 | "One more is a glance. The sentence is unchanged, but the section around it was rewritten, and this control is High tier." | Level 2 for SEC-ARCH-05, verdict line "The section around the verified sentence was rewritten. The sentence is unchanged.", optional note, then "Acknowledged by Dana Okafor"; at 1440 the bubble "All 8 recorded on S4." appears beside the owl at the panel's left edge | **‹** (Back) → row **SEC-ARCH-05** → **Acknowledge** → **Confirm acknowledgment**. Leave the note empty. |
+| 2:10 | "Every decision is recorded against the exact versions, under my name, with a hash chain. Box holds the files, the metadata and the tasks." | Receipt expanded into events with short chain hashes and "Chain verified N/N"; Box details pane with Folder details and the Keel review metadata fields, where SEC-ARCH-05 reads VERIFIED_HOLDS | **Show the record**. Then **ⓘ** (Details) on the Box page. At 1024, press **✕** first. Keep this beat after the acknowledgment. |
 | 2:30 | "Box holds files, metadata, tasks, and Box AI is how the agent reads. Bedrock judges. Decider gates locally. Code validates quotes and keeps the record. The machine has its field; the reviewer has hers." | Six stacked boxes with the wall "The machine cannot write past this line." before the person | **⋯** → **How it works**. |
 | 2:45 | "Next: a shadow evaluation over fifty historical packages, measuring misses, false alerts and review time." | Same | Nothing. |
-| 2:50 | "Know what changed, and who reviewed that exact evidence." | Box page, owl idle, blue dots | **✕** (Close Keel). |
+| 2:50 | "Know what changed, and who reviewed that exact evidence." | Box page, blue dots. At 1024 this is where "All 8 recorded on S4." shows, for four seconds after the panel closes | **✕** (Close Keel). |
 
-**Expected level 1 after all three decisions.** RECORDED holds SEC-ARCH-07, SEC-ARCH-22 and SEC-ARCH-05 in that
-order, each with the first line of its receipt. "5 verifications hold" sits below with "SEC-ARCH-01 · 02 · 04 · 17
-· 20". The engine's count line still exists in the API and the record. It is no longer on screen.
+**Expected text after all three decisions.**
+
+| Where | Text |
+| --- | --- |
+| Level 1, RECORDED, in this order | SEC-ARCH-07 "Returned to author by Dana Okafor", SEC-ARCH-22 "Verified by Dana Okafor", SEC-ARCH-05 "Verified, holds · Acknowledged by Dana Okafor" |
+| Level 1, below | "5 verifications hold" with "SEC-ARCH-01 · 02 · 04 · 17 · 20" |
+| Count line, in the API and the record only | "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author" |
+| Details pane, SEC-ARCH-05 | VERIFIED_HOLDS |
+| Owl | "All 8 recorded on S4.", no badge, both dots blue |
+
+The count line is no longer on screen. An acknowledged control counts as a verification that holds, so the count
+line reads six while level 1 lists SEC-ARCH-05 under RECORDED.
 
 **If time is short.** Skip the SEC-ARCH-05 beat. The badge then reads 1, the bubble reads "1 High needs your
 decision.", and the architecture.md dot stays amber. That is correct behaviour, not a fault, and you can say so.
@@ -89,8 +108,8 @@ seconds and the owl shows the new summary.
 
 ## Fallbacks
 
-**The run misbehaves, or live mode is over its rehearsed window.** Open **⋯** → **Replay a run**, then press
-**Replay** on the rehearsal run. The panel shows "Replaying run-…" and level 1 shows a banner reading "Replay of
+**The run misbehaves, or live mode is over its rehearsed window.** Open **⋯** → **Replay a run**. The list is newest first, and the newest
+rehearsal is tagged "Latest rehearsal". Press **Replay** on that row. The panel shows "Replaying run-…" and level 1 shows a banner reading "Replay of
 run-…. Nothing is re-evaluated." The rows read Re-check pending and are not clickable until the recorded outcome
 lands. It ends on the state right after the run: badge 3, the bubble "1 Critical needs your decision. 2 more to
 look at.", and three open decisions. The mode line reads **Mode · Replay**. Press **End replay** to return to the

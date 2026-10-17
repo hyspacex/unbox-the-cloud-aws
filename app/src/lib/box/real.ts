@@ -33,6 +33,7 @@ import { AiTextGenItemsField } from "box-typescript-sdk-gen/schemas";
 import {
   dateTimeFromString,
   dateTimeToString,
+  generateByteStreamFromBuffer,
   readByteStream,
   stringToByteStream,
 } from "box-typescript-sdk-gen/internal";
@@ -810,17 +811,30 @@ export class RealBoxAdapter implements BoxAdapter {
     }
   }
 
-  async uploadFileVersion(fileId: string, name: string, text: string, versionNote?: string): Promise<{ fileId: string; versionId: string }> {
+  /**
+   * Upload new bytes as a version. `content` is passed to Box as raw bytes (a string is encoded UTF-8).
+   * The version note is a separate Box call after the upload committed: its failure is reported as
+   * `note_error`, never as a failed upload (Codex 14).
+   */
+  async uploadFileVersion(fileId: string, name: string, content: string | Buffer, versionNote?: string): Promise<{ fileId: string; versionId: string; note_error?: string }> {
+    let res;
+    const client = this.client();
     try {
-      const client = this.client();
-      const res = await client.uploads.uploadFileVersion(fileId, { attributes: { name }, file: stringToByteStream(text) }, { cancellationToken: this.ct() });
-      const f = res.entries?.[0];
-      if (versionNote) await client.comments.createComment({ message: this.cfg.versionNotePrefix + versionNote, item: { id: fileId, type: "file" } }, { cancellationToken: this.ct() });
-      return { fileId, versionId: f?.fileVersion?.id ?? "" };
+      const file = typeof content === "string" ? stringToByteStream(content) : generateByteStreamFromBuffer(content);
+      res = await client.uploads.uploadFileVersion(fileId, { attributes: { name }, file }, { cancellationToken: this.ct() });
     } catch (e) {
       const m = mapBoxError(e);
       throw new BoxAdapterError(m.code, `uploadFileVersion(${name}): ${m.message}`, m.status);
     }
+    const versionId = res.entries?.[0]?.fileVersion?.id ?? "";
+    if (versionNote) {
+      try {
+        await client.comments.createComment({ message: this.cfg.versionNotePrefix + versionNote, item: { id: fileId, type: "file" } }, { cancellationToken: this.ct() });
+      } catch (e) {
+        return { fileId, versionId, note_error: mapBoxError(e).message };
+      }
+    }
+    return { fileId, versionId };
   }
 
   async findFileByName(folderId: string, name: string): Promise<BoxFolderItem | undefined> {

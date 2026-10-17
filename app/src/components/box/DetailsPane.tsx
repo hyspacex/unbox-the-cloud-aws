@@ -7,7 +7,7 @@ import { boxDate } from "./format";
 import { IconClose } from "./icons";
 
 /** Box's right-hand details pane for the folder: folder details, then the keelReview metadata as Box renders it. */
-export function DetailsPane({ pkg, folderName, onClose }: { pkg: PackageView | null; folderName: string; onClose: () => void }) {
+export function DetailsPane({ pkg, folderName, onClose, replayRunId }: { pkg: PackageView | null; folderName: string; onClose: () => void; replayRunId?: string | null }) {
   const p = pkg?.projection ?? null;
   const files = pkg?.files ?? [];
   const latest = files.map((f) => f.updated_at).filter(Boolean).sort().pop();
@@ -54,13 +54,17 @@ export function DetailsPane({ pkg, folderName, onClose }: { pkg: PackageView | n
           <dl className="space-y-3">
             <Field label="Name" value={folderName} />
             {pkg?.header.folderId ? <Field label="Folder ID" value={pkg.header.folderId} /> : null}
-            <Field label="Items" value={files.length ? `${files.length} files` : ""} />
             {latest ? <Field label="Modified" value={boxDate(latest)} /> : null}
           </dl>
         </section>
         <section className="px-5 py-4">
           <h3 className="mb-3 text-[14px] font-bold">Metadata</h3>
-          {p ? (
+          {replayRunId ? (
+            // A replay shows recorded rows only; the folder's metadata is live state, so it is not shown (codex #11).
+            <p className="text-[13px] text-[#767676]" data-testid="details-replay-note">
+              Replay of {replayRunId} · metadata not shown
+            </p>
+          ) : p ? (
             <div className="rounded-md border border-[#E8E8E8]">
               <div className="flex items-center justify-between border-b border-[#E8E8E8] px-4 py-2.5">
                 <span className="text-[14px] font-bold">Keel review</span>

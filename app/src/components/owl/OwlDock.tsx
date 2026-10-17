@@ -8,21 +8,20 @@ import { useMedia } from "@/lib/ui/useMedia";
 import { Owl } from "./Owl";
 import { Bubble } from "./Bubble";
 
-/** Screen-reader name for the owl button, from the state and the engine's badge. */
-function owlLabel(s: Pick<KeelState, "owl" | "badge">): string {
+/** Screen-reader name for the owl button. Counted states read the engine's `decision_summary`; no count is composed. */
+function owlLabel(s: Pick<KeelState, "owl" | "pkg">): string {
+  const summary = s.pkg?.decision_summary;
   switch (s.owl) {
     case "working":
       return "Keel: working";
     case "attention":
-      return `Keel: ${s.badge} decision${s.badge === 1 ? " needs" : "s need"} you`;
     case "clear":
-      return "Keel: every decision is recorded";
     case "quarantine":
-      return s.badge > 0 ? `Keel: a file was withheld; ${s.badge} decision${s.badge === 1 ? " needs" : "s need"} you` : "Keel: a file was withheld";
+      return summary ? `Keel: ${summary}` : "Keel: open the review panel";
     case "offline":
       return "Keel: cannot reach Keel";
     default:
-      return "Keel: open the review panel";
+      return summary ? `Keel: ${summary}` : "Keel: open the review panel";
   }
 }
 
@@ -40,7 +39,7 @@ export function OwlDock() {
   const settled = settledAt === right;
   // The bubble shows whenever the owl is on screen and still: with the panel closed, or pushed beside it.
   const bubbleText = settled && s.bubble ? s.bubble.text : null;
-  const title = s.pkg?.decision_summary ? `Keel: ${s.pkg.decision_summary}` : owlLabel(s);
+  const title = owlLabel(s);
   const { openPanel } = s;
   const panelOpen = s.panel.open;
 

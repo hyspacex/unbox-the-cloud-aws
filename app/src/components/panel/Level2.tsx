@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { ActionResponse, FindingCard } from "@/lib/types";
+import type { ActionResponse, ControlRow, FindingCard } from "@/lib/types";
 import { api, peekFinding } from "@/lib/client";
 import { ClauseChecklist } from "@/components/finding/Clauses";
 import { VersionColumns } from "@/components/finding/Versions";
@@ -29,63 +29,89 @@ function reviewLine(card: FindingCard): string | null {
   return null;
 }
 
+/** What a card was fetched for: snapshot, the row's displayed kind, disposition and recorded flag (codex #10). */
+export function cardKeyOf(snapshotId: string | undefined, row: ControlRow | undefined): string {
+  if (!snapshotId || !row) return "";
+  return `${snapshotId}|${row.status.kind}|${row.current_disposition}|${row.decision_recorded ? 1 : 0}`;
+}
+
+type Loaded = { card: FindingCard; key: string };
+
 export function Level2({ controlId }: { controlId: string }) {
-  const { pkg, run, replay, afterAction } = useKeelState();
-  const [card, setCard] = useState<FindingCard | null>(() => peekFinding(controlId) ?? null);
+  const { pkg, run, replay, afterAction, busy } = useKeelState();
+  const liveRow = pkg?.rows.find((r) => r.control_id === controlId);
+  const wantKey = cardKeyOf(pkg?.snapshot.snapshot_id, liveRow);
+  const [loaded, setLoaded] = useState<Loaded | null>(() => {
+    // A cached card is used only when it was taken on this snapshot with the same row state.
+    const c = peekFinding(controlId);
+    return c && wantKey && cardKeyOf(c.finding.snapshot_id, c.row) === wantKey ? { card: c, key: wantKey } : null;
+  });
   const [err, setErr] = useState<string | null>(null);
   const [inline, setInline] = useState<Inline>(null);
   const [disc, setDisc] = useState<Disclosure>(null);
   const [last, setLast] = useState<ActionResponse | null>(null);
   const [recordKey, setRecordKey] = useState(0);
+  const [nonce, setNonce] = useState(0);
   const [autoOpened, setAutoOpened] = useState(false);
-  const locked = Boolean(run?.running) || Boolean(replay);
+  const card = loaded?.card ?? null;
+  const stale = Boolean(loaded && wantKey && loaded.key !== wantKey);
+  const locked = Boolean(run?.running) || Boolean(replay) || busy || stale;
 
-  const load = useCallback(async () => {
-    try {
-      const c = await api.finding(controlId);
-      setCard(c);
-      setErr(null);
-      return c;
-    } catch (e) {
-      setErr(errorText(e));
-      return null;
-    }
-  }, [controlId]);
-
-  // Reload when the package moves (a new snapshot, an action, a Box task response ingested).
-  const pkgKey = pkg ? `${pkg.snapshot.snapshot_id}|${pkg.rows.find((r) => r.control_id === controlId)?.status.label ?? ""}` : "";
+  // Refetch whenever the package moves for this control; never during a replay (codex #11).
   useEffect(() => {
+    if (replay || !wantKey) return;
     const ctrl = new AbortController();
     api
       .finding(controlId, ctrl.signal)
       .then((c) => {
-        setCard(c);
+        setLoaded({ card: c, key: wantKey });
         setErr(null);
       })
       .catch((e) => !ctrl.signal.aborted && setErr(errorText(e)));
     return () => ctrl.abort();
-  }, [controlId, pkgKey]);
+  }, [controlId, wantKey, nonce, replay]);
 
   // A Box AI draft already waiting for approval opens the Return form on its second step (once).
-  if (card?.pending_author_draft && !autoOpened && !card.receipt) {
+  if (card?.pending_author_draft && !autoOpened && !card.receipt && !stale) {
     setAutoOpened(true);
     setInline("return");
   }
 
-  const onFinal = useCallback(
-    async (r: ActionResponse) => {
-      setLast(r);
-      setInline(null);
-      await afterAction();
-      await load();
-      setRecordKey((k) => k + 1);
-    },
-    [afterAction, load],
-  );
-  const onChanged = useCallback(async () => {
+  const onFinal = async (r: ActionResponse) => {
+    setLast(r);
+    setInline(null);
     await afterAction();
-    await load();
-  }, [afterAction, load]);
+    setNonce((n) => n + 1);
+    setRecordKey((k) => k + 1);
+  };
+  const onChanged = async () => {
+    await afterAction();
+    setNonce((n) => n + 1);
+  };
+
+  // Replay: the recorded row only. The live card would mix today's quotes and receipts into a recorded run.
+  if (replay) {
+    const r = liveRow;
+    return (
+      <div className="px-5 pt-3 pb-6">
+        <h2 className="text-[16px] font-bold leading-[1.3]" style={{ color: C.text }}>
+          {r?.title ?? controlId}
+        </h2>
+        {r ? (
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px]" style={{ color: C.secondary }}>
+            <RowChip row={r} severity={stableSeverity(r, undefined, pkg?.snapshot.snapshot_id)} />
+            <span style={{ color: C.text }}>
+              {r.status.struck ? <s className="mr-1.5">{r.status.struck}</s> : null}
+              {r.status.label}
+            </span>
+          </div>
+        ) : null}
+        <p className="mt-3 text-[13px]" style={{ color: C.secondary }}>
+          Replay of {replay.runId} · card not available
+        </p>
+      </div>
+    );
+  }
 
   if (!card) {
     return (
@@ -105,6 +131,16 @@ export function Level2({ controlId }: { controlId: string }) {
 
   return (
     <div className="px-5 pt-3 pb-6">
+      {err ? (
+        <p className="mb-2 text-[12.5px]" style={{ color: C.red }} role="alert">
+          Could not refresh this card: {err}
+        </p>
+      ) : stale ? (
+        <p className="mb-2 text-[12.5px]" style={{ color: C.secondary }} role="status">
+          Refreshing for the current snapshot…
+        </p>
+      ) : null}
+      <div style={stale ? { opacity: 0.45, transition: "opacity 200ms" } : { transition: "opacity 200ms" }} inert={stale} aria-busy={stale}>
       <h2 className="text-[16px] font-bold leading-[1.3]" style={{ color: C.text }}>
         {card.control.title ?? row.title}
       </h2>
@@ -217,6 +253,7 @@ export function Level2({ controlId }: { controlId: string }) {
           </motion.div>
         ) : null}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

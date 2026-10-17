@@ -27,14 +27,15 @@ import { MockEvaluator } from "./agent/mock-evaluator";
 import { AbsentInputGate, MockInputGate } from "./agent/mock-gate";
 import { runReview } from "./engine/pipeline";
 import { buildRows, publicRow, snapshotEvaluationState } from "./engine/state";
-import { countLine, displayedCounts, shortStatus } from "./engine/display";
+import { countLine, displayedCounts, pendingStatus, shortStatus } from "./engine/display";
 import { currentProjection, projectionInFlight } from "./engine/publish";
 import { approveDraft, awaitingDrafts, draftAuthorMessage as draftMessage, ingestTaskResponse, pollAssignments as pollAll, type IngestResult } from "./engine/disposition";
 import { buildFindingCard, findingFromState } from "./engine/card";
 import { canonicalJSON, CHAIN_ALGORITHM, sha256Hex, utcNow, verifyChain } from "./engine/ledger";
 import { createLiveAdapters } from "./live-adapters";
+import { withPackageLock } from "./engine/lock";
 import { withBubble } from "./engine/bubble";
-import { decisionFlags, decisionSummary, decisionSummaryFromRows, needsDecision, needsDecisionOnRow, openDecisionsFromRows, packageFiles, packageFilesFromRows, recordedOnRow, type FolderItemInfo } from "./engine/summary";
+import { changedFiles, hasRecordedDecision, headerLine, holdsLine, decisionFlags, decisionSummary, decisionSummaryFromRows, needsDecision, needsDecisionOnRow, openDecisionsFromRows, packageFiles, packageFilesFromRows, recordedOnRow, type FolderItemInfo } from "./engine/summary";
 
 export class ServiceError extends Error {
   constructor(
@@ -152,7 +153,17 @@ export function getPackageView(): PackageView {
     files: packageFiles(s, snap, rows, c.mockMode ? [] : (FI.__keelFolderItems?.items ?? [])),
     open_decisions: evalState === "pending" ? 0 : rows.filter((r) => needsDecision(s, r)).length,
     decision_summary: decisionSummary(s, rows, snap.snapshot_id, evalState),
+    ...displayLines(s, snap, rows, evalState, !run),
+    pending_status: pendingStatus(),
   };
+}
+
+/** Codex 15, 16, 18: the panel header, holds title and changed-file line, computed from rows and manifests. */
+function displayLines(s: Store, snap: import("./types").Snapshot, rows: ReturnType<typeof buildRows>, evalState: "pending" | "complete" | "error", baseline: boolean) {
+  const acked = (id: string) => rows.some((r) => r.control_id === id && hasRecordedDecision(s, r));
+  const ch = changedFiles(snap, s.previousSnapshot(snap.snapshot_id), (f) => f.versionLabel ?? s.versionLabel(f.fileId, f.versionId));
+  const holds = holdsLine(rows, acked);
+  return { header_line: headerLine(rows, evalState, baseline), ...(holds ? { holds_line: holds } : {}), changed_files: ch.names, changed_line: ch.line };
 }
 
 const FI = globalThis as unknown as { __keelFolderItems?: { at: number; items: FolderItemInfo[] }; __keelFolderItemsInFlight?: boolean };
@@ -244,11 +255,19 @@ function outcomeWithShort(o: RunRecord["outcome"], s: Store = store()): RunRecor
     return { ...row, status, needs_decision: row.needs_decision ?? needsDecisionOnRow(row, false), decision_recorded: row.decision_recorded ?? recordedOnRow(row, false) };
   });
   const state = rows.some((r) => r.status.kind === "pending_recheck") ? "pending" : "complete";
+  // Codex 23: the recorded row flags decide; the live ledger is never consulted for a historical outcome.
+  const snapForLines = o.snapshot ?? s.snapshot(o.snapshot_id);
+  const prior = o.prior_snapshot_id ? s.snapshot(o.prior_snapshot_id) : undefined;
+  const ch = snapForLines ? changedFiles(snapForLines, prior, (f) => f.versionLabel ?? s.versionLabel(f.fileId, f.versionId)) : undefined;
+  const holds = holdsLine(rows);
   return {
     ...o,
     rows,
     open_decisions: o.open_decisions ?? openDecisionsFromRows(rows),
     decision_summary: o.decision_summary ?? decisionSummaryFromRows(rows, o.snapshot_id, state),
+    header_line: o.header_line ?? headerLine(rows, state, false),
+    ...(o.holds_line ?? holds ? { holds_line: o.holds_line ?? holds } : {}),
+    ...(o.changed_line ? {} : ch ? { changed_files: ch.names, changed_line: ch.line } : {}),
     ...(() => {
       if (o.files) return { files: o.files };
       const snap = o.snapshot ?? s.snapshot(o.snapshot_id);
@@ -322,7 +341,23 @@ export interface SubmitOptions {
   wait?: boolean;
 }
 
+/**
+ * Codex 2: run admission (the active-run check, any Box upload, and the start of the run up to its
+ * snapshot capture) is serialized per package under its own lock key, so two requests can never both
+ * pass the check and both write to Box. The pipeline's package lock is a different key: no deadlock.
+ */
+function withAdmission<T>(fn: () => Promise<T>): Promise<T> {
+  const c = getConfig();
+  return withPackageLock(`admission:${c.box.folderId}`, fn, { timeoutMs: c.lockTimeoutMs });
+}
+
 export async function submit(req: SubmitRequest & { scenario?: string }, o: SubmitOptions = {}): Promise<SubmitResponse & { done?: Promise<RunRecord> }> {
+  const r = await withAdmission(() => submitAdmitted(req, o));
+  if (o.wait) await r.done;
+  return r;
+}
+
+async function submitAdmitted(req: SubmitRequest & { scenario?: string }, o: SubmitOptions = {}): Promise<SubmitResponse & { done?: Promise<RunRecord> }> {
   const c = getConfig();
   const s = store();
   const a = await adapters();
@@ -401,7 +436,7 @@ export async function submit(req: SubmitRequest & { scenario?: string }, o: Subm
       snapshotKnown();
     });
   await known; // the snapshot id (new capture or retried snapshot) is known after intake, well before the run ends
-  if (o.wait) await done;
+  void o; // `wait` is honoured by the caller after admission is released (submit holds admission only until capture)
   return { run_id: runId, snapshot_id: snapshotId, evaluation_state: "pending", done };
 }
 
@@ -431,36 +466,58 @@ function fixtureUploadText(fileName: string, scenario?: string): string | null {
  * Live: upload the content as a new version of `file_name` in the package folder through the Box adapter
  * (the shared logic of scripts/upload-v3.ts), then submit. Refuses an upload while a run is active.
  */
-export async function uploadVersion(req: UploadVersionRequest, o: SubmitOptions = {}): Promise<SubmitResponse & { done?: Promise<RunRecord>; upload?: { uploaded: boolean; fileId: string; versionId?: string } }> {
+export async function uploadVersion(
+  req: UploadVersionRequest,
+  o: SubmitOptions = {},
+): Promise<SubmitResponse & { done?: Promise<RunRecord>; upload?: { uploaded: boolean; fileId: string; versionId?: string }; warnings?: { code: string; message: string }[] }> {
   const c = getConfig();
   if (!req.file_name || typeof req.file_name !== "string") throw new ServiceError("FILE_NAME_REQUIRED", "upload-version needs file_name", 400);
   if (c.mockMode) return submit({ scenario: (req.scenario ?? "architecture_v3") as SubmitRequest["scenario"], fileName: req.file_name, fileId: req.file_id }, o);
-  const s = store();
-  const active = Object.values(s.data.runs).find((r) => !r.done);
-  if (active) throw new ServiceError("RUN_ACTIVE", `run ${active.run_id} is still running`, 409);
-  const text = req.content_base64 !== undefined ? Buffer.from(req.content_base64, "base64").toString("utf8") : fixtureUploadText(req.file_name, req.scenario);
-  let upload: { uploaded: boolean; fileId: string; versionId?: string } | undefined;
-  if (text !== null) {
-    const a = await adapters();
-    const box = a.box as unknown as import("./box/upload").UploadBox;
-    if (typeof (box as { uploadFileVersion?: unknown }).uploadFileVersion !== "function") throw new ServiceError("UPLOAD_UNSUPPORTED", "the live Box adapter cannot upload file versions", 500);
-    const { uploadNewVersion, readBoxMapFile, writeBoxMapFile } = await import("./box/upload");
-    try {
-      const r = await uploadNewVersion(box, c.box.folderId, req.file_name, readBoxMapFile(), {
-        text,
-        note: FIXTURE_UPLOAD_NOTE[req.file_name] ?? "Uploaded from Keel",
-        saveMap: (m) => writeBoxMapFile(m),
-        fileId: req.file_id,
-        ...(req.file_name === "architecture.md" && req.content_base64 === undefined ? { fixtureVersionId: "1801102233" } : {}),
-      });
-      upload = { uploaded: r.uploaded, fileId: r.fileId, versionId: r.versionId };
-    } catch (err) {
-      throw new ServiceError("UPLOAD_FAILED", err instanceof Error ? err.message : String(err), 502);
+  // Raw bytes all the way to Box (Codex 1): never decoded to a string.
+  const content: Buffer | null = req.content_base64 !== undefined ? Buffer.from(req.content_base64, "base64") : (() => {
+    const t = fixtureUploadText(req.file_name, req.scenario);
+    return t === null ? null : Buffer.from(t, "utf8");
+  })();
+  const r = await withAdmission(async () => {
+    const s = store();
+    const active = Object.values(s.data.runs).find((x) => !x.done);
+    if (active) throw new ServiceError("RUN_ACTIVE", `run ${active.run_id} is still running`, 409);
+    let upload: { uploaded: boolean; fileId: string; versionId?: string } | undefined;
+    let warnings: { code: string; message: string }[] = [];
+    if (content !== null) {
+      const a = await adapters();
+      const box = a.box as unknown as import("./box/upload").UploadBox;
+      if (typeof (box as { uploadFileVersion?: unknown }).uploadFileVersion !== "function") throw new ServiceError("UPLOAD_UNSUPPORTED", "the live Box adapter cannot upload file versions", 500);
+      const { uploadNewVersion, readBoxMapFile, writeBoxMapFile, UploadTargetError } = await import("./box/upload");
+      let map = null;
+      try {
+        map = readBoxMapFile();
+      } catch (err) {
+        warnings.push({ code: "MAP_READ_FAILED", message: `box-map.json unreadable, resolved by name: ${err instanceof Error ? err.message : String(err)}` });
+      }
+      try {
+        // The current version is re-read inside admission, so the identical-content check cannot race another upload.
+        const u = await uploadNewVersion(box, c.box.folderId, req.file_name, map, {
+          content,
+          note: FIXTURE_UPLOAD_NOTE[req.file_name] ?? "Uploaded from Keel",
+          saveMap: (m) => writeBoxMapFile(m),
+          fileId: req.file_id,
+          ...(req.file_name === "architecture.md" && req.content_base64 === undefined ? { fixtureVersionId: "1801102233" } : {}),
+        });
+        upload = { uploaded: u.uploaded, fileId: u.fileId, versionId: u.versionId };
+        warnings = [...warnings, ...(u.warnings ?? [])];
+      } catch (err) {
+        if (err instanceof UploadTargetError) throw new ServiceError(err.code, err.message, 409);
+        throw new ServiceError("UPLOAD_FAILED", err instanceof Error ? err.message : String(err), 502);
+      }
+      refreshFolderItems(c.box.folderId, true);
     }
-    refreshFolderItems(c.box.folderId, true);
-  }
-  const res = await submit({ fileId: upload?.fileId ?? req.file_id, fileName: req.file_name }, o);
-  return { ...res, ...(upload ? { upload } : {}) };
+    // Codex 14: once Box holds the new version, the review starts even if a note or the local map failed.
+    const res = await submitAdmitted({ fileId: upload?.fileId ?? req.file_id, fileName: req.file_name }, o);
+    return { ...res, ...(upload ? { upload } : {}), ...(warnings.length ? { warnings } : {}) };
+  });
+  if (o.wait) await r.done;
+  return r;
 }
 
 // ------------------------------------------------------------------------------------------------

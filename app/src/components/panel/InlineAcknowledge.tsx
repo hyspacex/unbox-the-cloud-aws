@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { ActionResponse, FindingCard } from "@/lib/types";
 import { api } from "@/lib/client";
 import { ErrorLine, InlineExpand } from "./Inline";
-import { C, btnPrimary, errorText, fieldClass } from "./parts";
+import { C, btnPrimary, errorText, fieldClass, useActionRunner } from "./parts";
 
 /**
  * Inline Acknowledge (design 2.4, SEC-ARCH-05). The paragraph is the engine's verdict line; the note is optional.
@@ -12,6 +12,7 @@ import { C, btnPrimary, errorText, fieldClass } from "./parts";
  */
 export function InlineAcknowledge({ card, disabled, onFinal }: { card: FindingCard; disabled?: boolean; onFinal: (r: ActionResponse) => Promise<void> }) {
   const [note, setNote] = useState("");
+  const runAction = useActionRunner();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -19,13 +20,13 @@ export function InlineAcknowledge({ card, disabled, onFinal }: { card: FindingCa
     setBusy(true);
     setErr(null);
     try {
-      const r = await api.action({
+      const r = await runAction(() => api.action({
         finding_id: card.finding.finding_id,
         control_id: card.finding.control_id,
         decision_snapshot_id: card.finding.snapshot_id,
         action: "acknowledge",
         ...(note.trim() ? { message: note.trim() } : {}),
-      });
+      }));
       if (r.result === "rejected") {
         setErr(r.explanation ?? "Rejected. Nothing was recorded.");
         return;

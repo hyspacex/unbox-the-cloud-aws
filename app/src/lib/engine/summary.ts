@@ -36,10 +36,12 @@ export function acknowledgmentOn(store: Store, controlId: string, snapshotId: st
 }
 
 /** Row-level view used by the counts: a public row plus whether a human acknowledgment is recorded on its snapshot. */
-type RowLike = Pick<ControlRow, "control_id" | "status" | "severity" | "evidencing">;
+type RowLike = Pick<ControlRow, "control_id" | "status" | "severity" | "evidencing" | "needs_decision" | "decision_recorded">;
 
 /** A human decision recorded on the row's snapshot: a disposition shown by the row, or an acknowledgment. */
 export function recordedOnRow(row: RowLike, acknowledged: boolean): boolean {
+  // Codex 23: a recorded row flag (a run's outcome) is authoritative; never re-derived from the live ledger.
+  if (row.decision_recorded !== undefined) return row.decision_recorded;
   if (DISPOSITION_KINDS.includes(row.status.kind)) return true;
   if (acknowledgedHolds(row)) return true; // judge A1: an acknowledged rule-11 row reads rule 10 with the acknowledgment
   return row.status.kind === "acknowledge" && acknowledged;
@@ -50,6 +52,7 @@ export function acknowledgedHolds(row: Pick<ControlRow, "status">): boolean {
   return row.status.kind === "verified_holds" && /^Acknowledged by /.test(row.status.detail ?? "");
 }
 export function needsDecisionOnRow(row: RowLike, acknowledged: boolean): boolean {
+  if (row.needs_decision !== undefined) return row.needs_decision;
   return OPEN_DECISION_KINDS.includes(row.status.kind) && !recordedOnRow(row, acknowledged);
 }
 
@@ -119,6 +122,56 @@ export function openDecisionsFromRows(rows: RowLike[], acknowledged: (controlId:
   return rows.filter((r) => needsDecisionOnRow(r, acknowledged(r.control_id))).length;
 }
 
+// ------------------------------------------------------------------------------------------------
+// Display sentences for the panel and the Box page (Codex 15, 16, 18): the UI renders, never composes
+// ------------------------------------------------------------------------------------------------
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const filtered = (t: string, fallback: string) => (bannedWords(t).length ? fallback : t);
+
+/**
+ * Panel header line: baseline (no run on this snapshot) "8 verifications hold"; pending "Re-checking 8 controls…";
+ * after a run "Re-checked 8 controls" or "Re-checked 6 controls · 2 not evaluated".
+ */
+export function headerLine(rows: RowLike[], evaluationState: "pending" | "complete" | "error", baseline: boolean): string {
+  const n = rows.length;
+  if (evaluationState === "pending") return filtered(`Re-checking ${plural(n, "control")}…`, "Re-checking…");
+  const notEval = rows.filter((r) => r.status.kind === "not_evaluated").length;
+  if (baseline && !notEval) {
+    const holds = rows.filter((r) => r.status.kind === "verified_holds").length;
+    if (holds === n) return filtered(`${n} ${n === 1 ? "verification holds" : "verifications hold"}`, "Every verification holds");
+  }
+  const evaluated = n - notEval;
+  return filtered(`Re-checked ${plural(evaluated, "control")}${notEval ? ` · ${notEval} not evaluated` : ""}`, "Re-checked");
+}
+
+/** Rows in the collapsed holds list: a prior verification that holds, with no decision recorded on this snapshot. */
+export function holdRows<T extends RowLike>(rows: T[], acknowledged: (controlId: string) => boolean = () => false): T[] {
+  return rows.filter((r) => r.status.kind === "verified_holds" && !recordedOnRow(r, acknowledged(r.control_id)));
+}
+
+/** "5 verifications hold"; undefined when none. */
+export function holdsLine(rows: RowLike[], acknowledged: (controlId: string) => boolean = () => false): string | undefined {
+  const k = holdRows(rows, acknowledged).length;
+  return k ? `${k} ${k === 1 ? "verification holds" : "verifications hold"}` : undefined;
+}
+
+/** Files whose version differs from the prior snapshot's manifest (or that are new); removed files are named too. */
+export function changedFiles(snap: Snapshot, prior: Snapshot | undefined, label: (f: Snapshot["files"][number]) => string | undefined): { names: string[]; line: string } {
+  if (!prior) return { names: [], line: `snapshot ${snap.snapshot_id}` };
+  const changed = snap.files.filter((f) => prior.files.find((p) => p.fileId === f.fileId)?.versionId !== f.versionId);
+  const removed = prior.files.filter((p) => !snap.files.some((f) => f.fileId === p.fileId));
+  const parts = [...changed.map((f) => `${f.fileName}${label(f) ? ` ${label(f)}` : ""}`), ...removed.map((f) => `${f.fileName} removed`)];
+  return { names: [...changed.map((f) => f.fileName), ...removed.map((f) => f.fileName)], line: filtered(`${parts.length ? `${parts.join(", ")} · ` : ""}snapshot ${snap.snapshot_id}`, `snapshot ${snap.snapshot_id}`) };
+}
+
+/** Box row hover text: "Keel: 1 control needs your decision" / "Keel: every decision recorded"; undefined otherwise. */
+export function hoverLine(open: number, recorded: number): string | undefined {
+  if (open) return `Keel: ${open} ${open === 1 ? "control needs" : "controls need"} your decision`;
+  if (recorded) return "Keel: every decision recorded";
+  return undefined;
+}
+
 export interface FolderItemInfo {
   fileId: string;
   size?: number;
@@ -149,6 +202,9 @@ export function packageFiles(store: Store, snap: Snapshot, rows: RowWithState[],
       open_decisions: mine.filter((r) => needsDecision(store, r)).length,
       recorded_decisions: mine.filter((r) => hasRecordedDecision(store, r)).length,
     };
+  }).map((f) => {
+    const h = hoverLine(f.open_decisions, f.recorded_decisions);
+    return h ? { ...f, hover_line: h } : f;
   });
 }
 
@@ -170,9 +226,12 @@ export function packageFilesFromRows(store: Store, snap: Snapshot, rows: Control
       ...(text !== undefined ? { size_bytes: Buffer.byteLength(text, "utf8") } : {}),
       ...(v?.uploader ? { uploader: v.uploader } : {}),
       control_ids: mine.map((r) => r.control_id),
-      open_decisions: mine.filter((r) => r.needs_decision ?? needsDecisionOnRow(r, false)).length,
-      recorded_decisions: mine.filter((r) => r.decision_recorded ?? recordedOnRow(r, false)).length,
+      open_decisions: mine.filter((r) => needsDecisionOnRow(r, false)).length,
+      recorded_decisions: mine.filter((r) => recordedOnRow(r, false)).length,
     };
+  }).map((f) => {
+    const h = hoverLine(f.open_decisions, f.recorded_decisions);
+    return h ? { ...f, hover_line: h } : f;
   });
 }
 

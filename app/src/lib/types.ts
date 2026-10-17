@@ -577,6 +577,13 @@ export interface Trace {
     decision_summary?: string;
     /** Added (UI v4): the snapshot's files with per-file decision counts, as on PackageView (replay table and dots). */
     files?: PackageFile[];
+    /** Added (UI v4, Codex 16): the panel header line for the recorded rows. */
+    header_line?: string;
+    /** Added (UI v4, Codex 16): the holds list title for the recorded rows. */
+    holds_line?: string;
+    /** Added (UI v4, Codex 18): changed files and line versus the prior snapshot. */
+    changed_files?: string[];
+    changed_line?: string;
   };
   /** Added: for the trace's Done line ("6 re-checked, 2 not evaluated"). */
   summary?: { evaluated: number; not_evaluated: number };
@@ -656,6 +663,8 @@ export interface PackageFile {
   control_ids: string[]; // controls whose current evidencing file is this file
   open_decisions: number; // rows on this file whose displayed status needs a human
   recorded_decisions: number; // rows on this file with a human disposition on the current snapshot
+  /** Added (UI v4, Codex 16): Box row hover text, "Keel: 1 control needs your decision" / "Keel: every decision recorded". */
+  hover_line?: string;
 }
 
 export interface PackageView {
@@ -687,6 +696,16 @@ export interface PackageView {
   open_decisions?: number;
   /** Added (UI v4): computed sentence for the owl bubble, <= 12 words. */
   decision_summary?: string;
+  /** Added (UI v4, Codex 16): panel header, "Re-checked 8 controls" / "Re-checked 6 controls · 2 not evaluated" / "Re-checking 8 controls…" / "8 verifications hold". */
+  header_line?: string;
+  /** Added (UI v4, Codex 16): the collapsed holds list title, "5 verifications hold"; absent when none. */
+  holds_line?: string;
+  /** Added (UI v4, Codex 18): file names whose version differs from the prior snapshot's manifest (new or removed files included). */
+  changed_files?: string[];
+  /** Added (UI v4, Codex 18): "architecture.md v3 · snapshot S4"; baseline "snapshot S3". */
+  changed_line?: string;
+  /** Added (UI v4, Codex 15): the rule-1 status to show on rows while a run or replay is in flight (the UI never builds one). */
+  pending_status?: DisplayedStatus;
 }
 
 export interface FindingCard {
@@ -738,6 +757,11 @@ export interface FindingCard {
   pending_author_draft?: { reason: string; draft?: string; drafted_by?: string; task_id: string; snapshot_id?: string };
   /** Added (UI v4): one computed sentence for level 2; passes the wording filter. */
   verdict_line?: string;
+  /**
+   * Added (UI v4, Codex 15): why the "now" side of the quote pair has no sentence, when it has none.
+   * Distinguishes proven absence from not evaluated, unreadable, quarantined and pending. Absent when a quote is shown.
+   */
+  quote_pair_note?: string;
   /** Added (UI v4): present once a human disposition exists on the current snapshot. */
   receipt?: FindingReceipt | null;
 }

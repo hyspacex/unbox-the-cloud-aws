@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { ActionResponse, FindingCard } from "@/lib/types";
 import { api } from "@/lib/client";
 import { ErrorLine, InlineExpand } from "./Inline";
-import { C, DUR, EASE_OUT, btnPrimary, btnSmall, errorText, fieldClass, personName, prose } from "./parts";
+import { C, DUR, EASE_OUT, btnPrimary, btnSmall, errorText, fieldClass, personName, prose, useActionRunner } from "./parts";
 
 type PendingDraft = NonNullable<FindingCard["pending_author_draft"]>;
 type AwaitingResponse = ActionResponse & { awaiting_draft?: unknown; pending_author_draft?: PendingDraft | null };
@@ -29,6 +29,7 @@ export function InlineReturn({
   onFinal: (r: ActionResponse) => Promise<void>;
 }) {
   const rta = card.actions.return_to_author;
+  const runAction = useActionRunner();
   const resume = card.pending_author_draft ?? null;
   const [step, setStep] = useState<"reason" | "draft">(resume ? "draft" : "reason");
   const [reason, setReason] = useState("");
@@ -47,14 +48,14 @@ export function InlineReturn({
     setBusy(true);
     setErr(null);
     try {
-      const r = (await api.action({
+      const r = (await runAction(() => api.action({
         finding_id: card.finding.finding_id,
         control_id: card.finding.control_id,
         decision_snapshot_id: card.finding.snapshot_id,
         action: "return_to_author",
         reason: reason.trim(),
         due_at: rta.default_due_at,
-      })) as AwaitingResponse;
+      }))) as AwaitingResponse;
       if (r.result === "rejected") {
         setErr(r.explanation ?? "Rejected. Nothing was recorded as a disposition.");
         return;
@@ -91,14 +92,14 @@ export function InlineReturn({
     setBusy(true);
     setErr(null);
     try {
-      const r = await api.action({
+      const r = await runAction(() => api.action({
         finding_id: card.finding.finding_id,
         control_id: card.finding.control_id,
         decision_snapshot_id: decisionSnap,
         action: "approve_author_draft",
         author_message: message.trim(),
         due_at: rta.default_due_at,
-      });
+      }));
       if (r.result === "rejected") {
         setErr(r.explanation ?? "Rejected. Nothing was recorded as a disposition.");
         return;

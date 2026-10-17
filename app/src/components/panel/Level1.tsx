@@ -6,12 +6,13 @@ import type { ControlRow, FindingCard, PackageView } from "@/lib/types";
 import { api, peekFinding } from "@/lib/client";
 import { orderByAttention, orderById } from "@/lib/ui/order";
 import { useKeelState } from "@/components/KeelStateProvider";
+import { cardKeyOf } from "./Level2";
 import { C, CheckIcon, Chevron, DUR, EASE_OUT, RowChip, stableSeverity, SectionLabel, clampWords, isDecisionKind, isRecordedRow, toneColor } from "./parts";
 
 /** First-seen attention order per snapshot, kept for the session so recorded rows do not jump. */
 const SEEN_ORDER = new Map<string, string[]>();
 
-type CardInfo = { receipt?: FindingCard["receipt"]; severity?: string };
+type CardInfo = { receipt?: FindingCard["receipt"]; severity?: string; state: string };
 type Receipts = Record<string, CardInfo | undefined>;
 
 /**
@@ -28,10 +29,11 @@ function useReceipts(pkg: PackageView | null, skip: boolean): Receipts {
     Promise.all(
       rows.map(async (r) => {
         const cached = peekFinding(r.finding_id ?? r.control_id) ?? peekFinding(r.control_id);
-        if (cached && cached.finding.snapshot_id === pkg.snapshot.snapshot_id) return [r.control_id, { receipt: cached.receipt, severity: cached.finding.severity }] as const;
+        if (cached && cardKeyOf(cached.finding.snapshot_id, cached.row) === cardKeyOf(pkg.snapshot.snapshot_id, r))
+          return [r.control_id, { receipt: cached.receipt, severity: cached.finding.severity, state: cardKeyOf(pkg.snapshot.snapshot_id, r) }] as const;
         try {
           const c = await api.finding(r.control_id);
-          return [r.control_id, { receipt: c.receipt, severity: c.finding.severity }] as const;
+          return [r.control_id, { receipt: c.receipt, severity: c.finding.severity, state: cardKeyOf(pkg.snapshot.snapshot_id, c.row) }] as const;
         } catch {
           return [r.control_id, undefined] as const;
         }
@@ -42,21 +44,15 @@ function useReceipts(pkg: PackageView | null, skip: boolean): Receipts {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  return skip ? {} : receipts;
-}
-
-/** The file that changed on this snapshot: the highest version label, then the latest update. */
-function changedFile(pkg: PackageView): { name: string; version: string } | null {
-  if (!pkg.trace_run_id) return null;
-  const num = (v?: string) => Number((v ?? "").replace(/[^\d]/g, "")) || 0;
-  if (pkg.files?.length) {
-    const f = pkg.files
-      .slice()
-      .sort((a, b) => num(b.version_label) - num(a.version_label) || (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))[0];
-    return f ? { name: f.file_name, version: f.version_label ?? "" } : null;
+  if (skip || !pkg) return {};
+  const fresh: Receipts = {};
+  for (const r of pkg.rows) {
+    const info = receipts[r.control_id];
+    if (!info) continue;
+    // Severity is stable across states; a receipt is used only when the card saw this row state.
+    fresh[r.control_id] = info.state === cardKeyOf(pkg.snapshot.snapshot_id, r) ? info : { severity: info.severity, state: info.state };
   }
-  const f = pkg.snapshot.files.slice().sort((a, b) => num(b.versionLabel) - num(a.versionLabel))[0];
-  return f ? { name: f.fileName, version: f.versionLabel ?? "" } : null;
+  return fresh;
 }
 
 /** "SEC-ARCH-01 · 02 · 04": the shared prefix once, then the suffixes. */
@@ -76,10 +72,11 @@ export function Level1() {
   const groups = useMemo(() => {
     // Rule 1 while a re-check runs: every row reads Re-check pending with its prior label struck through,
     // even before the engine has marked the rows pending (the same transform the provider applies to replays).
+    // Rule 1 while a re-check runs: the engine's pending status (PackageView.pending_status), with the row's
+    // prior label struck through. No local rewrite of a status.
+    const pendingStatus = pkg?.pending_status;
     const rows = (pkg?.rows ?? []).map((r) =>
-      running && r.status.kind !== "pending_recheck"
-        ? { ...r, status: { ...r.status, rule: 1, kind: "pending_recheck" as const, label: "Re-check pending", struck: r.status.label, tone: "grey" as const } }
-        : r,
+      running && pendingStatus && r.status.kind !== "pending_recheck" ? { ...r, status: { ...pendingStatus, struck: r.status.label } } : r,
     );
     const pending = rows.filter((r) => r.status.kind === "pending_recheck");
     // decision_recorded wins over the kind: an acknowledged row may come back as rule 10 "Verified, holds".
@@ -116,22 +113,11 @@ export function Level1() {
     );
   }
 
-  const snap = pkg.snapshot.snapshot_id;
-  const changed = changedFile(pkg);
-  const n = pkg.rows.length;
-  const holdText = `${groups.holds.length} ${groups.holds.length === 1 ? "verification holds" : "verifications hold"}`;
-  const line1 = changed ? `${changed.name} ${changed.version} · snapshot ${snap}` : onlyHolds ? `snapshot ${snap} · ${holdText}` : `snapshot ${snap}`;
-  // Not evaluated comes from the engine's counts (keyed by displayed label); timing lives in How it was checked.
-  const notEvaluated = Object.entries(pkg.counts ?? {})
-    .filter(([label]) => /^not evaluated/i.test(label))
-    .reduce((a, [, v]) => a + (Number(v) || 0), 0);
-  const line2 = running
-    ? `Re-checking ${n} controls…`
-    : pkg.trace_run_id
-      ? notEvaluated > 0
-        ? `Re-checked ${n - notEvaluated} controls · ${notEvaluated} not evaluated`
-        : `Re-checked ${n} controls`
-      : null;
+  // Header and holds title are the engine's sentences (header_line, changed_line, holds_line). Only the bare
+  // snapshot id stands in for changed_line if an older server omits it.
+  const line1 = pkg.changed_line ?? `snapshot ${pkg.snapshot.snapshot_id}`;
+  const line2 = pkg.header_line ?? null;
+  const holdText = pkg.holds_line ?? null;
 
   const open = (r: ControlRow) => !locked && pushView({ kind: "control", controlId: r.control_id });
 
@@ -206,7 +192,7 @@ export function Level1() {
             aria-expanded={showHolds}
             onClick={() => setHoldsOpen(!showHolds)}
           >
-            <span>{holdText}</span>
+            <span>{holdText ?? idLine(groups.holds.map((r) => r.control_id))}</span>
             <Chevron dir={showHolds ? "up" : "down"} size={13} />
           </button>
           <AnimatePresence initial={false}>

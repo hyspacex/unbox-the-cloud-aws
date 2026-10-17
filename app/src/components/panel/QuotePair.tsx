@@ -55,7 +55,8 @@ export function QuotePair({ card }: { card: FindingCard }) {
             <Quote>{nowQuote}</Quote>
           )
         ) : (
-          <Muted>No sentence in the current snapshot supports this control.</Muted>
+          // The engine says why there is no current sentence (quote_pair_note); the panel draws no conclusion.
+          card.quote_pair_note ? <Muted>{card.quote_pair_note}</Muted> : null
         )}
       </Block>
     </section>

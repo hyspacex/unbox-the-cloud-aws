@@ -452,3 +452,310 @@ describe("judge A1: an acknowledgment ends rule 11", () => {
     svc.reset();
   });
 });
+
+// ------------------------------------------------------------------------------------------------
+// Codex round (app/.review/v4/codex-ui-review.md)
+// ------------------------------------------------------------------------------------------------
+
+import { uploadNewVersion } from "../src/lib/box/upload";
+import { RealBoxAdapter } from "../src/lib/box/real";
+import { readByteStream } from "box-typescript-sdk-gen/internal";
+import { UploadVersionSchema } from "../src/lib/upload-request";
+import { createHash } from "node:crypto";
+import os from "node:os";
+import path from "node:path";
+import fs from "node:fs";
+import { resetConfigCache } from "../src/lib/config";
+import { createMemoryStore, forgetStore } from "../src/lib/store";
+import { MockBoxAdapter } from "../src/lib/box/mock";
+import { MockEvaluator } from "../src/lib/agent/mock-evaluator";
+import { MockInputGate } from "../src/lib/agent/mock-gate";
+import { pendingStatus, shortStatus as shortOf, SHORT_FALLBACK } from "../src/lib/engine/display";
+import { verdictLine, searchCoverage, quotePairNote } from "../src/lib/engine/card";
+import { headerLine } from "../src/lib/engine/summary";
+
+const BINARY = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0xff, 0x80, 0x00, 0xc3, 0x28]);
+const sha1 = (b: Buffer) => createHash("sha1").update(b).digest("hex");
+
+function fakeUploadBox(o: { name?: string; parent?: string; currentSha1?: string; onUpload?: (b: Buffer | string) => void; noteError?: string } = {}) {
+  const uploads: (Buffer | string)[] = [];
+  return {
+    uploads,
+    box: {
+      fileInfo: async (id: string) => ({ currentVersionId: "cur", parentId: o.parent ?? "F", name: id === "OTHER" ? "runbook.md" : (o.name ?? "architecture.md") }),
+      findFileByName: async (_f: string, n: string) => ({ fileId: n === "architecture.md" ? "ARCH" : "OTHER", fileName: n, currentVersionId: "cur" }),
+      listFileVersions: async () => [{ versionId: "cur", createdAt: "", label: "v2", ...(o.currentSha1 ? { sha1: o.currentSha1 } : {}) }],
+      downloadVersionText: async () => ({ ok: true as const, text: "v2", sha256: "sha256:" + createHash("sha256").update("v2").digest("hex") }),
+      uploadFileVersion: async (fileId: string, _n: string, content: Buffer | string) => {
+        uploads.push(content);
+        o.onUpload?.(content);
+        return { fileId, versionId: "NEW", ...(o.noteError ? { note_error: o.noteError } : {}) };
+      },
+    },
+  };
+}
+
+describe("Codex 1: raw bytes reach Box unchanged", () => {
+  it("uploadNewVersion passes a Buffer through; identical raw content (sha1) is not re-uploaded", async () => {
+    const f = fakeUploadBox();
+    const r = await uploadNewVersion(f.box as never, "F", "architecture.md", null, { content: BINARY, note: "n", saveMap: () => undefined });
+    expect(r.uploaded).toBe(true);
+    expect(Buffer.isBuffer(f.uploads[0])).toBe(true);
+    expect((f.uploads[0] as Buffer).equals(BINARY)).toBe(true);
+    const same = fakeUploadBox({ currentSha1: sha1(BINARY) });
+    expect((await uploadNewVersion(same.box as never, "F", "architecture.md", null, { content: BINARY, note: "n", saveMap: () => undefined })).uploaded).toBe(false);
+    expect(same.uploads).toHaveLength(0);
+  });
+
+  it("RealBoxAdapter.uploadFileVersion streams the exact bytes (no UTF-8 round trip)", async () => {
+    let sent: Buffer | null = null;
+    const client = {
+      uploads: { uploadFileVersion: async (_id: string, body: { file: never }) => ((sent = await readByteStream(body.file)), { entries: [{ fileVersion: { id: "V9" } }] }) },
+      comments: { createComment: async () => { throw new Error("comments down"); } },
+    };
+    const a = new RealBoxAdapter({ developerToken: "x" }, { client: client as never });
+    const r = await a.uploadFileVersion("F1", "a.docx", BINARY, "note");
+    expect(sent!.equals(BINARY)).toBe(true);
+    expect(r.versionId).toBe("V9");
+    expect(r.note_error).toMatch(/comments down/); // Codex 14: the note failure does not fail the committed upload
+  });
+});
+
+describe("Codex 12: the target file is verified by parent and exact name", () => {
+  it("rejects a supplied id whose Box name differs; drops a mismatched map entry and resolves by name", async () => {
+    const f = fakeUploadBox();
+    await expect(uploadNewVersion(f.box as never, "F", "architecture.md", null, { content: BINARY, note: "n", saveMap: () => undefined, fileId: "OTHER" })).rejects.toMatchObject({ code: "FILE_ID_NAME_MISMATCH" });
+    expect(f.uploads).toHaveLength(0);
+    const map = { folderId: "F", created_at: "", files: { "architecture.md": { fixtureFileId: "x", fileId: "OTHER", versions: {}, labels: {} } } };
+    const saved: unknown[] = [];
+    const r = await uploadNewVersion(f.box as never, "F", "architecture.md", map, { content: BINARY, note: "n", saveMap: (m) => saved.push(JSON.parse(JSON.stringify(m))) });
+    expect(r.fileId).toBe("ARCH");
+    expect(saved.at(-1)).toMatchObject({ files: {} }); // the stale entry is gone
+    const wrongName = fakeUploadBox({ name: "renamed.md" });
+    await expect(uploadNewVersion(wrongName.box as never, "F", "architecture.md", null, { content: BINARY, note: "n", saveMap: () => undefined })).rejects.toMatchObject({ code: "FILE_ID_NAME_MISMATCH" });
+  });
+});
+
+describe("Codex 14: ancillary failures after a committed upload are warnings", () => {
+  it("map save and version note failures come back as warnings with uploaded: true", async () => {
+    const f = fakeUploadBox({ noteError: "429" });
+    const map = { folderId: "F", created_at: "", files: { "architecture.md": { fixtureFileId: "x", fileId: "ARCH", versions: {}, labels: {} } } };
+    const r = await uploadNewVersion(f.box as never, "F", "architecture.md", map, { content: BINARY, note: "n", saveMap: () => { throw new Error("EACCES"); } });
+    expect(r.uploaded).toBe(true);
+    expect(r.warnings!.map((w) => w.code).sort()).toEqual(["MAP_SAVE_FAILED", "VERSION_NOTE_FAILED"]);
+  });
+});
+
+describe("Codex 13: request validation", () => {
+  const ok = (b: unknown) => UploadVersionSchema.safeParse(b).success;
+  it("strict base64, size limits, no silent empty upload, no unknown keys", () => {
+    expect(ok({ file_name: "architecture.md" })).toBe(true);
+    expect(ok({ file_name: "architecture.md", content_base64: BINARY.toString("base64") })).toBe(true);
+    expect(ok({ file_name: "architecture.md", content_base64: "!!!!" })).toBe(false);
+    expect(ok({ file_name: "architecture.md", content_base64: "abc" })).toBe(false);
+    expect(ok({ file_name: "architecture.md", content_base64: "" })).toBe(false);
+    expect(ok({ file_name: "architecture.md", content_base64: "", allow_empty: true })).toBe(true);
+    expect(ok({ file_name: "" })).toBe(false);
+    expect(ok({ file_name: "../x.md" })).toBe(false);
+    expect(ok({ file_name: "architecture.md", extra: 1 })).toBe(false);
+    expect(ok({ file_name: "architecture.md", scenario: "bogus" })).toBe(false);
+    expect(ok({ file_name: "architecture.md", content_base64: "A".repeat(16 * 1024 * 1024) })).toBe(false);
+  });
+
+  it("the route maps schema errors to 400 codes and oversize bodies to 413", async () => {
+    vi.resetModules();
+    vi.doMock("next/server", () => ({ connection: async () => undefined }));
+    const { POST } = await import("../src/app/api/upload-version/route");
+    const post = (body: string, headers: Record<string, string> = {}) => POST(new Request("http://x/api/upload-version", { method: "POST", headers: { "content-type": "application/json", ...headers }, body }));
+    const bad = await post(JSON.stringify({ file_name: "architecture.md", content_base64: "!!!!" }));
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).error.code).toBe("BAD_CONTENT");
+    expect((await post("x".repeat(10), { "content-length": String(64 * 1024 * 1024) })).status).toBe(413);
+    vi.doUnmock("next/server");
+  });
+});
+
+describe("Codex 2: admission is serialized", () => {
+  it("two concurrent mock submits: exactly one is admitted", async () => {
+    svc.reset();
+    const rs = await Promise.allSettled([svc.uploadVersion({ file_name: "architecture.md" }), svc.uploadVersion({ file_name: "architecture.md" })]);
+    expect(rs.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const rejected = rs.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(["RUN_ACTIVE", "ALREADY_SUBMITTED"]).toContain(rejected.reason.code);
+    await (rs.find((r) => r.status === "fulfilled") as PromiseFulfilledResult<Awaited<ReturnType<typeof svc.uploadVersion>>>).value.done;
+    svc.reset();
+  });
+
+  it("live: two concurrent uploads write to Box once; the second sees the admitted run; bytes are unchanged", async () => {
+    const G = globalThis as unknown as { __keelLive?: Promise<unknown> };
+    const saved = { mock: process.env.MOCK_MODE, path: process.env.KEEL_STORE_PATH, live: G.__keelLive };
+    const storePath = path.join(os.tmpdir(), `keel-live-admission-${process.pid}-${Date.now()}.json`);
+    process.env.MOCK_MODE = "false";
+    process.env.KEEL_STORE_PATH = storePath;
+    process.env.KEEL_POLL_INTERVAL_MS = "0";
+    resetConfigCache();
+    forgetStore();
+    try {
+      const mem = createMemoryStore("mock");
+      const mock = new MockBoxAdapter(() => mem.data.mock_box!, () => {}, 0);
+      const writes: Buffer[] = [];
+      let gate!: () => void;
+      const hold = new Promise<void>((r) => (gate = r));
+      const box = Object.assign(mock, {
+        fileInfo: async (id: string) => {
+          const f = mem.data.mock_box!.files.find((x) => x.fileId === id)!;
+          return { currentVersionId: f.versions.at(-1)!.versionId, parentId: "318840021", name: f.fileName };
+        },
+        findFileByName: async (_f: string, n: string) => {
+          const f = mem.data.mock_box!.files.find((x) => x.fileName === n);
+          return f ? { fileId: f.fileId, fileName: n, currentVersionId: f.versions.at(-1)!.versionId } : undefined;
+        },
+        uploadFileVersion: async (fileId: string, name: string, content: Buffer) => {
+          await hold; // both requests would be past their checks here without the admission guard
+          writes.push(content);
+          const v = mock.uploadVersion(name, content.toString("latin1"), { comment: "test" });
+          return { fileId, versionId: v.versionId };
+        },
+      });
+      const evaluator = new MockEvaluator({ modelId: "m", inferenceProfile: "p", promptVersion: "v", promptHash: "h", timeScale: 0 });
+      G.__keelLive = Promise.resolve({ box, evaluator, gate: new MockInputGate(0.5, 0) });
+      const content_base64 = BINARY.toString("base64");
+      const a = svc.uploadVersion({ file_name: "architecture.md", content_base64 });
+      const b = svc.uploadVersion({ file_name: "architecture.md", content_base64 });
+      await new Promise((r) => setTimeout(r, 20));
+      gate();
+      const rs = await Promise.allSettled([a, b]);
+      expect(writes).toHaveLength(1);
+      expect(writes[0].equals(BINARY)).toBe(true);
+      const rej = rs.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      expect(rej).toHaveLength(1);
+      expect(rej[0].reason.code).toBe("RUN_ACTIVE");
+      const okr = (rs.find((r) => r.status === "fulfilled") as PromiseFulfilledResult<Awaited<ReturnType<typeof svc.uploadVersion>>>).value;
+      expect(okr.upload).toMatchObject({ uploaded: true });
+      await okr.done;
+    } finally {
+      process.env.MOCK_MODE = saved.mock ?? "true";
+      if (saved.path) process.env.KEEL_STORE_PATH = saved.path;
+      G.__keelLive = saved.live;
+      resetConfigCache();
+      forgetStore();
+      fs.rmSync(storePath, { force: true });
+    }
+  });
+});
+
+describe("Codex 17: shortStatus passes the wording filter", () => {
+  it("an interpolated file or reviewer name with reserved wording falls back to a neutral line", () => {
+    expect(shortOf({ kind: "needs_review_binding", label: "Needs review: evidence binding changed" }, "passed-controls.md")).toBe(SHORT_FALLBACK);
+    expect(shortOf({ kind: "verified", label: "Verified", secondary: "Verified by Compliant Bot, r, on x v1, t" })).toBe(SHORT_FALLBACK);
+    expect(shortOf({ kind: "needs_review_weakened", label: "Needs review: satisfied evidence missing" })).toBe(SHORT_FALLBACK);
+    clean(SHORT_FALLBACK);
+  });
+});
+
+describe("Codex 22: the verdict claims every file only with complete coverage", () => {
+  it("complete on the hero; incomplete coverage names the files checked and the files not read", async () => {
+    await runV3();
+    const s = svc.internals.store();
+    expect(searchCoverage(s, "S4", [["data-flow-and-classification.md", "runbook.md", "vendor-contract-summary.md", "approved-services-and-exceptions.md"]]).complete).toBe(true);
+    expect(searchCoverage(s, "S4", [["runbook.md"]]).complete).toBe(false);
+    const rows = (await import("../src/lib/engine/state")).buildRows(s, fixture.profile(), "S4");
+    const row = rows.find((r) => r.control_id === "SEC-ARCH-07")!;
+    const card = svc.getFindingCard("SEC-ARCH-07");
+    const step = { source: "boxai", startMs: 0, kind: "tool_call", tool: "box_ai_ask", label: "Box AI ask over 2 files, 0 cited statements", result: { cited_statements: 0 } } as TraceStep;
+    const line = verdictLine(row, card.finding, [step], null, () => 2, { complete: false, checked: ["architecture.md", "runbook.md"], not_read: ["vendor-contract-summary.md"] });
+    expect(line).toBe("4 of 5 clauses unsupported in the files checked: architecture.md and runbook.md. vendor-contract-summary.md was not read. Box AI found 0 citations across the other 2 files.");
+    expect(line).not.toMatch(/every file/);
+    clean(line);
+    svc.reset();
+  });
+
+  it("quarantine: the gated file is not read, so no row claims every file", async () => {
+    svc.reset();
+    await (await svc.submit({ scenario: "injection" })).done!;
+    expect(searchCoverage(svc.internals.store(), "S4", [["a"]]).not_read).toEqual(["runbook.md"]);
+    for (const r of svc.getPackageView().rows) expect(svc.getFindingCard(r.control_id).verdict_line).not.toMatch(/every file/);
+    svc.reset();
+  });
+});
+
+describe("Codex 23: outcome backfill honours the recorded row flags", () => {
+  it("a recorded decision_recorded flag counts as recorded without the live ledger", async () => {
+    const sub = await runV3();
+    const st = svc.internals.store().data.runs[sub.run_id].outcome!;
+    delete st.open_decisions;
+    delete st.decision_summary;
+    delete st.files;
+    for (const r of st.rows!) if (r.control_id !== "SEC-ARCH-07") { r.needs_decision = false; r.decision_recorded = r.control_id === "SEC-ARCH-05" || r.control_id === "SEC-ARCH-22"; }
+    // 05 keeps its recorded acknowledge label, but its flag says recorded: it must not count as open.
+    const o = svc.getRun(sub.run_id).outcome!;
+    expect(o.open_decisions).toBe(1);
+    expect(o.decision_summary).toBe("1 Critical needs your decision.");
+    expect(o.files!.find((f) => f.file_name === "architecture.md")!.open_decisions).toBe(1);
+    svc.reset();
+  });
+});
+
+describe("Codex 15/16/18: display strings from the API", () => {
+  it("header_line, holds_line, changed_files/changed_line, hover_line, pending_status across states", async () => {
+    svc.reset();
+    let pv = svc.getPackageView();
+    expect(pv.header_line).toBe("8 verifications hold");
+    expect(pv.holds_line).toBe("8 verifications hold");
+    expect(pv.changed_line).toBe("runbook.md v2 · snapshot S3");
+    expect(pv.files!.every((f) => f.hover_line === undefined)).toBe(true);
+    expect(pv.pending_status).toMatchObject({ rule: 1, kind: "pending_recheck", label: "Re-check pending", projection_code: "PENDING", tone: "grey", short: "Re-checking against the new snapshot" });
+    expect(pendingStatus()).toEqual(pv.pending_status);
+
+    const sub = await svc.submit({ scenario: "architecture_v3" });
+    await sub.done!;
+    pv = svc.getPackageView();
+    expect(pv.header_line).toBe("Re-checked 8 controls");
+    expect(pv.holds_line).toBe("5 verifications hold");
+    expect(pv.changed_files).toEqual(["architecture.md"]);
+    expect(pv.changed_line).toBe("architecture.md v3 · snapshot S4");
+    const hov = Object.fromEntries(pv.files!.map((f) => [f.file_name, f.hover_line]));
+    expect(hov["architecture.md"]).toBe("Keel: 2 controls need your decision");
+    expect(hov["runbook.md"]).toBe("Keel: 1 control needs your decision");
+    expect(hov["vendor-contract-summary.md"]).toBeUndefined();
+    const o = svc.getRun(sub.run_id).outcome!;
+    expect(o).toMatchObject({ header_line: "Re-checked 8 controls", holds_line: "5 verifications hold", changed_files: ["architecture.md"], changed_line: "architecture.md v3 · snapshot S4" });
+
+    const c7 = svc.getFindingCard("SEC-ARCH-07");
+    const d = await svc.draftAuthorMessage(c7.finding.finding_id, DANA_REASON);
+    await svc.act({ finding_id: c7.finding.finding_id, control_id: "SEC-ARCH-07", decision_snapshot_id: "S4", action: "return_to_author", reason: DANA_REASON, author_message: d.text });
+    await svc.act({ finding_id: "KEEL-2026-0408", control_id: "SEC-ARCH-22", decision_snapshot_id: "S4", action: "verify", reason: "ok" });
+    const c5 = svc.getFindingCard("SEC-ARCH-05");
+    await svc.act({ finding_id: c5.finding.finding_id, control_id: "SEC-ARCH-05", decision_snapshot_id: "S4", action: "acknowledge" });
+    pv = svc.getPackageView();
+    expect(pv.holds_line).toBe("5 verifications hold"); // the acknowledged 05 is in RECORDED, not in the holds list
+    expect(pv.files!.find((f) => f.file_name === "runbook.md")!.hover_line).toBe("Keel: every decision recorded");
+    expect(pv.files!.find((f) => f.file_name === "architecture.md")!.hover_line).toBe("Keel: every decision recorded");
+    for (const t of [pv.header_line!, pv.holds_line!, pv.changed_line!, ...pv.files!.flatMap((f) => (f.hover_line ? [f.hover_line] : []))]) clean(t);
+
+    svc.reset();
+    await (await svc.submit({ scenario: "injection" })).done!;
+    pv = svc.getPackageView();
+    expect(pv.header_line).toBe("Re-checked 6 controls · 2 not evaluated");
+    expect(pv.changed_line).toBe("runbook.md v3 · snapshot S4");
+    expect(headerLine(pv.rows, "pending", false)).toBe("Re-checking 8 controls…");
+    svc.reset();
+  });
+
+  it("quote_pair_note: absent for a shown quote; distinguishes quarantine, unreadable, pending and proven absence", async () => {
+    await runV3();
+    for (const id of ["SEC-ARCH-07", "SEC-ARCH-22", "SEC-ARCH-05"]) expect(svc.getFindingCard(id).quote_pair_note).toBeUndefined();
+    svc.reset();
+    await (await svc.submit({ scenario: "injection" })).done!;
+    expect(svc.getFindingCard("SEC-ARCH-22").quote_pair_note).toBe("The current file was withheld by the input gate, so no sentence was checked.");
+    svc.reset();
+    await (await svc.submit({ scenario: "unreadable" })).done!;
+    expect(svc.getFindingCard("SEC-ARCH-01").quote_pair_note).toBe("The current file could not be read, so no sentence was checked.");
+    const rows = (await import("../src/lib/engine/state")).buildRows(svc.internals.store(), fixture.profile(), "S4");
+    const r01 = rows.find((r) => r.control_id === "SEC-ARCH-01")!;
+    expect(quotePairNote({ ...r01, status: { ...r01.status, kind: "pending_recheck" } })).toBe("The re-check is still running; no current sentence yet.");
+    expect(quotePairNote({ ...r01, status: { ...r01.status, kind: "needs_review_absent" }, state: { ...r01.state, machine_assessment: "evidence_absent", evaluation_state: "complete" } })).toBe("No sentence in the current snapshot supports this control.");
+    for (const r of rows) clean(quotePairNote(r));
+    svc.reset();
+  });
+});

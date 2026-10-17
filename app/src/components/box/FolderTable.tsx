@@ -19,9 +19,9 @@ const COLS = "box-grid";
 
 /** The Box folder list: breadcrumb, toolbar, and the file table driven by GET /api/package `files`. */
 export function FolderTable() {
-  const { pkg, pkgError, busy, isMock, uploadVersion, upload, uploadError, dismissUploadError } = useKeelState();
-  /** The chooser is open for this target file (null closed). */
-  const [chooser, setChooser] = useState<string | null>(null);
+  const { pkg, pkgError, busy, isMock, uploadVersion, upload, uploadError, uploadWarning, dismissUploadError, replay } = useKeelState();
+  /** The chooser is open for this target file (null closed), with the control that opened it for focus return. */
+  const [chooser, setChooser] = useState<{ target: string; opener: string } | null>(null);
   const [details, setDetails] = useState(false);
   const files = pkg?.files;
 
@@ -44,7 +44,7 @@ export function FolderTable() {
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <BoxDropdown label="New" variant="primary" items={[{ label: "Folder" }, { label: "Box Note" }, { label: "Box Canvas" }]} />
-            <UploadMenu disabled={busy || !files} onNewVersion={() => setChooser("architecture.md")} />
+            <UploadMenu disabled={busy || !files} onNewVersion={() => setChooser({ target: "architecture.md", opener: '[data-testid="upload-menu"]' })} />
             <button
               type="button"
               aria-label="Details"
@@ -58,7 +58,7 @@ export function FolderTable() {
           </div>
         </div>
 
-        <Toast text={uploadError} onClose={dismissUploadError} />
+        <Toast text={uploadError ?? uploadWarning} tone={uploadError ? "error" : "warning"} onClose={dismissUploadError} />
 
         <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-24">
           <div className="box-table" role="table" aria-label="Files">
@@ -85,7 +85,7 @@ export function FolderTable() {
                 upload={upload?.file_name === f.file_name ? upload : null}
                 // Mock: only architecture.md has a prepared new version. Live: every file can take one.
                 canUploadVersion={!busy && (!isMock || f.file_name === "architecture.md")}
-                onUploadVersion={() => setChooser(f.file_name)}
+                onUploadVersion={() => setChooser({ target: f.file_name, opener: `[data-testid="row-menu-${f.file_name}"]` })}
               />
             ))
           ) : pkgError ? (
@@ -98,12 +98,13 @@ export function FolderTable() {
       </section>
 
       <AnimatePresence initial={false}>
-        {details ? <DetailsPane key="details" pkg={pkg} folderName={FOLDER} onClose={() => setDetails(false)} /> : null}
+        {details ? <DetailsPane key="details" pkg={pkg} folderName={FOLDER} onClose={() => setDetails(false)} replayRunId={replay?.runId ?? null} /> : null}
       </AnimatePresence>
 
       <UploadChooser
         open={chooser !== null}
-        initialTarget={chooser ?? undefined}
+        initialTarget={chooser?.target}
+        openerSelector={chooser?.opener}
         isMock={isMock}
         files={files ?? []}
         onClose={() => setChooser(null)}
@@ -135,11 +136,9 @@ function SkeletonRows() {
   );
 }
 
-/** Hover text for the row dot, from the file's computed counts. */
+/** Hover text and accessible name for the row dot: the API's `hover_line` only (the UI composes no count). */
 function dotTitle(f: PackageFile): string | null {
-  if (f.open_decisions > 0) return `Keel: ${f.open_decisions} control${f.open_decisions === 1 ? " needs" : "s need"} your decision`;
-  if (f.recorded_decisions > 0) return `Keel: ${f.recorded_decisions} decision${f.recorded_decisions === 1 ? "" : "s"} recorded on this file`;
-  return null;
+  return f.hover_line ?? null;
 }
 
 /** "approved-services-and-exceptions.md" truncates on the stem and keeps ".md". */

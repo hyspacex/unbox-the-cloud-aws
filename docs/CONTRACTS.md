@@ -202,3 +202,45 @@ Examples: "Key-management evidence missing", "Same sentence, now in runbook.md",
 - **Unchanged.** The Confirm-finding fallback leaves a Needs review row as Needs review. A re-evaluation, such as a new snapshot, starts without the acknowledgment.
 - **Count line.** After the demo's three actions (return 07, verify 22, acknowledge 05) it reads "8 controls on snapshot S4: 6 Verified holds, 1 Verified, 1 Returned to author". The fixture's `expected_count_line_after` is still the line after the first two actions, "… 5 Verified holds, 1 Acknowledge (High), 1 Verified, 1 Returned to author".
 - `needs_decision` and `decision_recorded` behave as before. The acknowledgment receipt stays blue.
+
+**Round 5, Codex round (`app/.review/v4/codex-ui-review.md`).** All additive.
+
+*Upload route.*
+- **Raw bytes (Codex 1).** `content_base64` is decoded to a Buffer and passed unchanged through `uploadNewVersion` and `RealBoxAdapter.uploadFileVersion(fileId, name, content: string | Buffer, note?)`, with no string round trip.
+  The identical-content check compares raw hashes: Box's sha1 of the current version when known, else the sha256 of the downloaded bytes.
+- **Admission (Codex 2).** The active-run check, any Box upload, and the run's start up to snapshot capture are serialized under the lock key `admission:<folderId>`. This is a different key from the pipeline's package lock, so the two cannot deadlock.
+  `POST /api/submit` and `POST /api/upload-version` share this guard. A concurrent second request gets 409 `RUN_ACTIVE` or, in mock mode, `ALREADY_SUBMITTED`. The current version is re-read inside the guard.
+- **Target file (Codex 12).** A supplied or mapped file id is used only if Box reports both the package folder as parent and the exact `file_name`. A mismatched supplied id gets 409 `FILE_ID_NAME_MISMATCH`, and a mismatched map entry is dropped and the file resolved by name. Other target errors are 409 `FILE_NOT_FOUND` and `FILE_OUTSIDE_FOLDER`.
+- **Validation (Codex 13).** `src/lib/upload-request.ts` defines a strict zod schema; unknown keys are 400 `BAD_REQUEST`.
+  - `file_name` is a plain name of 1 to 255 characters, with no path separators.
+  - `file_id` must look like a Box id.
+  - `scenario` must be one of the submit scenarios.
+  - `content_base64` must be strict base64, encoding at most `KEEL_UPLOAD_MAX_BYTES` decoded bytes (default 10 MiB). An empty decoded file needs `allow_empty: true`.
+  - The body is limited to the encoded limit plus 16 KiB, else 413 `PAYLOAD_TOO_LARGE`.
+- **Partial success (Codex 14).** Once Box holds the new version, the review starts even when the version note or `box-map.json` failed. The response carries `upload: { uploaded, fileId, versionId? }` and `warnings: [{ code, message }]`, with codes `VERSION_NOTE_FAILED`, `MAP_SAVE_FAILED` and `MAP_READ_FAILED`.
+
+*Wording.*
+- **Short line (Codex 17).** `shortStatus()` output passes the banned-word filter. An offending interpolated name falls back to "Open the control for details".
+- **Verdict coverage (Codex 22).** `verdict_line` says "in every file of this snapshot" only when every pinned file was read, none were withheld, and the control's search covered all files except the primary one.
+  Otherwise it reads, for example: "4 of 5 clauses unsupported in the files checked: architecture.md and runbook.md. vendor-contract-summary.md was not read. Box AI found 0 citations across the other 2 files."
+- **Outcome backfill (Codex 23).** The read-time backfill of a recorded outcome honours the row flags `needs_decision` and `decision_recorded`, and never consults the live ledger.
+
+*Display strings (Codex 15, 16, 18).* The UI renders these and composes none of them.
+
+| Field | Examples |
+| --- | --- |
+| `PackageView.header_line` | "8 verifications hold" (baseline, no run on the snapshot) / "Re-checking 8 controls…" / "Re-checked 8 controls" / "Re-checked 6 controls · 2 not evaluated" |
+| `PackageView.holds_line` | "5 verifications hold". It counts rule-10 rows with no decision recorded, and is absent when there are none. |
+| `PackageView.changed_files` | `["architecture.md"]`. Names whose version differs from the prior snapshot's manifest; new and removed files are included. |
+| `PackageView.changed_line` | "architecture.md v3 · snapshot S4". It is "snapshot S1" when there is no prior snapshot. |
+| `PackageView.pending_status` | The rule-1 `DisplayedStatus` `{ rule: 1, kind: "pending_recheck", label: "Re-check pending", projection_code: "PENDING", tone: "grey", short: "Re-checking against the new snapshot" }`. The UI applies it to rows during a run or replay. |
+| `PackageFile.hover_line` | "Keel: 2 controls need your decision" / "Keel: 1 control needs your decision" / "Keel: every decision recorded". Absent when the file has no open or recorded decision. |
+| `FindingCard.quote_pair_note` | Set only when the "now" quote is null. "No sentence in the current snapshot supports this control." is used only for evidence_absent. |
+| `Trace.outcome.header_line`, `holds_line`, `changed_files`, `changed_line` | The same strings for the recorded rows. Older runs are backfilled on read. |
+
+The other `quote_pair_note` strings are:
+- "The current file was withheld by the input gate, so no sentence was checked."
+- "The current file could not be read, so no sentence was checked."
+- "This control was not evaluated on this snapshot, so no sentence was checked."
+- "The re-check is still running; no current sentence yet."
+- "No current sentence is bound to this control."

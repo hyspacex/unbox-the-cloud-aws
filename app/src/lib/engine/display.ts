@@ -10,6 +10,7 @@
  */
 import type { DisplayedStatus, DisplayInputs, DisplayKind, ProjectionCode, Severity } from "../types";
 import { norm } from "./normalize";
+import { bannedWords } from "./wording";
 
 export interface DisplayOptions {
   now?: Date;
@@ -189,8 +190,13 @@ export function shortStatus(s: Pick<DisplayedStatus, "kind" | "label" | "detail"
     default:
       out = s.label;
   }
-  return capWords(out, SHORT_MAX_WORDS);
+  // Codex 17: file and reviewer names are interpolated, so the line passes the wording filter too.
+  const capped = capWords(out, SHORT_MAX_WORDS);
+  return bannedWords(capped).length ? SHORT_FALLBACK : capped;
 }
+
+/** Neutral short line when an interpolated name would put reserved wording on the row. */
+export const SHORT_FALLBACK = "Open the control for details";
 
 /** Spec 4, the sixteen ordered rules. First match wins. */
 export function displayStatus(i: DisplayInputs, o: DisplayOptions = {}): DisplayedStatus {
@@ -350,3 +356,19 @@ export function displayedCounts(rows: { status: DisplayedStatus }[]): Record<str
 
 /** Kinds that need a reviewer's attention (one Box review task each, spec 3 step 11). */
 export const NEEDS_REVIEW_KINDS: DisplayKind[] = ["needs_review_weakened", "needs_review_absent", "needs_review_conflict", "needs_review_binding", "acknowledge"];
+
+/** Rule 1 on its own, for rows while a run or a replay is in flight (Codex 15: the UI never builds a status). */
+export function pendingStatus(): DisplayedStatus {
+  return displayStatus({
+    current_snapshot_id: "",
+    current_disposition: null,
+    prior_verification: null,
+    verification_holds: false,
+    acknowledgment_required: false,
+    machine_assessment: "not_evaluated",
+    change_classification: "none",
+    unsupported_clauses: [],
+    evaluation_state: "pending",
+    tier: "Medium",
+  });
+}

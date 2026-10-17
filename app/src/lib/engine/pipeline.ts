@@ -9,7 +9,7 @@
  * TraceStep with real timestamps and durations, tagged by source (app, box, decider, agent, boxai).
  */
 import { bubbleFor } from "./bubble";
-import { decisionFlags, decisionSummary, needsDecision, packageFiles } from "./summary";
+import { changedFiles, decisionFlags, decisionSummary, headerLine, holdsLine, needsDecision, packageFiles } from "./summary";
 import type { BoxAdapter } from "../box/adapter";
 import type { DiffHint, Evaluator, EvaluatorInput, EvaluatorResult, InputGate, SearchSnapshotTool } from "../agent/evaluator.types";
 import type { KeelConfig } from "../config";
@@ -309,6 +309,13 @@ async function runReviewSteps(ctx: PipelineContext, noteSnapshot: (id: string) =
           open_decisions: evalState === "pending" ? 0 : rows.filter((r) => needsDecision(store, r)).length,
           decision_summary: decisionSummary(store, rows, snapshotId, evalState),
           files: store.snapshot(snapshotId) ? packageFiles(store, store.snapshot(snapshotId)!, rows) : undefined,
+          header_line: headerLine(rows, evalState, false),
+          ...(() => {
+            const snapNow = store.snapshot(snapshotId);
+            const ch = snapNow ? changedFiles(snapNow, prevId ? store.snapshot(prevId) : undefined, (f) => f.versionLabel ?? store.versionLabel(f.fileId, f.versionId)) : undefined;
+            const holds = holdsLine(rows.map((r) => ({ ...r, ...decisionFlags(store, r) })));
+            return { ...(holds ? { holds_line: holds } : {}), ...(ch ? { changed_files: ch.names, changed_line: ch.line } : {}) };
+          })(),
           recorded_at: utcNow(),
           snapshot: store.snapshot(snapshotId),
         };
